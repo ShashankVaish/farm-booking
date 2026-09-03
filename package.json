@@ -1,0 +1,17 @@
+{
+  "name": "farmhouse-party-booking",
+  "private": true,
+  "description": "Indian marketplace for discovering and booking farmhouses, villas, and party venues.",
+  "scripts": {
+    "dev:api": "npm run start:dev --prefix apps/api",
+    "build:api": "npm run build --prefix apps/api",
+    "lint:api": "npm run lint --prefix apps/api",
+    "typecheck:api": "npm run typecheck --prefix apps/api",
+    "test:api": "npm test --prefix apps/api",
+    "test:api:e2e": "npm run test:e2e --prefix apps/api",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run prisma:migrate --prefix apps/api",
+    "db:generate": "npm run prisma:generate --prefix apps/api"
+  }
+}

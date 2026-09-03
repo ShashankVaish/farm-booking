@@ -1,0 +1,40 @@
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+apps/api/.env
+
+# Dependencies
+node_modules/
+apps/**/node_modules/
+
+# Build
+dist/
+build/
+coverage/
+.turbo
+.next/
+out/
+
+# Prisma
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Docker
+docker-data/
+
+# Test artifacts
+tmp/

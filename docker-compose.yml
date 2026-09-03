@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: farmhouse-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-farmhouse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-farmhouse_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-farmhouse}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-farmhouse} -d ${POSTGRES_DB:-farmhouse}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - farmhouse
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: farmhouse-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-farmhouse}:${POSTGRES_PASSWORD:-farmhouse_dev_password}@postgres:5432/${POSTGRES_DB:-farmhouse}?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      THROTTLE_TTL_MS: ${THROTTLE_TTL_MS:-60000}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
+      AUTH_THROTTLE_TTL_MS: ${AUTH_THROTTLE_TTL_MS:-60000}
+      AUTH_THROTTLE_LIMIT: ${AUTH_THROTTLE_LIMIT:-10}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ./apps/api/src:/app/src
+    networks:
+      - farmhouse
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+
+networks:
+  farmhouse:
+    driver: bridge
