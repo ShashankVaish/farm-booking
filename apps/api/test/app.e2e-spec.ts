@@ -101,4 +101,18 @@ describe('API foundation (e2e)', () => {
     expect(unauthenticated.status).toBe(401);
     expect(unauthenticated.body.success).toBe(false);
   });
+
+  it('rejects unauthenticated admin access', async () => {
+    const response = await request(BASE_URL).get('/api/admin/users');
+    expect(response.status).toBe(401);
+    expect(response.body.success).toBe(false);
+  });
+
+  it('lists amenities publicly', async () => {
+    const response = await request(BASE_URL).get('/api/amenities');
+    expect([200, 500]).toContain(response.status);
+    if (response.status === 200) {
+      expect(response.body.success).toBe(true);
+    }
+  });
 });

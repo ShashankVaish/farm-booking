@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { UserRoles } from '../../common/constants/roles';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ErrorCodes } from '../../common/constants/error-codes';
+import { randomUUID } from 'crypto';
 import type { AuthTokens, JwtPayload, RequestUser } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -145,6 +146,80 @@ export class AuthService {
     });
   }
 
+  async refresh(
+    refreshToken: string | undefined,
+    context: { userAgent?: string; ipAddress?: string },
+  ): Promise<{ user: RequestUser; tokens: AuthTokens }> {
+    if (!refreshToken) {
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.INVALID_REFRESH_TOKEN,
+        message: 'Refresh token is missing.',
+      });
+    }
+
+    const tokenHash = this.tokens.hashRefreshToken(refreshToken);
+    const existing = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            name: true,
+            isActive: true,
+          },
+        },
+      },
+    });
+
+    if (!existing) {
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.INVALID_REFRESH_TOKEN,
+        message: 'Refresh token is invalid.',
+      });
+    }
+
+    if (existing.revokedAt) {
+      await this.prisma.refreshToken.updateMany({
+        where: { familyId: existing.familyId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.REFRESH_TOKEN_REUSE,
+        message: 'Refresh token reuse was detected. Please sign in again.',
+      });
+    }
+
+    if (existing.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.INVALID_REFRESH_TOKEN,
+        message: 'Refresh token has expired.',
+      });
+    }
+
+    if (!existing.user.isActive) {
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.ACCOUNT_DISABLED,
+        message: 'This account has been disabled.',
+      });
+    }
+
+    const publicUser: RequestUser = {
+      id: existing.user.id,
+      email: existing.user.email,
+      role: existing.user.role,
+      name: existing.user.name,
+    };
+
+    const tokens = await this.issueTokens(publicUser, context, {
+      familyId: existing.familyId,
+      replacesId: existing.id,
+    });
+
+    return { user: publicUser, tokens };
+  }
+
   async me(userId: string): Promise<RequestUser & { phone: string | null }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -187,6 +262,7 @@ export class AuthService {
   private async issueTokens(
     user: RequestUser,
     context: { userAgent?: string; ipAddress?: string },
+    rotation?: { familyId: string; replacesId: string },
   ): Promise<AuthTokens> {
     const payload: JwtPayload = {
       sub: user.id,
@@ -197,15 +273,28 @@ export class AuthService {
     const accessToken = await this.tokens.signAccessToken(payload);
     const refreshToken = this.tokens.createRefreshToken();
     const tokenHash = this.tokens.hashRefreshToken(refreshToken);
+    const id = randomUUID();
+    const familyId = rotation?.familyId ?? randomUUID();
 
-    await this.prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        tokenHash,
-        expiresAt: new Date(Date.now() + REFRESH_COOKIE_MAX_AGE_MS),
-        userAgent: context.userAgent,
-        ipAddress: context.ipAddress,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      if (rotation) {
+        await tx.refreshToken.update({
+          where: { id: rotation.replacesId },
+          data: { revokedAt: new Date(), replacedById: id },
+        });
+      }
+
+      await tx.refreshToken.create({
+        data: {
+          id,
+          userId: user.id,
+          familyId,
+          tokenHash,
+          expiresAt: new Date(Date.now() + REFRESH_COOKIE_MAX_AGE_MS),
+          userAgent: context.userAgent,
+          ipAddress: context.ipAddress,
+        },
+      });
     });
 
     return { accessToken, refreshToken };
