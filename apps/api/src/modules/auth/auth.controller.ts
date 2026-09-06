@@ -7,11 +7,16 @@ import { AuthService } from './auth.service';
 import { REFRESH_TOKEN_COOKIE } from './auth.types';
 import type { RequestUser } from './auth.types';
 import { LoginDto } from './dto/login.dto';
+import { RequestOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { RegisterDto } from './dto/register.dto';
+import { OtpService } from './otp.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly otp: OtpService,
+  ) {}
 
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -70,6 +75,29 @@ export class AuthController {
     const cookies = request.cookies as Record<string, string> | undefined;
     const refreshToken = cookies?.[REFRESH_TOKEN_COOKIE];
     const result = await this.auth.refresh(refreshToken, this.context(request));
+    this.setRefreshCookie(response, result.tokens.refreshToken);
+    return {
+      user: result.user,
+      accessToken: result.tokens.accessToken,
+    };
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('otp/request')
+  requestOtp(@Body() dto: RequestOtpDto, @Req() request: Request) {
+    return this.otp.request(dto, { ipAddress: request.ip });
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 8, ttl: 60000 } })
+  @Post('otp/verify')
+  async verifyOtp(
+    @Body() dto: VerifyOtpDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.otp.verify(dto, this.context(request));
     this.setRefreshCookie(response, result.tokens.refreshToken);
     return {
       user: result.user,

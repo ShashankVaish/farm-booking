@@ -20,8 +20,8 @@ export class PaymentsController {
   }
 
   @Post('verify')
-  verify(@Body() dto: VerifyPaymentDto) {
-    return this.payments.verifyCheckout(dto);
+  verify(@CurrentUser() user: RequestUser, @Body() dto: VerifyPaymentDto) {
+    return this.payments.verifyCheckout(user, dto);
   }
 
   @Public()

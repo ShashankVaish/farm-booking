@@ -24,4 +24,14 @@ describe('wishlist uniqueness', () => {
       response: expect.objectContaining({ errorCode: 'CONFLICT' }),
     });
   });
+
+  it('rejects wishlist add for a missing property', async () => {
+    const prisma = {
+      property: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    const service = new WishlistService(prisma as never);
+    await expect(service.add('u1', 'missing')).rejects.toMatchObject({
+      response: expect.objectContaining({ errorCode: 'PROPERTY_NOT_FOUND' }),
+    });
+  });
 });

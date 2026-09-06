@@ -1,5 +1,8 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import {
+  CurrentUser,
+  CurrentUserOptional,
+} from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { normalizePagination } from '../../common/pagination';
@@ -23,8 +26,11 @@ export class BookingsController {
 
   @Public()
   @Post('quote')
-  quote(@Body() dto: QuoteBookingDto) {
-    return this.bookings.quote(dto);
+  quote(
+    @Body() dto: QuoteBookingDto,
+    @CurrentUserOptional() user?: RequestUser,
+  ) {
+    return this.bookings.quote(dto, user?.id);
   }
 
   @Roles(UserRoles.CUSTOMER)

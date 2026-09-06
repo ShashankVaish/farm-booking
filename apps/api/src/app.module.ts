@@ -13,13 +13,16 @@ import { AvailabilityModule } from './modules/availability/availability.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { HealthModule } from './modules/health/health.module';
+import { LocationsModule } from './modules/locations/locations.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { MediaModule } from './modules/media/media.module';
 import { OwnerModule } from './modules/owner/owner.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { SearchModule } from './modules/search/search.module';
+import { SupportModule } from './modules/support/support.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -43,6 +46,12 @@ import { PrismaModule } from './prisma/prisma.module';
               'password',
               'passwordHash',
               'req.body.password',
+              'req.body.code',
+              'req.body.otp',
+              'req.body.signature',
+              'TWILIO_AUTH_TOKEN',
+              'RAZORPAY_KEY_SECRET',
+              'GOOGLE_MAPS_API_KEY',
             ],
             remove: true,
           },
@@ -61,6 +70,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     HealthModule,
     AuthModule,
+    LocationsModule,
     PricingModule,
     NotificationsModule,
     CouponsModule,
@@ -74,6 +84,8 @@ import { PrismaModule } from './prisma/prisma.module';
     WishlistModule,
     OwnerModule,
     AdminModule,
+    SupportModule,
+    MediaModule,
   ],
   providers: [
     Logger,

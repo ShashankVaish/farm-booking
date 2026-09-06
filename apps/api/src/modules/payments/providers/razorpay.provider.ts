@@ -118,6 +118,57 @@ export class RazorpayProvider implements PaymentProvider {
     };
   }
 
+  async fetchOrder(providerOrderId: string): Promise<{
+    providerOrderId: string;
+    status: 'CREATED' | 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
+    providerPaymentId?: string;
+  } | null> {
+    const { keyId, keySecret } = this.requireKeys();
+    const response = await fetch(
+      `https://api.razorpay.com/v1/orders/${providerOrderId}`,
+      {
+        headers: { Authorization: this.basicAuth(keyId, keySecret) },
+      },
+    );
+    if (!response.ok) {
+      return null;
+    }
+    const order = (await response.json()) as {
+      id: string;
+      status?: string;
+    };
+    const paymentsResponse = await fetch(
+      `https://api.razorpay.com/v1/orders/${providerOrderId}/payments`,
+      {
+        headers: { Authorization: this.basicAuth(keyId, keySecret) },
+      },
+    );
+    const payments = paymentsResponse.ok
+      ? ((await paymentsResponse.json()) as {
+          items?: Array<{ id?: string; status?: string }>;
+        })
+      : { items: [] };
+    const captured = payments.items?.find(
+      (item) => item.status === 'captured' || item.status === 'authorized',
+    );
+    const failed = payments.items?.find((item) => item.status === 'failed');
+
+    if (order.status === 'paid' || captured) {
+      return {
+        providerOrderId: order.id,
+        status: 'SUCCESS',
+        providerPaymentId: captured?.id,
+      };
+    }
+    if (failed && order.status !== 'attempted') {
+      return { providerOrderId: order.id, status: 'FAILED' };
+    }
+    return {
+      providerOrderId: order.id,
+      status: order.status === 'attempted' ? 'PENDING' : 'CREATED',
+    };
+  }
+
   private requireKeys(): { keyId: string; keySecret: string } {
     const keyId = this.config.get<string>('RAZORPAY_KEY_ID');
     const keySecret = this.config.get<string>('RAZORPAY_KEY_SECRET');

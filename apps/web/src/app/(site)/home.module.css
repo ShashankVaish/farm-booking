@@ -1,26 +1,111 @@
 .hero {
-  padding: var(--space-12) 0 var(--space-16);
-  max-width: 40rem;
+  padding: var(--space-10) 0 var(--space-8);
+}
+
+.heroPanel {
+  padding: var(--space-8) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
 }
 
 .hero h1 {
   margin-top: var(--space-4);
+  max-width: 18ch;
 }
 
 .lead {
   margin-top: var(--space-5);
+  max-width: 38rem;
   color: var(--color-text-secondary);
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
+.searchWrap {
   margin-top: var(--space-8);
+}
+
+.destGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.destCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 7.5rem;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.reasons {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.reason {
+  padding: var(--space-5);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.ownerCta {
+  padding: var(--space-10) var(--space-5);
+  background: var(--color-primary);
+  color: var(--color-inverse);
+  border-radius: var(--radius-md);
+}
+
+.ownerCta h2,
+.ownerCta p {
+  color: var(--color-inverse);
+}
+
+.ownerCta p {
+  margin-top: var(--space-3);
+  max-width: 36rem;
+}
+
+.ownerActions {
+  margin-top: var(--space-6);
+}
+
+@media (min-width: 375px) {
+  .heroPanel {
+    padding: var(--space-10) var(--space-6);
+  }
 }
 
 @media (min-width: 768px) {
   .hero {
-    padding-top: var(--space-20);
+    padding-top: var(--space-16);
+  }
+
+  .destGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .reasons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .heroPanel {
+    padding: var(--space-16) var(--space-10);
+  }
+
+  .destGrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1440px) {
+  .hero h1 {
+    font-size: 3rem;
   }
 }

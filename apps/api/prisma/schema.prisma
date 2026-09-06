@@ -43,6 +43,7 @@ enum BookingStatus {
   CANCELLED
   COMPLETED
   FAILED
+  EXPIRED
   REFUNDED
 }
 
@@ -121,6 +122,7 @@ model User {
   supportTickets  SupportTicket[]
   refreshTokens   RefreshToken[]
   auditLogs       AuditLog[]
+  otpChallenges   OtpChallenge[]
 
   @@index([role])
   @@index([isActive])
@@ -151,6 +153,7 @@ model Property {
   city               String
   state              String
   country            String         @default("India")
+  pincode            String?
   address            String
   latitude           Decimal        @db.Decimal(10, 7)
   longitude          Decimal        @db.Decimal(10, 7)
@@ -167,6 +170,7 @@ model Property {
   averageRating      Decimal        @db.Decimal(3, 2) @default(0)
   reviewCount        Int            @default(0)
   status             PropertyStatus @default(DRAFT)
+  deletedAt          DateTime?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
@@ -191,6 +195,8 @@ model Property {
   @@index([status, averageRating])
   @@index([status, createdAt])
   @@index([latitude, longitude])
+  @@index([deletedAt])
+  @@index([pincode])
 }
 
 model PropertyImage {
@@ -395,15 +401,36 @@ model Coupon {
   minBookingAmount Decimal?     @db.Decimal(12, 2)
   startsAt         DateTime
   endsAt           DateTime
-  maxRedemptions   Int?
-  redemptionCount  Int          @default(0)
-  isActive         Boolean      @default(true)
+  maxRedemptions        Int?
+  maxRedemptionsPerUser Int?
+  redemptionCount       Int          @default(0)
+  isActive              Boolean      @default(true)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
   bookings Booking[]
 
   @@index([isActive, startsAt, endsAt])
+}
+
+model OtpChallenge {
+  id           String    @id @default(uuid())
+  phone        String
+  purpose      String
+  codeHash     String
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  attemptCount Int       @default(0)
+  lastSentAt   DateTime  @default(now())
+  ipAddress    String?
+  userId       String?
+  createdAt    DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([phone, purpose, createdAt])
+  @@index([expiresAt])
+  @@index([userId])
 }
 
 model RefreshToken {

@@ -102,6 +102,9 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
           </Link>
           {variant === 'default' ? (
             <span className={styles.desktopCta}>
+              <Button href="/auth/login" variant="ghost" size="sm">
+                Sign in
+              </Button>
               <Button href="/explore" size="sm">
                 Find a Stay
               </Button>

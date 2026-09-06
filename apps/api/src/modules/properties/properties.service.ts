@@ -11,6 +11,7 @@ import { paginated } from '../../common/pagination';
 import { slugify } from '../../common/slug';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { RequestUser } from '../auth/auth.types';
+import { assertValidCoordinates } from '../locations/geo';
 import {
   CreatePropertyDto,
   ListPropertiesQueryDto,
@@ -39,6 +40,8 @@ export class PropertiesService {
       });
     }
 
+    assertValidCoordinates(dto.latitude, dto.longitude);
+
     return this.prisma.property.create({
       data: {
         ownerId: user.role === UserRoles.ADMIN ? user.id : user.id,
@@ -50,6 +53,7 @@ export class PropertiesService {
         city: dto.city.trim(),
         state: dto.state.trim(),
         country: dto.country?.trim() || 'India',
+        pincode: dto.pincode,
         address: dto.address.trim(),
         latitude: dto.latitude,
         longitude: dto.longitude,
@@ -111,7 +115,7 @@ export class PropertiesService {
       include: publicInclude,
     });
 
-    if (!property) {
+    if (!property || property.deletedAt) {
       throw new NotFoundException({
         errorCode: ErrorCodes.PROPERTY_NOT_FOUND,
         message: 'Property not found.',
@@ -138,7 +142,13 @@ export class PropertiesService {
       assertPropertyStatusTransition(property.status, dto.status, user);
     }
 
-    const { amenityIds, status, ...rest } = dto;
+    const { amenityIds, status, images, ...rest } = dto;
+    if (rest.latitude !== undefined || rest.longitude !== undefined) {
+      assertValidCoordinates(
+        rest.latitude ?? Number(property.latitude),
+        rest.longitude ?? Number(property.longitude),
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       if (amenityIds) {
@@ -148,6 +158,22 @@ export class PropertiesService {
             data: amenityIds.map((amenityId) => ({
               propertyId: id,
               amenityId,
+            })),
+          });
+        }
+      }
+
+      if (images) {
+        await tx.propertyImage.deleteMany({ where: { propertyId: id } });
+        if (images.length > 0) {
+          await tx.propertyImage.createMany({
+            data: images.map((image, index) => ({
+              propertyId: id,
+              url: image.url,
+              publicId: image.publicId,
+              altText: image.altText,
+              sortOrder: image.sortOrder ?? index,
+              isCover: image.isCover ?? index === 0,
             })),
           });
         }
@@ -181,13 +207,16 @@ export class PropertiesService {
       });
     }
 
-    await this.prisma.property.delete({ where: { id } });
+    await this.prisma.property.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
     return { deleted: true };
   }
 
   async requireManaged(id: string, user: RequestUser) {
     const property = await this.prisma.property.findUnique({ where: { id } });
-    if (!property) {
+    if (!property || property.deletedAt) {
       throw new NotFoundException({
         errorCode: ErrorCodes.PROPERTY_NOT_FOUND,
         message: 'Property not found.',
@@ -208,10 +237,13 @@ export class PropertiesService {
     query: ListPropertiesQueryDto,
     user?: RequestUser,
   ): Prisma.PropertyWhereInput {
-    const where: Prisma.PropertyWhereInput = {};
+    const where: Prisma.PropertyWhereInput = { deletedAt: null };
 
     if (query.city) {
       where.city = { equals: query.city, mode: 'insensitive' };
+    }
+    if (query.state) {
+      where.state = { equals: query.state, mode: 'insensitive' };
     }
     if (query.propertyType) {
       where.propertyType = query.propertyType;

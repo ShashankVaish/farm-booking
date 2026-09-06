@@ -127,9 +127,127 @@
 
 @media (min-width: 768px) {
   .search {
-    grid-template-columns: 1.4fr 1fr 0.9fr auto;
-    align-items: end;
+    grid-template-columns: 1.3fr 1fr 1fr 0.8fr auto;
+    align-items: flex-end;
   }
+}
+
+.guestField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.guestLabel {
+  margin: 0;
+  font-size: var(--fs-caption);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.skeletonMedia {
+  aspect-ratio: 5 / 4;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+}
+
+.skeletonLine,
+.skeletonLineWide {
+  height: 0.75rem;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+}
+
+.skeletonLine {
+  width: 40%;
+}
+
+.skeletonLineWide {
+  width: 80%;
+}
+
+.wish[aria-pressed='true'] {
+  color: var(--color-accent);
+}
+
+.detailGrid {
+  display: grid;
+  gap: var(--space-8);
+}
+
+@media (min-width: 1024px) {
+  .detailGrid {
+    grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 0.9fr);
+    align-items: start;
+  }
+}
+
+.stickyBooking {
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-4));
+}
+
+.mobileReserve {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--gutter);
+  background: var(--color-surface-elevated);
+  border-top: 1px solid var(--color-border);
+}
+
+@media (min-width: 1024px) {
+  .mobileReserve {
+    display: none;
+  }
+}
+
+.amenityList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.mapFrame {
+  width: 100%;
+  min-height: 16rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-end;
+  margin: var(--space-6) 0;
+}
+
+.sectionHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.dayBlocked {
+  opacity: 0.35;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.dayBooked {
+  background: var(--color-accent-soft);
+  cursor: not-allowed;
 }
 
 .stepper {

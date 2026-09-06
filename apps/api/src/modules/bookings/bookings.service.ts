@@ -11,6 +11,7 @@ import { UserRoles } from '../../common/constants/roles';
 import {
   datesAreValidRange,
   enumerateNights,
+  isDateInPast,
   toUtcDateOnly,
 } from '../../common/dates';
 import { money } from '../../common/money';
@@ -41,10 +42,10 @@ export class BookingsService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  async quote(dto: QuoteBookingDto) {
+  async quote(dto: QuoteBookingDto, userId?: string) {
     const property = await this.requireApprovedProperty(dto.propertyId);
     this.assertStay(property.guestCapacity, dto);
-    const coupon = await this.resolveCoupon(dto.couponCode, dto);
+    const coupon = await this.resolveCoupon(dto.couponCode, dto, userId);
     const breakdown = this.pricing.quote({
       property,
       checkIn: dto.checkInDate,
@@ -70,7 +71,31 @@ export class BookingsService {
 
     const property = await this.requireApprovedProperty(dto.propertyId);
     this.assertStay(property.guestCapacity, dto);
-    const coupon = await this.resolveCoupon(dto.couponCode, dto);
+
+    const existingOpen = await this.prisma.booking.findFirst({
+      where: {
+        customerId: user.id,
+        propertyId: dto.propertyId,
+        checkInDate: toUtcDateOnly(dto.checkInDate),
+        checkOutDate: toUtcDateOnly(dto.checkOutDate),
+        status: {
+          in: [BookingStatus.PENDING, BookingStatus.PAYMENT_PENDING],
+        },
+      },
+    });
+    if (existingOpen) {
+      const coupon = await this.resolveCoupon(dto.couponCode, dto, user.id);
+      const breakdown = this.pricing.quote({
+        property,
+        checkIn: dto.checkInDate,
+        checkOut: dto.checkOutDate,
+        guestCount: dto.guestCount,
+        coupon,
+      });
+      return { booking: existingOpen, pricing: breakdown, idempotent: true };
+    }
+
+    const coupon = await this.resolveCoupon(dto.couponCode, dto, user.id);
     const breakdown = this.pricing.quote({
       property,
       checkIn: dto.checkInDate,
@@ -325,6 +350,12 @@ export class BookingsService {
         message: 'Check-out must be after check-in.',
       });
     }
+    if (isDateInPast(dto.checkInDate)) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.INVALID_DATE_RANGE,
+        message: 'Cannot book dates in the past.',
+      });
+    }
     if (dto.guestCount > guestCapacity) {
       throw new BadRequestException({
         errorCode: ErrorCodes.GUEST_CAPACITY_EXCEEDED,
@@ -343,7 +374,7 @@ export class BookingsService {
         message: 'Property not found.',
       });
     }
-    if (property.status !== PropertyStatus.APPROVED) {
+    if (property.status !== PropertyStatus.APPROVED || property.deletedAt) {
       throw new BadRequestException({
         errorCode: ErrorCodes.PROPERTY_NOT_APPROVED,
         message: 'This property is not available for booking.',
@@ -352,7 +383,11 @@ export class BookingsService {
     return property;
   }
 
-  private async resolveCoupon(code: string | undefined, dto: QuoteBookingDto) {
+  private async resolveCoupon(
+    code: string | undefined,
+    dto: QuoteBookingDto,
+    userId?: string,
+  ) {
     if (!code) {
       return null;
     }
@@ -374,7 +409,10 @@ export class BookingsService {
       .plus(preview.weekendAmount)
       .plus(preview.extraGuestAmount)
       .toFixed(2);
-    this.coupons.assertValid(coupon, subtotal);
+    const userRedemptions = userId
+      ? await this.coupons.countUserRedemptions(coupon.id, userId)
+      : 0;
+    this.coupons.assertValid(coupon, subtotal, new Date(), userRedemptions);
     return coupon;
   }
 }

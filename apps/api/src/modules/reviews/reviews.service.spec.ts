@@ -47,4 +47,23 @@ describe('review authorization', () => {
       response: expect.objectContaining({ errorCode: 'FORBIDDEN' }),
     });
   });
+
+  it('rejects a review when the stay is not completed', async () => {
+    const prisma = {
+      booking: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'b1',
+          propertyId: 'prop-1',
+          customerId: 'cust-1',
+          status: 'CONFIRMED',
+        }),
+      },
+    };
+    const service = new ReviewsService(prisma as never);
+    await expect(
+      service.create('prop-1', customer, { bookingId: 'b1', rating: 5 }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ errorCode: 'REVIEW_NOT_ALLOWED' }),
+    });
+  });
 });

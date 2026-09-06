@@ -1,4 +1,4 @@
-import { EmptyState } from '@/components/ui/feedback';
+import { WishlistView } from '@/components/hospitality/wishlist-view';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 
 export const metadata = buildPageMetadata({
@@ -9,13 +9,12 @@ export const metadata = buildPageMetadata({
 
 export default function WishlistPage() {
   return (
-    <section className="container" style={{ padding: '4rem 0' }}>
-      <EmptyState
-        title="No saved stays yet"
-        description="Wishlist behaviour will connect to the API later. This empty state is the reusable foundation."
-        actionHref="/explore"
-        actionLabel="Browse stays"
-      />
+    <section className="container" style={{ padding: 'var(--space-10) 0' }}>
+      <p className="t-label">Account</p>
+      <h1 className="t-h1">Saved stays</h1>
+      <div style={{ marginTop: 'var(--space-6)' }}>
+        <WishlistView />
+      </div>
     </section>
   );
 }

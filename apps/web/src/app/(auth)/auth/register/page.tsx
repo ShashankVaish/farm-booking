@@ -1,4 +1,6 @@
-import { RoutePlaceholder } from '@/components/layout/route-placeholder';
+import { Suspense } from 'react';
+import { RegisterForm } from '@/app/(auth)/auth/auth-forms';
+import { Spinner } from '@/components/ui/feedback';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 
 export const metadata = buildPageMetadata({
@@ -9,9 +11,8 @@ export const metadata = buildPageMetadata({
 
 export default function RegisterPage() {
   return (
-    <RoutePlaceholder
-      title="Create account"
-      description="Registration UI is deferred. The API already supports customer and owner registration."
-    />
+    <Suspense fallback={<Spinner label="Loading registration" />}>
+      <RegisterForm />
+    </Suspense>
   );
 }

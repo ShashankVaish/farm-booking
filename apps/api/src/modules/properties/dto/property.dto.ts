@@ -9,8 +9,9 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUrl,
   IsUUID,
+  Matches,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -18,7 +19,9 @@ import {
 import { PropertyStatus, PropertyType } from '@prisma/client';
 
 export class PropertyImageInputDto {
-  @IsUrl({ require_tld: false })
+  @Matches(/^(https?:\/\/\S+|\/uploads\/[A-Za-z0-9._-]+)$/, {
+    message: 'Image URL must be a hosted file or an uploaded media path.',
+  })
   url!: string;
 
   @IsOptional()
@@ -81,12 +84,20 @@ export class CreatePropertyDto {
   @MaxLength(500)
   address!: string;
 
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Pincode must be a 6-digit Indian PIN code.' })
+  pincode!: string;
+
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 7 })
+  @Min(-90)
+  @Max(90)
   latitude!: number;
 
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 7 })
+  @Min(-180)
+  @Max(180)
   longitude!: number;
 
   @Type(() => Number)
@@ -198,13 +209,22 @@ export class UpdatePropertyDto {
   address?: string;
 
   @IsOptional()
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Pincode must be a 6-digit Indian PIN code.' })
+  pincode?: string;
+
+  @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 7 })
+  @Min(-90)
+  @Max(90)
   latitude?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 7 })
+  @Min(-180)
+  @Max(180)
   longitude?: number;
 
   @IsOptional()
@@ -270,6 +290,11 @@ export class UpdatePropertyDto {
   @IsArray()
   @IsUUID('4', { each: true })
   amenityIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  images?: PropertyImageInputDto[];
 }
 
 export class ListPropertiesQueryDto {
@@ -288,6 +313,10 @@ export class ListPropertiesQueryDto {
   @IsOptional()
   @IsString()
   city?: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
 
   @IsOptional()
   @IsEnum(PropertyType)

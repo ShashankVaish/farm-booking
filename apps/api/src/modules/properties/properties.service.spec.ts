@@ -44,6 +44,7 @@ describe('property ownership authorization', () => {
           id: 'p1',
           ownerId: 'owner-1',
           status: 'DRAFT',
+          deletedAt: null,
         }),
       },
     };
@@ -52,5 +53,29 @@ describe('property ownership authorization', () => {
       NotFoundException,
     );
     await expect(service.getById('p1', owner)).resolves.toBeDefined();
+  });
+
+  it('rejects invalid map coordinates on create', async () => {
+    const service = new PropertiesService({} as never);
+    await expect(
+      service.create(owner, {
+        title: 'Farm',
+        description: 'A very long description for the listing.',
+        propertyType: 'FARMHOUSE',
+        location: 'Pune',
+        city: 'Pune',
+        state: 'Maharashtra',
+        address: 'Koregaon Park',
+        pincode: '411001',
+        latitude: 0,
+        longitude: 0,
+        guestCapacity: 8,
+        bedrooms: 3,
+        bathrooms: 2,
+        basePrice: 10000,
+      } as never),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ errorCode: 'INVALID_COORDINATES' }),
+    });
   });
 });

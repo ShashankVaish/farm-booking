@@ -83,6 +83,22 @@ export class SearchQueryDto {
   partyFriendly?: boolean;
 
   @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  partyAllowed?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  pool?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  minRating?: number;
+
+  @IsOptional()
   @IsIn(['recommended', 'price_asc', 'price_desc', 'rating', 'newest'])
   sort?: 'recommended' | 'price_asc' | 'price_desc' | 'rating' | 'newest';
 

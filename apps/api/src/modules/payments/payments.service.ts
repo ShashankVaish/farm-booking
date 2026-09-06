@@ -11,6 +11,7 @@ import {
   Prisma,
   RefundStatus,
 } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 import { ErrorCodes } from '../../common/constants/error-codes';
 import { UserRoles } from '../../common/constants/roles';
 import { moneyToPaise } from '../../common/money';
@@ -52,9 +53,12 @@ export class PaymentsService {
     private readonly notifications: NotificationsService,
     private readonly availability: AvailabilityService,
     private readonly pricing: PricingService,
+    private readonly config: ConfigService,
   ) {}
 
   async createOrder(user: RequestUser, dto: CreatePaymentOrderDto) {
+    await this.expireAbandoned(dto.bookingId);
+
     const booking = await this.prisma.booking.findUnique({
       where: { id: dto.bookingId },
       include: { customer: true, payments: true },
@@ -137,7 +141,27 @@ export class PaymentsService {
     };
   }
 
-  async verifyCheckout(dto: VerifyPaymentDto) {
+  async verifyCheckout(user: RequestUser, dto: VerifyPaymentDto) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { providerOrderId: dto.providerOrderId },
+      include: { booking: true },
+    });
+    if (!payment) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.NOT_FOUND,
+        message: 'Payment order not found.',
+      });
+    }
+    if (
+      payment.booking.customerId !== user.id &&
+      user.role !== UserRoles.ADMIN
+    ) {
+      throw new ForbiddenException({
+        errorCode: ErrorCodes.FORBIDDEN,
+        message: 'You cannot verify this payment.',
+      });
+    }
+
     const verified = await this.provider.verifyPayment(dto);
     if (!verified.verified) {
       await this.markFailed(
@@ -485,6 +509,82 @@ export class PaymentsService {
       return RefundStatus.FAILED;
     }
     return RefundStatus.PROCESSING;
+  }
+
+  async expireAbandoned(bookingId?: string): Promise<{ expired: number }> {
+    const minutes = this.config.get<number>('BOOKING_EXPIRE_MINUTES', 30);
+    const cutoff = new Date(Date.now() - minutes * 60 * 1000);
+    const stale = await this.prisma.booking.findMany({
+      where: {
+        ...(bookingId ? { id: bookingId } : {}),
+        status: {
+          in: [BookingStatus.PENDING, BookingStatus.PAYMENT_PENDING],
+        },
+        createdAt: { lt: cutoff },
+      },
+      include: { nights: true },
+    });
+
+    for (const booking of stale) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.bookingNight.deleteMany({ where: { bookingId: booking.id } });
+        await this.availability.releaseBooked(
+          tx as unknown as PrismaService,
+          booking.propertyId,
+          booking.nights.map((night) => night.date),
+        );
+        await tx.booking.update({
+          where: { id: booking.id },
+          data: { status: BookingStatus.EXPIRED },
+        });
+        await tx.payment.updateMany({
+          where: {
+            bookingId: booking.id,
+            status: { in: [PaymentStatus.CREATED, PaymentStatus.PENDING] },
+          },
+          data: { status: PaymentStatus.FAILED, failureReason: 'abandoned' },
+        });
+      });
+    }
+
+    return { expired: stale.length };
+  }
+
+  async reconcile(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+    if (!payment?.providerOrderId) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.NOT_FOUND,
+        message: 'Payment not found.',
+      });
+    }
+    if (payment.status === PaymentStatus.SUCCESS) {
+      return { payment, reconciled: true, idempotent: true };
+    }
+
+    if (!this.provider.fetchOrder) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.PAYMENT_PROVIDER_ERROR,
+        message: 'Payment reconciliation is not available.',
+      });
+    }
+
+    const remote = await this.provider.fetchOrder(payment.providerOrderId);
+    if (!remote) {
+      return { payment, reconciled: false };
+    }
+    if (remote.status === 'SUCCESS' && remote.providerPaymentId) {
+      return this.confirmSuccessfulPayment(
+        payment.providerOrderId,
+        remote.providerPaymentId,
+      );
+    }
+    if (remote.status === 'FAILED') {
+      return this.markFailed(payment.providerOrderId, 'reconciled-failed');
+    }
+    return { payment, remoteStatus: remote.status, reconciled: false };
   }
 
   private keyId(): string | null {

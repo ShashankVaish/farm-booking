@@ -33,3 +33,10 @@ export function datesAreValidRange(
 ): boolean {
   return toUtcDateOnly(checkIn) < toUtcDateOnly(checkOut);
 }
+
+export function isDateInPast(
+  date: Date | string,
+  now: Date | string = new Date(),
+): boolean {
+  return toUtcDateOnly(date) < toUtcDateOnly(now);
+}

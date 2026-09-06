@@ -7,11 +7,13 @@ const TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
     BookingStatus.PAYMENT_PENDING,
     BookingStatus.CANCELLED,
     BookingStatus.FAILED,
+    BookingStatus.EXPIRED,
   ],
   PAYMENT_PENDING: [
     BookingStatus.CONFIRMED,
     BookingStatus.FAILED,
     BookingStatus.CANCELLED,
+    BookingStatus.EXPIRED,
   ],
   CONFIRMED: [
     BookingStatus.CANCELLED,
@@ -21,6 +23,7 @@ const TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   CANCELLED: [BookingStatus.REFUNDED],
   COMPLETED: [],
   FAILED: [],
+  EXPIRED: [],
   REFUNDED: [],
 };
 

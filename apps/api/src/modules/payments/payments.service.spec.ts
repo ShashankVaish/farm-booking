@@ -45,20 +45,30 @@ describe('PaymentsService verification and webhook idempotency', () => {
       ),
     };
 
+    const config = { get: jest.fn().mockReturnValue(30) };
     const service = new PaymentsService(
       prisma as never,
       provider,
       notifications as never,
       availability as never,
       pricing as never,
+      config as never,
     );
 
     await expect(
-      service.verifyCheckout({
-        providerOrderId: 'order_1',
-        providerPaymentId: 'pay_1',
-        signature: 'bad',
-      }),
+      service.verifyCheckout(
+        {
+          id: 'c1',
+          email: 'c@x.com',
+          role: 'CUSTOMER',
+          name: 'C',
+        } as never,
+        {
+          providerOrderId: 'order_1',
+          providerPaymentId: 'pay_1',
+          signature: 'bad',
+        },
+      ),
     ).rejects.toMatchObject({
       response: expect.objectContaining({ errorCode: 'PAYMENT_NOT_VERIFIED' }),
     });
@@ -88,6 +98,7 @@ describe('PaymentsService verification and webhook idempotency', () => {
       notifications as never,
       availability as never,
       pricing as never,
+      { get: jest.fn() } as never,
     );
 
     const body = JSON.stringify({
@@ -104,5 +115,42 @@ describe('PaymentsService verification and webhook idempotency', () => {
     expect(first).toMatchObject({ idempotent: true });
     expect(second).toMatchObject({ idempotent: true });
     expect(availability.markBooked).not.toHaveBeenCalled();
+  });
+
+  it('forbids verifying another customer payment', async () => {
+    const prisma = {
+      payment: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'pay-row',
+          status: PaymentStatus.PENDING,
+          booking: { customerId: 'other-user' },
+        }),
+      },
+    };
+    const service = new PaymentsService(
+      prisma as never,
+      provider,
+      notifications as never,
+      availability as never,
+      pricing as never,
+      { get: jest.fn() } as never,
+    );
+    await expect(
+      service.verifyCheckout(
+        {
+          id: 'c1',
+          email: 'c@x.com',
+          role: 'CUSTOMER',
+          name: 'C',
+        } as never,
+        {
+          providerOrderId: 'order_1',
+          providerPaymentId: 'pay_1',
+          signature: 'sig',
+        },
+      ),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ errorCode: 'FORBIDDEN' }),
+    });
   });
 });

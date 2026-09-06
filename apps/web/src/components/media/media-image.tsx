@@ -41,6 +41,7 @@ export function MediaImage({
           fill
           sizes={sizes}
           priority={priority}
+          unoptimized={resolved.src.startsWith('http')}
           className={styles.image}
           style={{ objectPosition }}
         />

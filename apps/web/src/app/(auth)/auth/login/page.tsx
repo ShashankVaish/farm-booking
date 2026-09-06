@@ -1,4 +1,6 @@
-import { RoutePlaceholder } from '@/components/layout/route-placeholder';
+import { Suspense } from 'react';
+import { LoginForm } from '@/app/(auth)/auth/auth-forms';
+import { Spinner } from '@/components/ui/feedback';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 
 export const metadata = buildPageMetadata({
@@ -9,9 +11,8 @@ export const metadata = buildPageMetadata({
 
 export default function LoginPage() {
   return (
-    <RoutePlaceholder
-      title="Sign in"
-      description="Authentication screens will connect to the NestJS auth API later. This route exists so account links have a destination."
-    />
+    <Suspense fallback={<Spinner label="Loading sign in" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

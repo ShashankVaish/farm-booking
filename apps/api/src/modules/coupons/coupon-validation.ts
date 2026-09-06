@@ -20,9 +20,11 @@ export function validateCouponRules(
     | 'minBookingAmount'
     | 'maxRedemptions'
     | 'redemptionCount'
+    | 'maxRedemptionsPerUser'
   >,
   subtotal: string | number,
   now = new Date(),
+  userRedemptionCount = 0,
 ): void {
   if (!coupon.isActive) {
     throw new CouponValidationError(
@@ -45,6 +47,16 @@ export function validateCouponRules(
     throw new CouponValidationError(
       ErrorCodes.COUPON_LIMIT_REACHED,
       'This coupon has reached its redemption limit.',
+    );
+  }
+
+  if (
+    coupon.maxRedemptionsPerUser !== null &&
+    userRedemptionCount >= coupon.maxRedemptionsPerUser
+  ) {
+    throw new CouponValidationError(
+      ErrorCodes.COUPON_LIMIT_REACHED,
+      'You have already used this coupon the maximum number of times.',
     );
   }
 

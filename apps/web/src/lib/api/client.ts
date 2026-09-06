@@ -25,7 +25,10 @@ export function createApiClient(options: ClientOptions = {}) {
       ...requestOptions.headers,
     };
 
-    if (requestOptions.body !== undefined) {
+    const isFormData =
+      typeof FormData !== 'undefined' && requestOptions.body instanceof FormData;
+
+    if (requestOptions.body !== undefined && !isFormData) {
       headers['Content-Type'] = 'application/json';
     }
 
@@ -42,7 +45,12 @@ export function createApiClient(options: ClientOptions = {}) {
       response = await fetchImpl(url, {
         method: requestOptions.method ?? 'GET',
         headers,
-        body: requestOptions.body === undefined ? undefined : JSON.stringify(requestOptions.body),
+        body:
+          requestOptions.body === undefined
+            ? undefined
+            : isFormData
+              ? (requestOptions.body as FormData)
+              : JSON.stringify(requestOptions.body),
         signal: requestOptions.signal,
       });
     } catch {
@@ -79,6 +87,12 @@ export function createApiClient(options: ClientOptions = {}) {
       request<T>(path, { ...requestOptions, method: 'GET' }),
     post: <T>(path: string, body?: unknown, requestOptions?: Omit<RequestOptions, 'method' | 'body'>) =>
       request<T>(path, { ...requestOptions, method: 'POST', body }),
+    upload: <T>(path: string, body: FormData, requestOptions?: Omit<RequestOptions, 'method' | 'body'>) =>
+      request<T>(path, { ...requestOptions, method: 'POST', body }),
+    patch: <T>(path: string, body?: unknown, requestOptions?: Omit<RequestOptions, 'method' | 'body'>) =>
+      request<T>(path, { ...requestOptions, method: 'PATCH', body }),
+    delete: <T>(path: string, requestOptions?: Omit<RequestOptions, 'method' | 'body'>) =>
+      request<T>(path, { ...requestOptions, method: 'DELETE' }),
   };
 }
 
