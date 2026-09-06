@@ -8,6 +8,7 @@ describe('coupon validation', () => {
     minBookingAmount: '1000.00',
     maxRedemptions: 10,
     redemptionCount: 2,
+    maxRedemptionsPerUser: null,
   };
 
   it('accepts a valid coupon', () => {
@@ -38,6 +39,15 @@ describe('coupon validation', () => {
         { ...base, redemptionCount: 10 },
         '1500',
         new Date('2026-06-01'),
+      ),
+    ).toThrow();
+
+    expect(() =>
+      validateCouponRules(
+        { ...base, maxRedemptionsPerUser: 1 },
+        '1500',
+        new Date('2026-06-01'),
+        1,
       ),
     ).toThrow();
   });

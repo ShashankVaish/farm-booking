@@ -33,6 +33,11 @@ export function buildPageMetadata({
       locale: 'en_IN',
       type: 'website',
     },
+    twitter: {
+      card: 'summary_large_image',
+      title: fullTitle,
+      description,
+    },
     robots: noIndex ? { index: false, follow: false } : { index: true, follow: true },
   };
 }

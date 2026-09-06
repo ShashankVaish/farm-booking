@@ -40,6 +40,12 @@ export interface CreateRefundResult {
   providerStatus: string;
 }
 
+export interface FetchOrderResult {
+  providerOrderId: string;
+  status: PaymentIntentStatus;
+  providerPaymentId?: string;
+}
+
 export interface PaymentProvider {
   readonly name: string;
   createIntent(
@@ -48,6 +54,7 @@ export interface PaymentProvider {
   verifyPayment(input: VerifyPaymentInput): Promise<VerifyPaymentResult>;
   verifyWebhookSignature(rawBody: string, signature: string): boolean;
   createRefund(input: CreateRefundInput): Promise<CreateRefundResult>;
+  fetchOrder?(providerOrderId: string): Promise<FetchOrderResult | null>;
 }
 
 export const PAYMENT_PROVIDER = Symbol('PAYMENT_PROVIDER');

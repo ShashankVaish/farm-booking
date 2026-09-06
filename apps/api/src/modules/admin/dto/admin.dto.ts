@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -7,7 +8,12 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { BookingStatus, PropertyStatus, UserRole } from '@prisma/client';
+import {
+  BookingStatus,
+  PropertyStatus,
+  SupportTicketStatus,
+  UserRole,
+} from '@prisma/client';
 
 export class AdminListQueryDto {
   @IsOptional()
@@ -49,5 +55,27 @@ export class RejectPropertyDto {
   @IsOptional()
   @IsString()
   @MaxLength(1000)
+  reason?: string;
+}
+
+export class SetUserActiveDto {
+  @IsBoolean()
+  isActive!: boolean;
+}
+
+export class ModerateReviewDto {
+  @IsBoolean()
+  isPublished!: boolean;
+}
+
+export class UpdateSupportTicketDto {
+  @IsEnum(SupportTicketStatus)
+  status!: SupportTicketStatus;
+}
+
+export class AdminRefundDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
   reason?: string;
 }

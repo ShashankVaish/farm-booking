@@ -65,6 +65,7 @@ describe('BookingsService', () => {
       property: { findUnique: jest.fn().mockResolvedValue(property) },
       booking: {
         findUnique: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
         findMany: jest.fn(),
         count: jest.fn(),
         update: jest.fn(),
@@ -169,5 +170,35 @@ describe('BookingsService', () => {
     expect(result.booking.status).toBe(BookingStatus.CANCELLED);
     expect(availability.releaseBooked).toHaveBeenCalled();
     expect(notifications.notify).toHaveBeenCalled();
+  });
+
+  it('rejects stays that start in the past', async () => {
+    const { service } = setup();
+    await expect(
+      service.create(customer, {
+        propertyId: 'prop-1',
+        checkInDate: '2020-01-01',
+        checkOutDate: '2020-01-03',
+        guestCount: 2,
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ errorCode: 'INVALID_DATE_RANGE' }),
+    });
+  });
+
+  it('returns the existing open booking instead of creating a duplicate', async () => {
+    const { service, prisma } = setup();
+    prisma.booking.findFirst.mockResolvedValue({
+      id: 'existing',
+      status: BookingStatus.PENDING,
+    });
+    const result = await service.create(customer, {
+      propertyId: 'prop-1',
+      checkInDate: '2026-10-01',
+      checkOutDate: '2026-10-02',
+      guestCount: 2,
+    });
+    expect(result.idempotent).toBe(true);
+    expect(result.booking.id).toBe('existing');
   });
 });

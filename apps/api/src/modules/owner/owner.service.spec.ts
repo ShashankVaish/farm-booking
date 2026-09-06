@@ -17,7 +17,9 @@ describe('owner isolation', () => {
     await service.bookings('owner-1', 1, 20);
 
     expect(prisma.property.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { ownerId: 'owner-1' } }),
+      expect.objectContaining({
+        where: { ownerId: 'owner-1', deletedAt: null },
+      }),
     );
     expect(prisma.booking.findMany).toHaveBeenCalledWith(
       expect.objectContaining({

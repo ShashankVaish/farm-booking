@@ -5,7 +5,11 @@ import {
 } from '@nestjs/common';
 import { AvailabilityStatus } from '@prisma/client';
 import { ErrorCodes } from '../../common/constants/error-codes';
-import { enumerateNights, toUtcDateOnly } from '../../common/dates';
+import {
+  enumerateNights,
+  isDateInPast,
+  toUtcDateOnly,
+} from '../../common/dates';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PropertiesService } from '../properties/properties.service';
 import type { RequestUser } from '../auth/auth.types';
@@ -77,6 +81,12 @@ export class AvailabilityService {
         message: 'Check-out must be after check-in.',
       });
     }
+    if (isDateInPast(checkIn)) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.INVALID_DATE_RANGE,
+        message: 'Cannot book dates in the past.',
+      });
+    }
 
     const [blocked, booked] = await Promise.all([
       tx.availability.findMany({
@@ -108,6 +118,12 @@ export class AvailabilityService {
   async block(propertyId: string, user: RequestUser, dto: BlockDatesDto) {
     await this.properties.requireManaged(propertyId, user);
     const dates = dto.dates.map((value) => toUtcDateOnly(value));
+    if (dates.some((date) => isDateInPast(date))) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.INVALID_DATE_RANGE,
+        message: 'Cannot block dates in the past.',
+      });
+    }
 
     const booked = await this.prisma.bookingNight.findMany({
       where: { propertyId, date: { in: dates } },

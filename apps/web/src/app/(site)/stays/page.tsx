@@ -1,16 +1,12 @@
-import { RoutePlaceholder } from '@/components/layout/route-placeholder';
+import { redirect } from 'next/navigation';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 
 export const metadata = buildPageMetadata({
   title: 'Stays',
   path: '/stays',
+  description: 'Overnight farmhouses and villas for family weekends and private getaways.',
 });
 
 export default function StaysPage() {
-  return (
-    <RoutePlaceholder
-      title="Stays"
-      description="Overnight farmhouses and villas will be listed here. This route exists to lock navigation architecture."
-    />
-  );
+  redirect('/explore');
 }

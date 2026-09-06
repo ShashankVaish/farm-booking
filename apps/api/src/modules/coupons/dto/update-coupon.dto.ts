@@ -62,6 +62,12 @@ export class UpdateCouponDto {
   maxRedemptions?: number;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  maxRedemptionsPerUser?: number;
+
+  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }

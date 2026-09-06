@@ -20,8 +20,12 @@ import {
   AdminBookingsQueryDto,
   AdminListQueryDto,
   AdminPropertiesQueryDto,
+  AdminRefundDto,
   AdminUsersQueryDto,
+  ModerateReviewDto,
   RejectPropertyDto,
+  SetUserActiveDto,
+  UpdateSupportTicketDto,
 } from './dto/admin.dto';
 
 @Controller('admin')
@@ -32,6 +36,15 @@ export class AdminController {
   @Get('users')
   users(@Query() query: AdminUsersQueryDto) {
     return this.admin.users(query);
+  }
+
+  @Patch('users/:id')
+  setUserActive(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: SetUserActiveDto,
+  ) {
+    return this.admin.setUserActive(id, dto.isActive, user.id);
   }
 
   @Get('owners')
@@ -78,9 +91,44 @@ export class AdminController {
     return this.admin.payments(query);
   }
 
+  @Post('payments/:id/reconcile')
+  reconcile(@Param('id') id: string) {
+    return this.admin.reconcilePayment(id);
+  }
+
+  @Post('payments/expire-abandoned')
+  expireAbandoned() {
+    return this.admin.expireAbandonedPayments();
+  }
+
+  @Get('refunds')
+  refunds(@Query() query: AdminListQueryDto) {
+    return this.admin.refunds(query);
+  }
+
+  @Post('bookings/:id/refund')
+  refund(@Param('id') id: string, @Body() dto: AdminRefundDto) {
+    return this.admin.requestRefund(id, dto.reason);
+  }
+
+  @Get('reviews')
+  reviews(@Query() query: AdminListQueryDto) {
+    return this.admin.reviews(query);
+  }
+
+  @Patch('reviews/:id')
+  moderateReview(@Param('id') id: string, @Body() dto: ModerateReviewDto) {
+    return this.admin.moderateReview(id, dto.isPublished);
+  }
+
   @Get('support-tickets')
   tickets(@Query() query: AdminListQueryDto) {
     return this.admin.tickets(query);
+  }
+
+  @Patch('support-tickets/:id')
+  updateTicket(@Param('id') id: string, @Body() dto: UpdateSupportTicketDto) {
+    return this.admin.updateTicket(id, dto.status);
   }
 
   @Get('coupons')

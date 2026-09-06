@@ -80,7 +80,7 @@ export class AuthService {
       return created;
     });
 
-    const tokens = await this.issueTokens(user, context);
+    const tokens = await this.issueSession(user, context);
     return { user, tokens };
   }
 
@@ -130,7 +130,7 @@ export class AuthService {
       name: user.name,
     };
 
-    const tokens = await this.issueTokens(publicUser, context);
+    const tokens = await this.issueSession(publicUser, context);
     return { user: publicUser, tokens };
   }
 
@@ -212,12 +212,20 @@ export class AuthService {
       name: existing.user.name,
     };
 
-    const tokens = await this.issueTokens(publicUser, context, {
+    const tokens = await this.issueSession(publicUser, context, {
       familyId: existing.familyId,
       replacesId: existing.id,
     });
 
     return { user: publicUser, tokens };
+  }
+
+  issueSession(
+    user: RequestUser,
+    context: { userAgent?: string; ipAddress?: string },
+    rotation?: { familyId: string; replacesId: string },
+  ): Promise<AuthTokens> {
+    return this.issueTokens(user, context, rotation);
   }
 
   async me(userId: string): Promise<RequestUser & { phone: string | null }> {

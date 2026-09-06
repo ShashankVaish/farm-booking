@@ -96,6 +96,25 @@ export class ReviewsService {
     return updated;
   }
 
+  async moderate(id: string, isPublished: boolean) {
+    const review = await this.prisma.review.findUnique({ where: { id } });
+    if (!review) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.NOT_FOUND,
+        message: 'Review not found.',
+      });
+    }
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const next = await tx.review.update({
+        where: { id },
+        data: { isPublished },
+      });
+      await this.recalculateRating(tx, review.propertyId);
+      return next;
+    });
+    return updated;
+  }
+
   async remove(id: string, user: RequestUser) {
     const review = await this.requireOwned(id, user);
     await this.prisma.$transaction(async (tx) => {

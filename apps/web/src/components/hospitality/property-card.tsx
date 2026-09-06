@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { AmenityItem, PriceDisplay, PropertyBadge, Rating } from '@/components/hospitality/atoms';
+import { WishlistButton } from '@/components/hospitality/wishlist-button';
 import { MediaImage } from '@/components/media/media-image';
 import type { MediaAsset } from '@/lib/media/types';
 import styles from './hospitality.module.css';
@@ -37,16 +38,7 @@ export function PropertyCard({ property }: { property: PropertyCardModel }) {
           />
         </Link>
         {property.badge ? <PropertyBadge>{property.badge}</PropertyBadge> : null}
-        <button type="button" className={styles.wish} aria-label={`Save ${property.name} to wishlist`}>
-          <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
-            <path
-              d="M10 16s-6-3.7-6-7.2A3.4 3.4 0 0 1 10 6a3.4 3.4 0 0 1 6 2.8C16 12.3 10 16 10 16Z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.4"
-            />
-          </svg>
-        </button>
+        <WishlistButton propertyId={property.id} propertyName={property.name} />
       </div>
       <div className={styles.body}>
         <p className="t-metadata">{property.type}</p>
@@ -83,5 +75,19 @@ export function PropertyGrid({ properties }: { properties: PropertyCardModel[] }
         <PropertyCard key={property.id} property={property} />
       ))}
     </div>
+  );
+}
+
+export function PropertyCardSkeleton() {
+  return (
+    <article className={styles.card} aria-hidden="true">
+      <div className={styles.mediaWrap}>
+        <div className={styles.skeletonMedia} />
+      </div>
+      <div className={styles.body}>
+        <div className={styles.skeletonLine} />
+        <div className={styles.skeletonLineWide} />
+      </div>
+    </article>
   );
 }

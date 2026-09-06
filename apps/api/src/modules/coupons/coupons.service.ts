@@ -28,9 +28,10 @@ export class CouponsService {
     coupon: NonNullable<Awaited<ReturnType<CouponsService['getActiveByCode']>>>,
     subtotal: string,
     now = new Date(),
+    userRedemptionCount = 0,
   ): void {
     try {
-      validateCouponRules(coupon, subtotal, now);
+      validateCouponRules(coupon, subtotal, now, userRedemptionCount);
     } catch (error) {
       if (error instanceof CouponValidationError) {
         throw new BadRequestException({
@@ -75,6 +76,21 @@ export class CouponsService {
     `;
   }
 
+  async countUserRedemptions(
+    couponId: string,
+    userId: string,
+  ): Promise<number> {
+    return this.prisma.booking.count({
+      where: {
+        couponId,
+        customerId: userId,
+        status: {
+          notIn: ['CANCELLED', 'FAILED', 'EXPIRED'],
+        },
+      },
+    });
+  }
+
   async list(page: number, limit: number) {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.coupon.findMany({
@@ -99,6 +115,7 @@ export class CouponsService {
         startsAt: new Date(dto.startsAt),
         endsAt: new Date(dto.endsAt),
         maxRedemptions: dto.maxRedemptions,
+        maxRedemptionsPerUser: dto.maxRedemptionsPerUser,
         isActive: dto.isActive ?? true,
       },
     });

@@ -15,7 +15,11 @@ export class WishlistService {
     const property = await this.prisma.property.findUnique({
       where: { id: propertyId },
     });
-    if (!property || property.status !== PropertyStatus.APPROVED) {
+    if (
+      !property ||
+      property.status !== PropertyStatus.APPROVED ||
+      property.deletedAt
+    ) {
       throw new NotFoundException({
         errorCode: ErrorCodes.PROPERTY_NOT_FOUND,
         message: 'Property not found.',

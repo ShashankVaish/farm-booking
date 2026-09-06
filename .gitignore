@@ -40,3 +40,4 @@ docker-data/
 
 # Local runtime / test artifacts
 tmp/
+apps/api/uploads/

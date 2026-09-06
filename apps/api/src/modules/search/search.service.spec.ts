@@ -20,6 +20,7 @@ describe('SearchService filters', () => {
     });
 
     expect(where.status).toBe('APPROVED');
+    expect(where.deletedAt).toBeNull();
     expect(where.city).toEqual({ equals: 'Pune', mode: 'insensitive' });
     expect(where.guestCapacity).toEqual({ gte: 8 });
     expect(where.isPartyFriendly).toBe(true);
@@ -28,6 +29,21 @@ describe('SearchService filters', () => {
         { amenities: { some: { amenityId: 'a1' } } },
         { amenities: { some: { amenityId: 'a2' } } },
         { bookingNights: { none: { date: expect.any(Object) } } },
+      ]),
+    );
+  });
+
+  it('filters party, pool, and minimum rating', () => {
+    const where = service.buildWhere({
+      partyAllowed: true,
+      pool: true,
+      minRating: 4,
+    });
+    expect(where.isPartyFriendly).toBe(true);
+    expect(where.averageRating).toEqual({ gte: 4 });
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ OR: expect.any(Array) }),
       ]),
     );
   });

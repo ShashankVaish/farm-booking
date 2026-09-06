@@ -34,6 +34,7 @@ export class SearchService {
   buildWhere(query: SearchQueryDto): Prisma.PropertyWhereInput {
     const where: Prisma.PropertyWhereInput = {
       status: PropertyStatus.APPROVED,
+      deletedAt: null,
     };
 
     if (query.city) {
@@ -68,8 +69,33 @@ export class SearchService {
         lte: query.maxPrice,
       };
     }
-    if (query.partyFriendly) {
+    if (query.partyFriendly || query.partyAllowed) {
       where.isPartyFriendly = true;
+    }
+    if (query.minRating !== undefined) {
+      where.averageRating = { gte: query.minRating };
+    }
+    if (query.pool) {
+      where.AND = [
+        ...((where.AND as Prisma.PropertyWhereInput[]) ?? []),
+        {
+          OR: [
+            { propertyType: 'POOL_PROPERTY' },
+            {
+              amenities: {
+                some: {
+                  amenity: {
+                    OR: [
+                      { slug: { contains: 'pool', mode: 'insensitive' } },
+                      { name: { contains: 'pool', mode: 'insensitive' } },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ];
     }
 
     const amenityIds = (query.amenities ?? '')

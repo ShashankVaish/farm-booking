@@ -2,21 +2,14 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/forms';
 import { MediaImage } from '@/components/media/media-image';
+import { StaySearch } from '@/components/hospitality/stay-search';
 import type { MediaAsset } from '@/lib/media/types';
 import { cn } from '@/lib/cn';
 import styles from './hospitality.module.css';
 
 export function SearchBox() {
-  return (
-    <form className={styles.search} onSubmit={(event) => event.preventDefault()} aria-label="Stay search foundation">
-      <Input id="search-where" label="Where" placeholder="City or neighbourhood" />
-      <Input id="search-when" label="When" placeholder="Add dates" />
-      <Input id="search-who" label="Guests" placeholder="Add guests" />
-      <Button type="submit">Search</Button>
-    </form>
-  );
+  return <StaySearch />;
 }
 
 export function GuestSelector() {
