@@ -8,6 +8,7 @@ import { BookingStatus, Prisma } from '@prisma/client';
 import { ErrorCodes } from '../../common/constants/error-codes';
 import { UserRoles } from '../../common/constants/roles';
 import { paginated } from '../../common/pagination';
+import { isUuid } from '../../common/uuid';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { RequestUser } from '../auth/auth.types';
 import { CreateReviewDto, UpdateReviewDto } from './dto/review.dto';
@@ -69,7 +70,16 @@ export class ReviewsService {
   }
 
   async list(propertyId: string, page: number, limit: number) {
-    const where = { propertyId, isPublished: true };
+    const property = await this.prisma.property.findFirst({
+      where: isUuid(propertyId)
+        ? { OR: [{ id: propertyId }, { slug: propertyId }] }
+        : { slug: propertyId },
+      select: { id: true },
+    });
+    if (!property) {
+      return paginated([], 0, page, limit);
+    }
+    const where = { propertyId: property.id, isPublished: true };
     const [items, total] = await this.prisma.$transaction([
       this.prisma.review.findMany({
         where,

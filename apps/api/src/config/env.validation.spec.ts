@@ -1,4 +1,4 @@
-import { validateEnv } from './env.validation';
+import { validateEnv, parseCorsOrigins } from './env.validation';
 
 const validEnv = {
   NODE_ENV: 'test',
@@ -41,5 +41,14 @@ describe('validateEnv', () => {
     expect(() => validateEnv(rest)).toThrow(
       /Invalid environment configuration/,
     );
+  });
+});
+
+describe('parseCorsOrigins', () => {
+  it('includes 127.0.0.1 when localhost is listed', () => {
+    expect(parseCorsOrigins('http://localhost:3000')).toEqual([
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+    ]);
   });
 });

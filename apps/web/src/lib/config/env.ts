@@ -14,6 +14,12 @@ export const publicEnv = {
 } as const;
 
 export function getApiBaseUrl(): string {
+  // In the browser, call same-origin `/api` so Next can proxy to the backend.
+  // That avoids CORS failures when the app is opened as localhost vs 127.0.0.1.
+  if (typeof window !== 'undefined') {
+    return '';
+  }
+
   if (!publicEnv.apiUrl) {
     throw new Error('NEXT_PUBLIC_API_URL is not configured.');
   }

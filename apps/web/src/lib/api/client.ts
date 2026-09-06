@@ -45,6 +45,7 @@ export function createApiClient(options: ClientOptions = {}) {
       response = await fetchImpl(url, {
         method: requestOptions.method ?? 'GET',
         headers,
+        credentials: 'include',
         body:
           requestOptions.body === undefined
             ? undefined

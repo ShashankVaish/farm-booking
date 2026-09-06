@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/forms';
 import { apiClient } from '@/lib/api/client';
 import { ApiError } from '@/lib/api/errors';
 import { memoryTokenStore } from '@/lib/api/token-store';
+import { authErrorMessage, indianMobile, isStrongPassword } from '@/lib/auth/form';
 import type { AuthUser } from '@/lib/properties/types';
 import styles from './auth.module.css';
 
@@ -49,14 +50,14 @@ export function LoginForm() {
     try {
       const result = await apiClient.post<{ user: AuthUser; accessToken: string }>(
         '/api/auth/login',
-        { email, password },
+        { email: email.trim().toLowerCase(), password },
         { auth: false },
       );
       memoryTokenStore.setAccessToken(result.accessToken);
       router.push(next);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Unable to sign in.');
+      setError(authErrorMessage(err, 'Unable to sign in.'));
     } finally {
       setBusy(false);
     }
@@ -66,16 +67,21 @@ export function LoginForm() {
     setBusy(true);
     setError(null);
     try {
+      const mobile = indianMobile(phone);
+      if (!mobile) {
+        setError('Enter a valid 10-digit Indian mobile number.');
+        return;
+      }
       const result = await apiClient.post<{ resendAvailableAt: string }>(
         '/api/auth/otp/request',
-        { phone, purpose: 'LOGIN' },
+        { phone: mobile, purpose: 'LOGIN' },
         { auth: false },
       );
       setOtpSent(true);
       const wait = Math.max(0, Math.ceil((new Date(result.resendAvailableAt).getTime() - Date.now()) / 1000));
       setSeconds(wait || 60);
     } catch (err) {
-      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : 'Could not send OTP.');
+      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : authErrorMessage(err, 'Could not send OTP.'));
     } finally {
       setBusy(false);
     }
@@ -86,16 +92,21 @@ export function LoginForm() {
     setBusy(true);
     setError(null);
     try {
+      const mobile = indianMobile(phone);
+      if (!mobile) {
+        setError('Enter a valid 10-digit Indian mobile number.');
+        return;
+      }
       const result = await apiClient.post<{ user: AuthUser; accessToken: string }>(
         '/api/auth/otp/verify',
-        { phone, code, purpose: 'LOGIN' },
+        { phone: mobile, code: code.trim(), purpose: 'LOGIN' },
         { auth: false },
       );
       memoryTokenStore.setAccessToken(result.accessToken);
       router.push(next);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : 'Could not verify OTP.');
+      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : authErrorMessage(err, 'Could not verify OTP.'));
     } finally {
       setBusy(false);
     }
@@ -207,16 +218,31 @@ export function RegisterForm() {
     setBusy(true);
     setError(null);
     try {
+      if (!isStrongPassword(password)) {
+        setError('Use at least 8 characters with a letter and a number.');
+        return;
+      }
+      const mobile = indianMobile(phone);
+      if (phone.trim() && !mobile) {
+        setError('Enter a valid 10-digit Indian mobile number, or leave it blank.');
+        return;
+      }
       const result = await apiClient.post<{ accessToken: string }>(
         '/api/auth/register',
-        { name, email, password, phone: phone || undefined, role: asHost ? 'OWNER' : 'CUSTOMER' },
+        {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+          phone: mobile,
+          role: asHost ? 'OWNER' : 'CUSTOMER',
+        },
         { auth: false },
       );
       memoryTokenStore.setAccessToken(result.accessToken);
       router.push(asHost ? '/host' : '/dashboard');
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not create account.');
+      setError(authErrorMessage(err, 'Could not create account.'));
     } finally {
       setBusy(false);
     }
@@ -226,16 +252,25 @@ export function RegisterForm() {
     setBusy(true);
     setError(null);
     try {
+      const mobile = indianMobile(phone);
+      if (!mobile) {
+        setError('Enter a valid 10-digit Indian mobile number.');
+        return;
+      }
+      if (name.trim().length < 2) {
+        setError('Enter your full name.');
+        return;
+      }
       const result = await apiClient.post<{ resendAvailableAt: string }>(
         '/api/auth/otp/request',
-        { phone, purpose: 'REGISTER' },
+        { phone: mobile, purpose: 'REGISTER' },
         { auth: false },
       );
       setOtpSent(true);
       const wait = Math.max(0, Math.ceil((new Date(result.resendAvailableAt).getTime() - Date.now()) / 1000));
       setSeconds(wait || 60);
     } catch (err) {
-      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : 'Could not send OTP.');
+      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : authErrorMessage(err, 'Could not send OTP.'));
     } finally {
       setBusy(false);
     }
@@ -246,16 +281,21 @@ export function RegisterForm() {
     setBusy(true);
     setError(null);
     try {
+      const mobile = indianMobile(phone);
+      if (!mobile) {
+        setError('Enter a valid 10-digit Indian mobile number.');
+        return;
+      }
       const result = await apiClient.post<{ accessToken: string }>(
         '/api/auth/otp/verify',
-        { phone, code, purpose: 'REGISTER', name },
+        { phone: mobile, code: code.trim(), purpose: 'REGISTER', name: name.trim() },
         { auth: false },
       );
       memoryTokenStore.setAccessToken(result.accessToken);
-      router.push('/dashboard');
+      router.push(asHost ? '/host' : '/dashboard');
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : 'Could not verify OTP.');
+      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : authErrorMessage(err, 'Could not verify OTP.'));
     } finally {
       setBusy(false);
     }

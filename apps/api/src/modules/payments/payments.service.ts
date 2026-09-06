@@ -81,9 +81,20 @@ export class PaymentsService {
     ) {
       throw new BadRequestException({
         errorCode: ErrorCodes.INVALID_STATUS_TRANSITION,
-        message: 'This booking is not awaiting payment.',
+        message:
+          booking.status === BookingStatus.EXPIRED
+            ? 'This booking expired. Start a new reservation.'
+            : 'This booking is not awaiting payment.',
       });
     }
+
+    await this.availability.assertRangeAvailable(
+      booking.propertyId,
+      booking.checkInDate,
+      booking.checkOutDate,
+      this.prisma,
+      booking.id,
+    );
 
     const existing = booking.payments.find(
       (payment) =>

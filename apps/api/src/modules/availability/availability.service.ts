@@ -73,6 +73,7 @@ export class AvailabilityService {
     checkIn: string | Date,
     checkOut: string | Date,
     tx: Pick<PrismaService, 'availability' | 'bookingNight'> = this.prisma,
+    excludeBookingId?: string,
   ): Promise<Date[]> {
     const nights = enumerateNights(checkIn, checkOut);
     if (nights.length === 0) {
@@ -100,7 +101,11 @@ export class AvailabilityService {
         select: { date: true },
       }),
       tx.bookingNight.findMany({
-        where: { propertyId, date: { in: nights } },
+        where: {
+          propertyId,
+          date: { in: nights },
+          ...(excludeBookingId ? { bookingId: { not: excludeBookingId } } : {}),
+        },
         select: { date: true },
       }),
     ]);

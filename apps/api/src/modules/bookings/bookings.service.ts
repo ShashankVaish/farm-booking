@@ -32,6 +32,26 @@ import {
 } from './dto/booking.dto';
 import { assertBookingTransition, canCustomerCancel } from './booking-status';
 
+const bookingDetailInclude = {
+  property: {
+    select: {
+      id: true,
+      title: true,
+      ownerId: true,
+      city: true,
+      state: true,
+      location: true,
+      address: true,
+      cancellationPolicy: true,
+      guestCapacity: true,
+      images: { take: 1, orderBy: { sortOrder: 'asc' as const } },
+    },
+  },
+  payments: { orderBy: { createdAt: 'desc' as const } },
+  coupon: { select: { code: true } },
+  review: { select: { id: true, rating: true } },
+} as const;
+
 @Injectable()
 export class BookingsService {
   constructor(
@@ -178,11 +198,7 @@ export class BookingsService {
   async getById(id: string, user: RequestUser) {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
-      include: {
-        property: { select: { id: true, title: true, ownerId: true } },
-        payments: true,
-        nights: true,
-      },
+      include: bookingDetailInclude,
     });
     if (!booking) {
       throw new NotFoundException({
@@ -200,7 +216,21 @@ export class BookingsService {
       this.prisma.booking.findMany({
         where,
         include: {
-          property: { select: { id: true, title: true, city: true } },
+          property: {
+            select: {
+              id: true,
+              title: true,
+              city: true,
+              state: true,
+              images: { take: 1, orderBy: { sortOrder: 'asc' } },
+            },
+          },
+          review: { select: { id: true } },
+          payments: {
+            select: { status: true },
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,

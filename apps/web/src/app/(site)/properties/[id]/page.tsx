@@ -8,6 +8,7 @@ import { EmptyState, ErrorState } from '@/components/ui/feedback';
 import { getProperty, getPropertyReviews } from '@/lib/properties/api';
 import { coverImage, amenityName } from '@/lib/properties/map-property';
 import { PROPERTY_TYPE_LABEL, type ApiProperty } from '@/lib/properties/types';
+import { isUuid } from '@/lib/ids';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 import { propertyJsonLd } from '@/lib/seo/json-ld';
 import { getSiteUrl } from '@/lib/config/env';
@@ -46,10 +47,13 @@ export default async function PropertyPage({ params }: Props) {
     );
   }
 
-  const reviews = await getPropertyReviews(id).catch(() => ({
-    items: [],
-    meta: { total: 0, page: 1, limit: 8, totalPages: 0 },
-  }));
+  const reviews = isUuid(property.id)
+    ? await getPropertyReviews(property.id).catch(() => ({
+        items: [],
+        meta: { total: 0, page: 1, limit: 8, totalPages: 0 },
+      }))
+    : { items: [], meta: { total: 0, page: 1, limit: 8, totalPages: 0 } };
+  const isSample = !isUuid(property.id);
   const images = [...(property.images ?? [])]
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
     .map((image) => ({
@@ -59,7 +63,18 @@ export default async function PropertyPage({ params }: Props) {
   const gallery =
     images.length > 0
       ? images
-      : [{ asset: coverImage(property), alt: property.title, tone: 'lawn' as const }];
+      : [
+          {
+            asset: coverImage(property),
+            alt: property.title,
+            tone:
+              property.propertyType === 'POOL_PROPERTY'
+                ? ('pool' as const)
+                : property.isPartyFriendly
+                  ? ('night' as const)
+                  : ('lawn' as const),
+          },
+        ];
   const lat = Number(property.latitude);
   const lng = Number(property.longitude);
   const mapSrc =
@@ -85,7 +100,7 @@ export default async function PropertyPage({ params }: Props) {
           </p>
           <Rating value={Number(property.averageRating ?? 0)} count={property.reviewCount} />
         </div>
-        <WishlistButton propertyId={property.id} propertyName={property.title} />
+        {isSample ? null : <WishlistButton propertyId={property.id} propertyName={property.title} />}
       </div>
 
       <ImageGalleryFoundation images={gallery} />
@@ -143,7 +158,13 @@ export default async function PropertyPage({ params }: Props) {
           <h2 className="t-h3" style={{ marginTop: 'var(--space-8)' }}>
             Availability
           </h2>
-          <AvailabilityCalendar propertyId={property.id} />
+          {isSample ? (
+            <p className="t-body-small">
+              Calendar and booking open once this stay is published by a host.
+            </p>
+          ) : (
+            <AvailabilityCalendar propertyId={property.id} />
+          )}
 
           <h2 className="t-h3" style={{ marginTop: 'var(--space-8)' }}>
             Reviews
@@ -163,7 +184,7 @@ export default async function PropertyPage({ params }: Props) {
           )}
         </div>
         <div className={styles.stickyBooking}>
-          <PropertyBookingCard property={property} />
+          <PropertyBookingCard property={property} bookable={!isSample} />
         </div>
       </div>
 
@@ -174,8 +195,8 @@ export default async function PropertyPage({ params }: Props) {
           )}
           <span className="t-caption"> / night</span>
         </span>
-          <Button href="#book-in" size="sm">
-            Check dates
+          <Button href={isSample ? '/explore' : '#book-in'} size="sm">
+            {isSample ? 'Browse stays' : 'Check dates'}
           </Button>
       </div>
     </article>

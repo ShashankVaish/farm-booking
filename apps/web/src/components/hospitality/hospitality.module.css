@@ -239,14 +239,53 @@
   margin-bottom: var(--space-5);
 }
 
-.dayBlocked {
-  opacity: 0.35;
-  text-decoration: line-through;
-  cursor: not-allowed;
+.dayAvailable {
+  background: rgb(46 125 90 / 0.08);
+}
+
+.dayLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.legendSwatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legendDot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.priceRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: 0.2rem 0;
+}
+
+.priceTotal {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
 }
 
 .dayBooked {
   background: var(--color-accent-soft);
+  cursor: not-allowed;
+}
+
+.dayBlocked {
+  opacity: 0.35;
+  text-decoration: line-through;
   cursor: not-allowed;
 }
 

@@ -6,17 +6,17 @@ type Props = { params: Promise<{ id: string }> };
 export async function generateMetadata({ params }: Props) {
   const { id } = await params;
   return buildPageMetadata({
-    title: 'Checkout',
-    path: `/booking/${id}`,
+    title: 'Booking confirmation',
+    path: `/booking/${id}/confirmation`,
     noIndex: true,
   });
 }
 
-export default async function BookingPage({ params }: Props) {
+export default async function ConfirmationPage({ params }: Props) {
   const { id } = await params;
   return (
     <section className="container" style={{ padding: 'var(--space-10) 0 var(--space-16)' }}>
-      <BookingExperience bookingId={id} />
+      <BookingExperience bookingId={id} confirmation />
     </section>
   );
 }

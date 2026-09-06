@@ -182,8 +182,20 @@ export function validateEnv(
 }
 
 export function parseCorsOrigins(origins: string): string[] {
-  return origins
+  const listed = origins
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+
+  const extras: string[] = [];
+  for (const origin of listed) {
+    if (origin.includes('://localhost')) {
+      extras.push(origin.replace('://localhost', '://127.0.0.1'));
+    }
+    if (origin.includes('://127.0.0.1')) {
+      extras.push(origin.replace('://127.0.0.1', '://localhost'));
+    }
+  }
+
+  return [...new Set([...listed, ...extras])];
 }

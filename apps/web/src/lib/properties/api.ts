@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { toQueryString } from '@/lib/api/query';
+import { demoPropertyToApi } from '@/data/demo-properties';
 import type {
   ApiProperty,
   ApiReview,
@@ -37,8 +38,16 @@ export async function searchProperties(filters: SearchFilters = {}): Promise<Pag
   return publicGet<Paginated<ApiProperty>>(`/api/search${query}`);
 }
 
-export function getProperty(id: string): Promise<ApiProperty> {
-  return publicGet<ApiProperty>(`/api/properties/${id}`);
+export async function getProperty(id: string): Promise<ApiProperty> {
+  try {
+    return await publicGet<ApiProperty>(`/api/properties/${encodeURIComponent(id)}`);
+  } catch (error) {
+    const sample = demoPropertyToApi(id);
+    if (sample) {
+      return sample;
+    }
+    throw error;
+  }
 }
 
 export function getPropertyReviews(id: string, page = 1): Promise<Paginated<ApiReview>> {

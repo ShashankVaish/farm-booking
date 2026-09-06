@@ -21,6 +21,7 @@ describe('createApiClient', () => {
       'http://api.test/health',
       expect.objectContaining({
         method: 'GET',
+        credentials: 'include',
         headers: expect.objectContaining({
           Authorization: 'Bearer token-1',
         }),

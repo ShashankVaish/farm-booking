@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Req, Res } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -9,6 +9,7 @@ import type { RequestUser } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RequestOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateMeDto } from './dto/update-me.dto';
 import { OtpService } from './otp.service';
 
 @Controller('auth')
@@ -108,6 +109,11 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: RequestUser) {
     return this.auth.me(user.id);
+  }
+
+  @Patch('me')
+  updateMe(@CurrentUser() user: RequestUser, @Body() dto: UpdateMeDto) {
+    return this.auth.updateMe(user.id, dto);
   }
 
   private setRefreshCookie(response: Response, refreshToken: string): void {

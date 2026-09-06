@@ -41,6 +41,17 @@ describe('availability validation', () => {
       service.assertRangeAvailable('p1', '2026-10-01', '2026-10-03'),
     ).rejects.toBeDefined();
 
+    prisma.bookingNight.findMany.mockResolvedValue([]);
+    await expect(
+      service.assertRangeAvailable(
+        'p1',
+        '2026-10-01',
+        '2026-10-03',
+        prisma as never,
+        'booking-self',
+      ),
+    ).resolves.toHaveLength(2);
+
     expect(AvailabilityStatus.BLOCKED).toBe('BLOCKED');
   });
 });

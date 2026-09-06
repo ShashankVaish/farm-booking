@@ -9,12 +9,12 @@ export const metadata = buildPageMetadata({
 
 export default function WishlistPage() {
   return (
-    <section className="container" style={{ padding: 'var(--space-10) 0' }}>
+    <div>
       <p className="t-label">Account</p>
-      <h1 className="t-h1">Saved stays</h1>
+      <h1 className="t-h2">Saved stays</h1>
       <div style={{ marginTop: 'var(--space-6)' }}>
         <WishlistView />
       </div>
-    </section>
+    </div>
   );
 }

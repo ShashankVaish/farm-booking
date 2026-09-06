@@ -9,6 +9,7 @@ import { ErrorCodes } from '../../common/constants/error-codes';
 import { UserRoles } from '../../common/constants/roles';
 import { paginated } from '../../common/pagination';
 import { slugify } from '../../common/slug';
+import { isUuid } from '../../common/uuid';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { RequestUser } from '../auth/auth.types';
 import { assertValidCoordinates } from '../locations/geo';
@@ -110,10 +111,18 @@ export class PropertiesService {
   }
 
   async getById(id: string, user?: RequestUser) {
-    const property = await this.prisma.property.findUnique({
-      where: { id },
-      include: publicInclude,
-    });
+    const byId = isUuid(id)
+      ? await this.prisma.property.findUnique({
+          where: { id },
+          include: publicInclude,
+        })
+      : null;
+    const property =
+      byId ??
+      (await this.prisma.property.findUnique({
+        where: { slug: id },
+        include: publicInclude,
+      }));
 
     if (!property || property.deletedAt) {
       throw new NotFoundException({

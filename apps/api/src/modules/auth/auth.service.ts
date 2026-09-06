@@ -257,6 +257,20 @@ export class AuthService {
     };
   }
 
+  async updateMe(
+    userId: string,
+    dto: { name?: string; phone?: string },
+  ): Promise<RequestUser & { phone: string | null }> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.name ? { name: dto.name.trim() } : {}),
+        ...(dto.phone ? { phone: dto.phone } : {}),
+      },
+    });
+    return this.me(userId);
+  }
+
   getRefreshCookieOptions() {
     return {
       httpOnly: true,
