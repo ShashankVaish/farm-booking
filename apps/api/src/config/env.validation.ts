@@ -73,6 +73,23 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   LOG_LEVEL?: string;
+
+  @IsOptional()
+  @IsString()
+  RAZORPAY_KEY_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  RAZORPAY_KEY_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  RAZORPAY_WEBHOOK_SECRET?: string;
+
+  @Transform(({ value }) => Number(value ?? 500))
+  @IsInt()
+  @Min(0)
+  PLATFORM_FEE_BPS!: number;
 }
 
 export function validateEnv(
@@ -84,6 +101,7 @@ export function validateEnv(
       config.COOKIE_SECURE === true ||
       config.COOKIE_SECURE === 'true' ||
       config.COOKIE_SECURE === '1',
+    PLATFORM_FEE_BPS: config.PLATFORM_FEE_BPS ?? 500,
   };
 
   const validated = plainToInstance(EnvironmentVariables, normalized, {

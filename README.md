@@ -2,11 +2,12 @@
 
 Indian marketplace for discovering and booking farmhouses, private villas, party houses, pool properties, weekend stays, and event venues.
 
-Phase 1 delivers the backend foundation only: architecture, PostgreSQL + Prisma, authentication, roles, health checks, validation, logging, and tests. The customer frontend, map, booking engine, and Razorpay checkout are intentionally not built yet.
+Phase 1 delivers the backend foundation. Phase 2 adds the Next.js customer shell, design tokens, and reusable UI. Search, maps, booking, and dashboards are still later phases.
 
 ## Stack
 
 - API: NestJS, TypeScript
+- Web: Next.js, TypeScript
 - Database: PostgreSQL 16 + Prisma ORM
 - Auth: JWT access tokens + hashed refresh tokens
 - Local infrastructure: Docker Compose
@@ -16,6 +17,7 @@ Phase 1 delivers the backend foundation only: architecture, PostgreSQL + Prisma,
 ```text
 farm-booking/
   apps/api/          NestJS modular monolith
+  apps/web/          Next.js customer site + design system
   docs/              Architecture notes
   docker-compose.yml PostgreSQL (and optional API profile)
   .env.example       Environment template
@@ -34,6 +36,7 @@ farm-booking/
 ```powershell
 Copy-Item .env.example .env
 Copy-Item apps/api/.env.example apps/api/.env
+Copy-Item apps/web/.env.example apps/web/.env.local
 ```
 
 Replace `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` with unique 32+ character secrets before any shared or production use.
@@ -60,6 +63,16 @@ npm run start:dev
 ```
 
 The API listens on `http://localhost:3001`.
+
+5. Start the frontend:
+
+```powershell
+cd apps/web
+npm install
+npm run dev
+```
+
+The site listens on `http://localhost:3000`. Open `/design-system` to review tokens and components.
 
 ## Health check
 
@@ -92,6 +105,15 @@ Expected shape:
 Self-registration cannot create `ADMIN` accounts. Owner registration also creates an `OwnerProfile`.
 
 ## Quality commands
+
+From `apps/web`:
+
+```powershell
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
 
 From `apps/api`:
 

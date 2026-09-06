@@ -13,7 +13,7 @@ Farmhouse Party Booking is a modular NestJS monolith. One deployable API owns th
 ## High-level shape
 
 ```text
-Client (Phase 2+)
+Client (apps/web, Phase 2+)
     |
     v
 NestJS API  (apps/api)
@@ -27,7 +27,12 @@ NestJS API  (apps/api)
 PostgreSQL
 ```
 
-Caddy or another reverse proxy is deferred to the deployment phase.
+## Frontend (Phase 2)
+
+`apps/web` is a Next.js App Router site. It owns presentation, routing, and a typed API client. It is never the source of truth for price, availability, payment status, or roles.
+
+Phase 2 includes the design token system, application shell, reusable UI, and placeholder routes. Search, booking, and portals are later phases.
+
 
 ## Modules (Phase 1)
 

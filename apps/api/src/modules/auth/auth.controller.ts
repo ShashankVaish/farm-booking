@@ -61,6 +61,22 @@ export class AuthController {
     return { loggedOut: true };
   }
 
+  @Public()
+  @Post('refresh')
+  async refresh(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const cookies = request.cookies as Record<string, string> | undefined;
+    const refreshToken = cookies?.[REFRESH_TOKEN_COOKIE];
+    const result = await this.auth.refresh(refreshToken, this.context(request));
+    this.setRefreshCookie(response, result.tokens.refreshToken);
+    return {
+      user: result.user,
+      accessToken: result.tokens.accessToken,
+    };
+  }
+
   @Get('me')
   me(@CurrentUser() user: RequestUser) {
     return this.auth.me(user.id);

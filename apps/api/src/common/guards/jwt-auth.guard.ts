@@ -22,13 +22,38 @@ export class JwtAuthGuard extends AuthGuard('jwt') implements CanActivate {
     ]);
 
     if (isPublic) {
-      return true;
+      const request = context.switchToHttp().getRequest<{
+        headers?: { authorization?: string };
+      }>();
+      if (!request.headers?.authorization) {
+        return true;
+      }
+
+      try {
+        return (await super.canActivate(context)) as boolean;
+      } catch {
+        return true;
+      }
     }
 
     return (await super.canActivate(context)) as boolean;
   }
 
-  override handleRequest<TUser>(err: Error | undefined, user: TUser): TUser {
+  override handleRequest<TUser>(
+    err: Error | undefined,
+    user: TUser,
+    _info: unknown,
+    context: ExecutionContext,
+  ): TUser {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return (user ?? null) as TUser;
+    }
+
     if (err || !user) {
       throw (
         err ??

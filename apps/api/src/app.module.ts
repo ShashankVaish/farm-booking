@@ -6,9 +6,21 @@ import { LoggerModule } from 'nestjs-pino';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { validateEnv } from './config/env.validation';
+import { AdminModule } from './modules/admin/admin.module';
+import { AmenitiesModule } from './modules/amenities/amenities.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { AvailabilityModule } from './modules/availability/availability.module';
+import { BookingsModule } from './modules/bookings/bookings.module';
+import { CouponsModule } from './modules/coupons/coupons.module';
 import { HealthModule } from './modules/health/health.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { OwnerModule } from './modules/owner/owner.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { PricingModule } from './modules/pricing/pricing.module';
+import { PropertiesModule } from './modules/properties/properties.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
+import { SearchModule } from './modules/search/search.module';
+import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -49,7 +61,19 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     HealthModule,
     AuthModule,
+    PricingModule,
+    NotificationsModule,
+    CouponsModule,
+    AmenitiesModule,
+    PropertiesModule,
+    SearchModule,
+    AvailabilityModule,
+    BookingsModule,
     PaymentsModule,
+    ReviewsModule,
+    WishlistModule,
+    OwnerModule,
+    AdminModule,
   ],
   providers: [
     Logger,

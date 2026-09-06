@@ -1,0 +1,44 @@
+.frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #e6e0d6;
+  color: var(--color-text-muted);
+}
+
+.image {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+.fallback,
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: var(--space-4);
+  background: #d9cfc1;
+}
+
+.tonePool {
+  background: #7f9aa0;
+  color: #f7f4ef;
+}
+
+.toneLawn {
+  background: #6d7f68;
+  color: #f7f4ef;
+}
+
+.toneNight {
+  background: #2c2a27;
+  color: #f7f4ef;
+}
+
+.caption {
+  font-size: var(--fs-caption);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

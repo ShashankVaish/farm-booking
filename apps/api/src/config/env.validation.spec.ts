@@ -15,6 +15,7 @@ const validEnv = {
   THROTTLE_LIMIT: '100',
   AUTH_THROTTLE_TTL_MS: '60000',
   AUTH_THROTTLE_LIMIT: '10',
+  PLATFORM_FEE_BPS: '500',
 };
 
 describe('validateEnv', () => {

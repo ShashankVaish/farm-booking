@@ -18,6 +18,8 @@ describe('AuthService', () => {
     refreshToken: {
       create: jest.fn(),
       updateMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -120,11 +122,28 @@ describe('AuthService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('rejects invalid credentials', async () => {
-    prisma.user.findUnique.mockResolvedValue(null);
+  it('revokes a token family when a revoked refresh token is reused', async () => {
+    prisma.refreshToken.findUnique.mockResolvedValue({
+      id: 'rt-1',
+      familyId: 'fam-1',
+      revokedAt: new Date(),
+      expiresAt: new Date(Date.now() + 10000),
+      user: {
+        id: 'user-1',
+        email: 'ada@example.com',
+        role: UserRoles.CUSTOMER,
+        name: 'Ada',
+        isActive: true,
+      },
+    });
 
-    await expect(
-      service.login({ email: 'ada@example.com', password: 'Secret123' }, {}),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.refresh('stolen-token', {})).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { familyId: 'fam-1', revokedAt: null },
+      }),
+    );
   });
 });

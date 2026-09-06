@@ -29,12 +29,25 @@ export interface VerifyPaymentResult {
   providerPaymentId: string;
 }
 
+export interface CreateRefundInput {
+  providerPaymentId: string;
+  amountPaise: number;
+  notes?: string;
+}
+
+export interface CreateRefundResult {
+  providerRefundId: string | null;
+  providerStatus: string;
+}
+
 export interface PaymentProvider {
   readonly name: string;
   createIntent(
     input: CreatePaymentIntentInput,
   ): Promise<CreatePaymentIntentResult>;
   verifyPayment(input: VerifyPaymentInput): Promise<VerifyPaymentResult>;
+  verifyWebhookSignature(rawBody: string, signature: string): boolean;
+  createRefund(input: CreateRefundInput): Promise<CreateRefundResult>;
 }
 
 export const PAYMENT_PROVIDER = Symbol('PAYMENT_PROVIDER');
