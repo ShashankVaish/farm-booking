@@ -7,10 +7,15 @@ import {
   CreatePaymentIntentResult,
   CreateRefundInput,
   CreateRefundResult,
+  FetchOrderResult,
+  FetchPaymentResult,
+  PaymentIntentStatus,
   PaymentProvider,
   VerifyPaymentInput,
   VerifyPaymentResult,
 } from './payment-provider.interface';
+
+const PROVIDER_TIMEOUT_MS = 15_000;
 
 @Injectable()
 export class RazorpayProvider implements PaymentProvider {
@@ -22,7 +27,7 @@ export class RazorpayProvider implements PaymentProvider {
     input: CreatePaymentIntentInput,
   ): Promise<CreatePaymentIntentResult> {
     const { keyId, keySecret } = this.requireKeys();
-    const response = await fetch('https://api.razorpay.com/v1/orders', {
+    const response = await this.request('https://api.razorpay.com/v1/orders', {
       method: 'POST',
       headers: {
         Authorization: this.basicAuth(keyId, keySecret),
@@ -55,7 +60,7 @@ export class RazorpayProvider implements PaymentProvider {
       providerOrderId: body.id,
       amountPaise: body.amount,
       currency: body.currency,
-      status: body.status === 'paid' ? 'SUCCESS' : 'CREATED',
+      status: this.mapOrderStatus(body.status),
     };
   }
 
@@ -84,7 +89,7 @@ export class RazorpayProvider implements PaymentProvider {
 
   async createRefund(input: CreateRefundInput): Promise<CreateRefundResult> {
     const { keyId, keySecret } = this.requireKeys();
-    const response = await fetch(
+    const response = await this.request(
       `https://api.razorpay.com/v1/payments/${input.providerPaymentId}/refund`,
       {
         method: 'POST',
@@ -118,17 +123,12 @@ export class RazorpayProvider implements PaymentProvider {
     };
   }
 
-  async fetchOrder(providerOrderId: string): Promise<{
-    providerOrderId: string;
-    status: 'CREATED' | 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
-    providerPaymentId?: string;
-  } | null> {
+  async fetchOrder(providerOrderId: string): Promise<FetchOrderResult | null> {
     const { keyId, keySecret } = this.requireKeys();
-    const response = await fetch(
+    const auth = { Authorization: this.basicAuth(keyId, keySecret) };
+    const response = await this.request(
       `https://api.razorpay.com/v1/orders/${providerOrderId}`,
-      {
-        headers: { Authorization: this.basicAuth(keyId, keySecret) },
-      },
+      { headers: auth },
     );
     if (!response.ok) {
       return null;
@@ -136,21 +136,18 @@ export class RazorpayProvider implements PaymentProvider {
     const order = (await response.json()) as {
       id: string;
       status?: string;
+      amount?: number;
     };
-    const paymentsResponse = await fetch(
+    const paymentsResponse = await this.request(
       `https://api.razorpay.com/v1/orders/${providerOrderId}/payments`,
-      {
-        headers: { Authorization: this.basicAuth(keyId, keySecret) },
-      },
+      { headers: auth },
     );
     const payments = paymentsResponse.ok
       ? ((await paymentsResponse.json()) as {
-          items?: Array<{ id?: string; status?: string }>;
+          items?: Array<{ id?: string; status?: string; amount?: number }>;
         })
       : { items: [] };
-    const captured = payments.items?.find(
-      (item) => item.status === 'captured' || item.status === 'authorized',
-    );
+    const captured = payments.items?.find((item) => item.status === 'captured');
     const failed = payments.items?.find((item) => item.status === 'failed');
 
     if (order.status === 'paid' || captured) {
@@ -158,15 +155,63 @@ export class RazorpayProvider implements PaymentProvider {
         providerOrderId: order.id,
         status: 'SUCCESS',
         providerPaymentId: captured?.id,
+        amountPaise: captured?.amount ?? order.amount,
       };
     }
-    if (failed && order.status !== 'attempted') {
-      return { providerOrderId: order.id, status: 'FAILED' };
+    if (order.status === 'attempted' && failed && !captured) {
+      return {
+        providerOrderId: order.id,
+        status: 'FAILED',
+        amountPaise: order.amount,
+      };
     }
     return {
       providerOrderId: order.id,
-      status: order.status === 'attempted' ? 'PENDING' : 'CREATED',
+      status: this.mapOrderStatus(order.status),
+      amountPaise: order.amount,
     };
+  }
+
+  async fetchPayment(
+    providerPaymentId: string,
+  ): Promise<FetchPaymentResult | null> {
+    const { keyId, keySecret } = this.requireKeys();
+    const response = await this.request(
+      `https://api.razorpay.com/v1/payments/${providerPaymentId}`,
+      { headers: { Authorization: this.basicAuth(keyId, keySecret) } },
+    );
+    if (!response.ok) {
+      return null;
+    }
+    const body = (await response.json()) as {
+      id: string;
+      order_id?: string;
+      amount?: number;
+      currency?: string;
+      status?: string;
+      captured?: boolean;
+      notes?: { bookingId?: string };
+    };
+    const captured = body.captured === true || body.status === 'captured';
+    return {
+      providerPaymentId: body.id,
+      providerOrderId: body.order_id ?? '',
+      amountPaise: body.amount ?? 0,
+      currency: body.currency ?? 'INR',
+      captured,
+      status: captured
+        ? 'SUCCESS'
+        : body.status === 'failed'
+          ? 'FAILED'
+          : 'PENDING',
+      bookingId: body.notes?.bookingId,
+    };
+  }
+
+  private mapOrderStatus(status?: string): PaymentIntentStatus {
+    if (status === 'paid') return 'SUCCESS';
+    if (status === 'attempted') return 'PENDING';
+    return 'CREATED';
   }
 
   private requireKeys(): { keyId: string; keySecret: string } {
@@ -183,6 +228,21 @@ export class RazorpayProvider implements PaymentProvider {
 
   private basicAuth(keyId: string, keySecret: string): string {
     return `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`;
+  }
+
+  private async request(url: string, init: RequestInit): Promise<Response> {
+    try {
+      return await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+      });
+    } catch {
+      throw new ServiceUnavailableException({
+        errorCode: ErrorCodes.PAYMENT_PROVIDER_ERROR,
+        message:
+          'Payment gateway timed out. Try again without creating a new booking.',
+      });
+    }
   }
 
   private safeEqual(expected: string, actual: string): boolean {

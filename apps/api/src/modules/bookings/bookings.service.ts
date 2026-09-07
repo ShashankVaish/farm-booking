@@ -31,6 +31,7 @@ import {
   QuoteBookingDto,
 } from './dto/booking.dto';
 import { assertBookingTransition, canCustomerCancel } from './booking-status';
+import { AuditActions, AuditService } from '../../common/audit.service';
 
 const bookingDetailInclude = {
   property: {
@@ -60,6 +61,7 @@ export class BookingsService {
     private readonly coupons: CouponsService,
     private readonly availability: AvailabilityService,
     private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
   ) {}
 
   async quote(dto: QuoteBookingDto, userId?: string) {
@@ -246,6 +248,7 @@ export class BookingsService {
     user: RequestUser,
     dto: CancelBookingDto,
     refundHandler?: (bookingId: string, reason?: string) => Promise<unknown>,
+    onUnpaidCancel?: (bookingId: string) => Promise<unknown>,
   ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
@@ -296,10 +299,22 @@ export class BookingsService {
       });
     });
 
+    if (booking.status !== BookingStatus.CONFIRMED && onUnpaidCancel) {
+      await onUnpaidCancel(booking.id);
+    }
+
     let refund = null;
     if (booking.status === BookingStatus.CONFIRMED && refundHandler) {
       refund = await refundHandler(booking.id, dto.reason);
     }
+
+    await this.audit.record({
+      actorId: user.id,
+      action: AuditActions.BOOKING_CANCELLED,
+      entityType: 'Booking',
+      entityId: booking.id,
+      metadata: { reason: dto.reason, previousStatus: booking.status },
+    });
 
     await this.notifications.notify({
       userId: booking.customerId,

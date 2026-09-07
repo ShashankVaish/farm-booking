@@ -25,6 +25,7 @@ enum PropertyType {
 enum PropertyStatus {
   DRAFT
   PENDING_APPROVAL
+  CHANGES_REQUESTED
   APPROVED
   REJECTED
   SUSPENDED
@@ -50,9 +51,14 @@ enum BookingStatus {
 enum PaymentStatus {
   CREATED
   PENDING
+  PROCESSING
   SUCCESS
   FAILED
+  CANCELLED
+  EXPIRED
+  REFUND_PENDING
   REFUNDED
+  REFUND_FAILED
 }
 
 enum PaymentProviderType {
@@ -314,6 +320,7 @@ model Payment {
   status            PaymentStatus       @default(CREATED)
   verifiedAt        DateTime?
   failureReason     String?
+  expiresAt         DateTime?
   metadata          Json?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -323,7 +330,8 @@ model Payment {
 
   @@index([bookingId])
   @@index([status])
-  @@index([provider, providerPaymentId])
+  @@index([expiresAt, status])
+  @@unique([provider, providerPaymentId])
   @@unique([provider, providerOrderId])
 }
 
@@ -498,7 +506,15 @@ model Refund {
   @@index([bookingId])
   @@index([paymentId])
   @@index([status])
-  @@index([providerRefundId])
+  @@unique([providerRefundId])
+}
+
+model ProcessedWebhookEvent {
+  id        String   @id
+  event     String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model AuditLog {

@@ -65,6 +65,34 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
     load();
   }, [load]);
 
+  const awaitingPayStatus =
+    !booking || booking.status === 'PENDING' || booking.status === 'PAYMENT_PENDING';
+
+  useEffect(() => {
+    if (booking && !awaitingPayStatus) {
+      return;
+    }
+    let cancelled = false;
+    async function syncFromGateway() {
+      try {
+        const latest = await bookingApi.reconcile(bookingId);
+        if (!cancelled && latest) {
+          setBooking(latest);
+        }
+      } catch {
+        if (!cancelled) load();
+      }
+    }
+    void syncFromGateway();
+    const timer = window.setInterval(() => {
+      void syncFromGateway();
+    }, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [awaitingPayStatus, booking, bookingId, load]);
+
   useEffect(() => {
     if (confirmation && booking && (booking.status === 'PENDING' || booking.status === 'PAYMENT_PENDING')) {
       router.replace(`/booking/${booking.id}`);

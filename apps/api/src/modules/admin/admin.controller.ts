@@ -8,7 +8,6 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { PropertyStatus } from '@prisma/client';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRoles } from '../../common/constants/roles';
@@ -21,9 +20,10 @@ import {
   AdminListQueryDto,
   AdminPropertiesQueryDto,
   AdminRefundDto,
+  AdminReportsQueryDto,
   AdminUsersQueryDto,
   ModerateReviewDto,
-  RejectPropertyDto,
+  PropertyModerationDto,
   SetUserActiveDto,
   UpdateSupportTicketDto,
 } from './dto/admin.dto';
@@ -32,6 +32,21 @@ import {
 @Roles(UserRoles.ADMIN)
 export class AdminController {
   constructor(private readonly admin: AdminService) {}
+
+  @Get('overview')
+  overview() {
+    return this.admin.overview();
+  }
+
+  @Get('reports')
+  reports(@Query() query: AdminReportsQueryDto) {
+    return this.admin.reports(query);
+  }
+
+  @Get('settings')
+  settings() {
+    return this.admin.settings();
+  }
 
   @Get('users')
   users(@Query() query: AdminUsersQueryDto) {
@@ -48,7 +63,7 @@ export class AdminController {
   }
 
   @Get('owners')
-  owners(@Query() query: AdminListQueryDto) {
+  owners(@Query() query: AdminUsersQueryDto) {
     return this.admin.owners(query);
   }
 
@@ -59,31 +74,49 @@ export class AdminController {
 
   @Post('properties/:id/approve')
   approve(@CurrentUser() user: RequestUser, @Param('id') id: string) {
-    return this.admin.setPropertyStatus(id, PropertyStatus.APPROVED, user.id);
+    return this.admin.approveProperty(id, user.id);
   }
 
   @Post('properties/:id/reject')
   reject(
     @CurrentUser() user: RequestUser,
     @Param('id') id: string,
-    @Body() dto: RejectPropertyDto,
+    @Body() dto: PropertyModerationDto,
   ) {
-    return this.admin.setPropertyStatus(
-      id,
-      PropertyStatus.REJECTED,
-      user.id,
-      dto.reason,
-    );
+    return this.admin.rejectProperty(id, user.id, dto.reason);
+  }
+
+  @Post('properties/:id/request-changes')
+  requestChanges(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: PropertyModerationDto,
+  ) {
+    return this.admin.requestPropertyChanges(id, user.id, dto.reason);
   }
 
   @Post('properties/:id/suspend')
-  suspend(@CurrentUser() user: RequestUser, @Param('id') id: string) {
-    return this.admin.setPropertyStatus(id, PropertyStatus.SUSPENDED, user.id);
+  suspend(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: PropertyModerationDto,
+  ) {
+    return this.admin.suspendProperty(id, user.id, dto.reason);
+  }
+
+  @Post('properties/:id/restore')
+  restore(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.admin.restoreProperty(id, user.id);
   }
 
   @Get('bookings')
   bookings(@Query() query: AdminBookingsQueryDto) {
     return this.admin.bookings(query);
+  }
+
+  @Get('bookings/:id')
+  booking(@Param('id') id: string) {
+    return this.admin.booking(id);
   }
 
   @Get('payments')
@@ -92,8 +125,8 @@ export class AdminController {
   }
 
   @Post('payments/:id/reconcile')
-  reconcile(@Param('id') id: string) {
-    return this.admin.reconcilePayment(id);
+  reconcile(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.admin.reconcilePayment(id, user.id);
   }
 
   @Post('payments/expire-abandoned')
@@ -107,8 +140,12 @@ export class AdminController {
   }
 
   @Post('bookings/:id/refund')
-  refund(@Param('id') id: string, @Body() dto: AdminRefundDto) {
-    return this.admin.requestRefund(id, dto.reason);
+  refund(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: AdminRefundDto,
+  ) {
+    return this.admin.requestRefund(id, user.id, dto.reason, dto.amount);
   }
 
   @Get('reviews')
@@ -117,8 +154,17 @@ export class AdminController {
   }
 
   @Patch('reviews/:id')
-  moderateReview(@Param('id') id: string, @Body() dto: ModerateReviewDto) {
-    return this.admin.moderateReview(id, dto.isPublished);
+  moderateReview(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: ModerateReviewDto,
+  ) {
+    return this.admin.moderateReview(id, dto.isPublished, user.id);
+  }
+
+  @Get('notifications')
+  notifications(@Query() query: AdminListQueryDto) {
+    return this.admin.notifications(query);
   }
 
   @Get('support-tickets')
@@ -127,8 +173,12 @@ export class AdminController {
   }
 
   @Patch('support-tickets/:id')
-  updateTicket(@Param('id') id: string, @Body() dto: UpdateSupportTicketDto) {
-    return this.admin.updateTicket(id, dto.status);
+  updateTicket(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateSupportTicketDto,
+  ) {
+    return this.admin.updateTicket(id, dto.status, user.id);
   }
 
   @Get('coupons')
@@ -137,17 +187,21 @@ export class AdminController {
   }
 
   @Post('coupons')
-  createCoupon(@Body() dto: CreateCouponDto) {
-    return this.admin.createCoupon(dto);
+  createCoupon(@CurrentUser() user: RequestUser, @Body() dto: CreateCouponDto) {
+    return this.admin.createCoupon(dto, user.id);
   }
 
   @Patch('coupons/:id')
-  updateCoupon(@Param('id') id: string, @Body() dto: UpdateCouponDto) {
-    return this.admin.updateCoupon(id, dto);
+  updateCoupon(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateCouponDto,
+  ) {
+    return this.admin.updateCoupon(id, dto, user.id);
   }
 
   @Delete('coupons/:id')
-  deleteCoupon(@Param('id') id: string) {
-    return this.admin.deleteCoupon(id);
+  deleteCoupon(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.admin.deleteCoupon(id, user.id);
   }
 }

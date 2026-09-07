@@ -133,7 +133,15 @@ export function LoginForm() {
       ) : null}
       {mode === 'email' ? (
         <form className={styles.stack} onSubmit={submitEmail}>
-          <Input id="email" label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input
+            id="email"
+            label="Email or admin login"
+            type="text"
+            autoComplete="username"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
           <Input
             id="password"
             label="Password"

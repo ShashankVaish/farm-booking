@@ -25,6 +25,9 @@ export function authErrorMessage(err: unknown, fallback: string): string {
     return err.message;
   }
   if (err instanceof ApiError) {
+    if (err.status === 429 || err.code === 'RATE_LIMITED') {
+      return 'Too many sign-in attempts. Wait a minute and try again.';
+    }
     if (Array.isArray(err.details) && err.details.every((item) => typeof item === 'string')) {
       return err.details.join(' ');
     }

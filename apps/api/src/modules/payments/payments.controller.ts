@@ -1,6 +1,16 @@
-import { Body, Controller, Headers, HttpCode, Post, Req } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Headers,
+  HttpCode,
+  Param,
+  Post,
+  Req,
+} from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
+import { ErrorCodes } from '../../common/constants/error-codes';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -24,15 +34,29 @@ export class PaymentsController {
     return this.payments.verifyCheckout(user, dto);
   }
 
+  @Post('bookings/:bookingId/reconcile')
+  reconcileBooking(
+    @CurrentUser() user: RequestUser,
+    @Param('bookingId') bookingId: string,
+  ) {
+    return this.payments.reconcileForUser(user, bookingId);
+  }
+
   @Public()
   @Post('webhook')
   @HttpCode(200)
   webhook(
     @Req() request: RawBodyRequest<Request>,
     @Headers('x-razorpay-signature') signature?: string,
+    @Headers('x-razorpay-event-id') eventId?: string,
   ) {
-    const raw =
-      request.rawBody?.toString('utf8') ?? JSON.stringify(request.body ?? {});
-    return this.payments.handleWebhook(raw, signature);
+    if (!request.rawBody?.length) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.PAYMENT_NOT_VERIFIED,
+        message: 'Webhook body is missing.',
+      });
+    }
+    const raw = request.rawBody.toString('utf8');
+    return this.payments.handleWebhook(raw, signature, eventId);
   }
 }

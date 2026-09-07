@@ -34,6 +34,7 @@ export function assertPropertyStatusTransition(
   const allowedFrom: Record<PropertyStatus, PropertyStatus[]> = {
     DRAFT: [PropertyStatus.DRAFT, PropertyStatus.PENDING_APPROVAL],
     PENDING_APPROVAL: [PropertyStatus.DRAFT, PropertyStatus.PENDING_APPROVAL],
+    CHANGES_REQUESTED: [PropertyStatus.DRAFT, PropertyStatus.PENDING_APPROVAL],
     REJECTED: [PropertyStatus.DRAFT, PropertyStatus.PENDING_APPROVAL],
     APPROVED: [],
     SUSPENDED: [],

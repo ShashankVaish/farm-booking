@@ -33,6 +33,9 @@ export const bookingApi = {
   verify: (body: { providerOrderId: string; providerPaymentId: string; signature: string }) =>
     apiClient.post('/api/payments/verify', body),
 
+  reconcile: (bookingId: string) =>
+    apiClient.post<CustomerBooking>(`/api/payments/bookings/${bookingId}/reconcile`),
+
   review: (propertyId: string, body: { bookingId: string; rating: number; comment?: string }) =>
     apiClient.post(`/api/properties/${propertyId}/reviews`, body),
 };

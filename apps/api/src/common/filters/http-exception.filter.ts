@@ -61,9 +61,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const status = exception.getStatus();
       const payload = exception.getResponse();
       const message =
-        typeof payload === 'string'
-          ? payload
-          : this.extractMessage(payload) || exception.message;
+        status === HttpStatus.TOO_MANY_REQUESTS
+          ? 'Too many attempts. Wait a minute and try again.'
+          : typeof payload === 'string'
+            ? payload
+            : this.extractMessage(payload) || exception.message;
 
       return {
         status,
