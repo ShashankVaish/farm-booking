@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Patch, Post, Req, Res } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
@@ -20,7 +20,8 @@ export class AuthController {
   ) {}
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @SkipThrottle({ default: true })
+  @Throttle({ auth: { limit: 30, ttl: 60000 } })
   @Post('register')
   async register(
     @Body() dto: RegisterDto,
@@ -36,7 +37,8 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @SkipThrottle({ default: true })
+  @Throttle({ auth: { limit: 30, ttl: 60000 } })
   @Post('login')
   async login(
     @Body() dto: LoginDto,
@@ -84,14 +86,16 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @SkipThrottle({ default: true })
+  @Throttle({ auth: { limit: 8, ttl: 60000 } })
   @Post('otp/request')
   requestOtp(@Body() dto: RequestOtpDto, @Req() request: Request) {
     return this.otp.request(dto, { ipAddress: request.ip });
   }
 
   @Public()
-  @Throttle({ default: { limit: 8, ttl: 60000 } })
+  @SkipThrottle({ default: true })
+  @Throttle({ auth: { limit: 12, ttl: 60000 } })
   @Post('otp/verify')
   async verifyOtp(
     @Body() dto: VerifyOtpDto,

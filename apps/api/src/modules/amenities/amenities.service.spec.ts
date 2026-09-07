@@ -13,7 +13,8 @@ describe('AmenitiesService', () => {
         delete: jest.fn(),
       },
     };
-    const service = new AmenitiesService(prisma as never);
+    const audit = { record: jest.fn() };
+    const service = new AmenitiesService(prisma as never, audit as never);
     await expect(service.list()).resolves.toEqual([{ id: 'a1', name: 'Pool' }]);
     await service.create({ name: 'Pool' });
     expect(prisma.amenity.create).toHaveBeenCalled();
@@ -23,7 +24,9 @@ describe('AmenitiesService', () => {
     const prisma = {
       amenity: { findUnique: jest.fn().mockResolvedValue(null) },
     };
-    const service = new AmenitiesService(prisma as never);
+    const service = new AmenitiesService(prisma as never, {
+      record: jest.fn(),
+    } as never);
     await expect(
       service.update('missing', { name: 'X' }),
     ).rejects.toBeInstanceOf(NotFoundException);

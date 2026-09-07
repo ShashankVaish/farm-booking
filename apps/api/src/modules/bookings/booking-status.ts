@@ -22,8 +22,8 @@ const TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   ],
   CANCELLED: [BookingStatus.REFUNDED],
   COMPLETED: [],
-  FAILED: [],
-  EXPIRED: [],
+  EXPIRED: [BookingStatus.REFUNDED],
+  FAILED: [BookingStatus.REFUNDED],
   REFUNDED: [],
 };
 

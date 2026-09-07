@@ -35,6 +35,16 @@ describe('validateEnv', () => {
     ).toThrow(/Invalid environment configuration/);
   });
 
+  it('accepts optional admin bootstrap fields', () => {
+    const result = validateEnv({
+      ...validEnv,
+      ADMIN_EMAIL: 'admin',
+      ADMIN_PASSWORD: 'LocalOnly1',
+      ADMIN_NAME: 'Admin',
+    });
+    expect(result.ADMIN_EMAIL).toBe('admin');
+  });
+
   it('rejects a missing database URL', () => {
     const rest: Record<string, unknown> = { ...validEnv };
     delete rest.DATABASE_URL;

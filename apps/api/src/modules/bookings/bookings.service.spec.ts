@@ -111,6 +111,7 @@ describe('BookingsService', () => {
       coupons as never,
       availability as never,
       notifications as never,
+      { record: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     return { service, prisma, tx, availability, notifications };

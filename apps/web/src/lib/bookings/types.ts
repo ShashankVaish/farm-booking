@@ -69,8 +69,10 @@ export function paymentStatusLabel(booking: CustomerBooking): string {
   if (booking.status === 'CONFIRMED' || booking.status === 'COMPLETED') return 'Paid';
   if (booking.status === 'CANCELLED') return 'Cancelled';
   if (booking.status === 'EXPIRED') return 'Expired';
+  if (booking.status === 'REFUNDED') return 'Refunded';
   const latest = booking.payments?.[0]?.status;
   if (latest === 'FAILED') return 'Payment failed';
+  if (latest === 'REFUND_PENDING' || latest === 'REFUND_FAILED') return 'Refund in progress';
   if (booking.status === 'PAYMENT_PENDING') return 'Payment pending';
   return 'Awaiting payment';
 }

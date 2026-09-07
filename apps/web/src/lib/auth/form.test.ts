@@ -21,5 +21,8 @@ describe('auth form helpers', () => {
     expect(
       authErrorMessage(new ApiError(400, 'VALIDATION_ERROR', 'Invalid.', ['Phone is invalid']), 'fallback'),
     ).toBe('Phone is invalid');
+    expect(
+      authErrorMessage(new ApiError(429, 'RATE_LIMITED', 'ThrottlerException: Too Many Requests'), 'fallback'),
+    ).toMatch(/wait a minute/i);
   });
 });

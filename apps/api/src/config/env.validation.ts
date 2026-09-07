@@ -143,6 +143,18 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(5)
   BOOKING_EXPIRE_MINUTES!: number;
+
+  @IsOptional()
+  @IsString()
+  ADMIN_EMAIL?: string;
+
+  @IsOptional()
+  @IsString()
+  ADMIN_PASSWORD?: string;
+
+  @IsOptional()
+  @IsString()
+  ADMIN_NAME?: string;
 }
 
 export function validateEnv(
