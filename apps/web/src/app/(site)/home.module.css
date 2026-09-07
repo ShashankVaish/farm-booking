@@ -1,28 +1,53 @@
 .hero {
-  padding: var(--space-10) 0 var(--space-8);
+  padding: 0 0 var(--space-8);
 }
 
 .heroPanel {
-  padding: var(--space-8) var(--space-5);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  position: relative;
+  isolation: isolate;
+  min-height: 35rem;
+  padding: clamp(5rem, 12vw, 9rem) clamp(1.25rem, 6vw, 6rem) 3rem;
+  overflow: hidden;
+  border-bottom: 1px solid rgb(255 255 255 / 0.1);
+  background: linear-gradient(90deg, rgb(8 8 14 / 0.98) 0%, rgb(8 8 14 / 0.78) 43%, rgb(8 8 14 / 0.26) 100%), radial-gradient(circle at 74% 40%, #66335f 0, #181326 38%, #090a12 70%);
+}
+
+.heroPanel::after {
+  content: '';
+  position: absolute;
+  inset: auto -5% -20% 36%;
+  z-index: -1;
+  height: 75%;
+  background: radial-gradient(ellipse at center, rgb(255 105 91 / 0.42), transparent 64%);
+  filter: blur(28px);
 }
 
 .hero h1 {
   margin-top: var(--space-4);
-  max-width: 18ch;
+  max-width: 14ch;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: clamp(2.7rem, 6vw, 5.4rem);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+}
+
+.hero h1::first-line {
+  color: #fff;
 }
 
 .lead {
   margin-top: var(--space-5);
   max-width: 38rem;
-  color: var(--color-text-secondary);
+  color: #d0ccda;
+  max-width: 30rem;
 }
 
 .searchWrap {
-  margin-top: var(--space-8);
+  position: relative;
+  z-index: 2;
+  margin-top: clamp(2.5rem, 7vw, 5rem);
+  max-width: 52rem;
 }
 
 .destGrid {
@@ -38,8 +63,8 @@
   min-height: 8rem;
   min-width: 0;
   padding: var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: linear-gradient(145deg, #1b1b29, #11121d);
+  border: 1px solid rgb(255 255 255 / 0.08);
   border-radius: var(--radius-md);
   transition:
     border-color var(--duration-fast) var(--easing-standard),
@@ -59,14 +84,14 @@
 
 .reason {
   padding: var(--space-5);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
+  background: linear-gradient(145deg, #1a1a28, #10111b);
+  border: 1px solid rgb(255 255 255 / 0.08);
   border-radius: var(--radius-md);
 }
 
 .ownerCta {
   padding: var(--space-10) var(--space-5);
-  background: var(--color-primary);
+  background: linear-gradient(110deg, #5920a1, #8d3bc4 55%, #ef6e5b);
   color: var(--color-inverse);
   border-radius: var(--radius-md);
 }
@@ -93,7 +118,7 @@
 
 @media (min-width: 768px) {
   .hero {
-    padding-top: var(--space-16);
+    padding-top: 0;
   }
 
   .destGrid {
@@ -107,7 +132,7 @@
 
 @media (min-width: 1024px) {
   .heroPanel {
-    padding: var(--space-16) var(--space-10);
+    padding-block: 8rem 3.5rem;
   }
 
   .destGrid {

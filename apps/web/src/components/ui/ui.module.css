@@ -34,12 +34,12 @@
 }
 
 .primary {
-  background: var(--color-primary);
+  background: linear-gradient(110deg, #8f42d1, #d758b1 58%, #ff8c5c);
   color: var(--color-inverse);
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+  background: linear-gradient(110deg, #7e32c1, #c64aa2 58%, #f17a4e);
   color: var(--color-inverse);
 }
 

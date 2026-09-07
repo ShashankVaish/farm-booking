@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { BrandMark } from '@/components/layout/brand-mark';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
+import { apiClient } from '@/lib/api/client';
+import { memoryTokenStore } from '@/lib/api/token-store';
+import type { AuthUser } from '@/lib/properties/types';
 import styles from './shell.module.css';
 
 const NAV = [
@@ -47,7 +50,11 @@ function ProfileIcon() {
 
 export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'minimal' }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -66,6 +73,34 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
       window.removeEventListener('keydown', onKey);
     };
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (!memoryTokenStore.getAccessToken()) {
+      setSessionLoaded(true);
+      return;
+    }
+    apiClient
+      .get<AuthUser>('/api/auth/me')
+      .then(setUser)
+      .catch(() => {
+        memoryTokenStore.setAccessToken(null);
+        setUser(null);
+      })
+      .finally(() => setSessionLoaded(true));
+  }, [pathname]);
+
+  async function logout() {
+    setLoggingOut(true);
+    try {
+      await apiClient.post('/api/auth/logout', undefined, { auth: false });
+    } finally {
+      memoryTokenStore.setAccessToken(null);
+      setUser(null);
+      setLoggingOut(false);
+      router.push('/');
+      router.refresh();
+    }
+  }
 
   return (
     <header className={styles.header}>
@@ -118,13 +153,29 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
           <Link href="/dashboard" className={styles.iconButton} aria-label="Account">
             <ProfileIcon />
           </Link>
-          {variant === 'default' ? (
+          {variant === 'default' && sessionLoaded && !user ? (
             <span className={styles.desktopCta}>
               <Button href="/auth/login" variant="ghost" size="sm">
                 Sign in
               </Button>
               <Button href="/explore" size="sm">
                 Find a Stay
+              </Button>
+            </span>
+          ) : null}
+          {variant === 'default' && sessionLoaded && user ? (
+            <span className={styles.desktopCta}>
+              {user.role === 'ADMIN' ? (
+                <Button href="/admin" variant="ghost" size="sm">
+                  Admin
+                </Button>
+              ) : (
+                <Button href={user.role === 'OWNER' ? '/host' : '/dashboard'} variant="ghost" size="sm">
+                  {user.name || 'Account'}
+                </Button>
+              )}
+              <Button type="button" variant="secondary" size="sm" onClick={() => void logout()} disabled={loggingOut}>
+                {loggingOut ? 'Signing out…' : 'Log out'}
               </Button>
             </span>
           ) : null}

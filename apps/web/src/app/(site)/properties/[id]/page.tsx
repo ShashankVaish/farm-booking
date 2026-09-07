@@ -54,6 +54,8 @@ export default async function PropertyPage({ params }: Props) {
       }))
     : { items: [], meta: { total: 0, page: 1, limit: 8, totalPages: 0 } };
   const isSample = !isUuid(property.id);
+  const isApproved = property.status === 'APPROVED';
+  const isBookable = !isSample && isApproved;
   const images = [...(property.images ?? [])]
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
     .map((image) => ({
@@ -148,7 +150,7 @@ export default async function PropertyPage({ params }: Props) {
         </div>
 
         <div className={styles.stickyBooking} id="book-in">
-          <PropertyBookingCard property={property} bookable={!isSample} />
+          <PropertyBookingCard property={property} bookable={isBookable} />
         </div>
 
         <div className={styles.propertyMore}>
@@ -174,8 +176,12 @@ export default async function PropertyPage({ params }: Props) {
           <h2 className="t-h3" style={{ marginTop: 'var(--space-8)' }}>
             Availability
           </h2>
-          {isSample ? (
-            <p className="t-body-small">Calendar and booking open once this stay is published by a host.</p>
+          {!isBookable ? (
+            <p className="t-body-small">
+              {isSample
+                ? 'Calendar and booking open once this stay is published by a host.'
+                : 'Calendar and booking open after this property is approved by admin.'}
+            </p>
           ) : (
             <AvailabilityCalendar propertyId={property.id} />
           )}
@@ -209,7 +215,7 @@ export default async function PropertyPage({ params }: Props) {
           )}
           <span className="t-caption"> / night</span>
         </span>
-        <Button href={isSample ? '/explore' : '#book-in'}>{isSample ? 'Browse stays' : 'Check dates'}</Button>
+        <Button href={!isBookable ? '/explore' : '#book-in'}>{!isBookable ? 'Browse stays' : 'Check dates'}</Button>
       </div>
     </article>
   );

@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
 import { EmptyState, ErrorState, Spinner } from '@/components/ui/feedback';
 import { adminApi } from '@/lib/admin/api';
 import { ApiError } from '@/lib/api/errors';
 import type { AuthUser } from '@/lib/properties/types';
 import { cn } from '@/lib/cn';
+import { LoginForm } from '@/app/(auth)/auth/auth-forms';
 import styles from './admin.module.css';
 
 const LINKS = [
@@ -29,16 +30,17 @@ const LINKS = [
 
 export function AdminChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [needsLogin, setNeedsLogin] = useState(false);
 
   function load() {
     setLoading(true);
     setError(null);
     setForbidden(false);
+    setNeedsLogin(false);
     adminApi
       .me()
       .then(async (account) => {
@@ -60,7 +62,7 @@ export function AdminChrome({ children }: { children: ReactNode }) {
       })
       .catch((err) => {
         if (err instanceof ApiError && err.status === 401) {
-          router.replace(`/auth/login?next=${encodeURIComponent(pathname || '/admin')}`);
+          setNeedsLogin(true);
           return;
         }
         if (err instanceof ApiError && err.status === 403) {
@@ -74,13 +76,26 @@ export function AdminChrome({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {
     return (
       <div className="container" style={{ padding: 'var(--space-12) 0' }}>
         <Spinner label="Loading admin" />
+      </div>
+    );
+  }
+
+  if (needsLogin) {
+    return (
+      <div className="container">
+        <LoginForm
+          adminOnly
+          onAuthenticated={() => {
+            setNeedsLogin(false);
+            load();
+          }}
+        />
       </div>
     );
   }

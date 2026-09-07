@@ -130,7 +130,9 @@ export function PropertyBookingCard({
           <span className="t-caption">/ night</span>
         </p>
         <p className="t-body-small">
-          This is a sample stay. Live dates and checkout are available on published listings.
+          {property.status && property.status !== 'APPROVED'
+            ? 'This property is awaiting admin approval. Live dates and checkout will open after approval.'
+            : 'This is a sample stay. Live dates and checkout are available on published listings.'}
         </p>
         <Button href="/explore" block>
           Browse live stays

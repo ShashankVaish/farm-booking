@@ -28,6 +28,7 @@ body {
   line-height: var(--lh-body);
   letter-spacing: var(--ls-body);
   -webkit-font-smoothing: antialiased;
+  background-image: radial-gradient(circle at 72% 0%, rgb(52 35 91 / 0.24), transparent 32rem);
 }
 
 img,
@@ -51,6 +52,13 @@ a {
 
 a:hover {
   color: var(--color-primary);
+}
+
+button,
+input,
+select,
+textarea {
+  color-scheme: dark;
 }
 
 ::selection {

@@ -177,7 +177,7 @@ export function LocationStep({ value, onChange }: Props) {
           <ul className={styles.suggestions} id="location-suggestions" role="listbox" aria-label="Address suggestions">
             {suggestions.map((place) => (
               <li key={`${place.latitude}-${place.longitude}-${place.displayName}`} role="none">
-                <button type="button" role="option" onClick={() => pickSuggestion(place)}>
+                <button type="button" role="option" aria-selected={false} onClick={() => pickSuggestion(place)}>
                   {place.displayName}
                 </button>
               </li>
@@ -190,17 +190,25 @@ export function LocationStep({ value, onChange }: Props) {
         <Input id="address" label="Address" required value={value.address} onChange={(e) => onChange({ ...value, address: e.target.value, confirmed: false })} />
         <Input id="city" label="City" required value={value.city} onChange={(e) => onChange({ ...value, city: e.target.value, confirmed: false })} />
         <Input id="state" label="State" required value={value.state} onChange={(e) => onChange({ ...value, state: e.target.value, confirmed: false })} />
-        <Input id="pincode" label="PIN code" required value={value.pincode} onChange={(e) => onChange({ ...value, pincode: e.target.value, confirmed: false })} hint="6-digit Indian PIN where applicable" />
+        <Input id="pincode" label="PIN code" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={value.pincode} onChange={(e) => onChange({ ...value, pincode: e.target.value.replace(/\D/g, '').slice(0, 6), confirmed: false })} hint="6-digit Indian PIN where applicable" />
         <Input id="country" label="Country" required value={value.country} onChange={(e) => onChange({ ...value, country: e.target.value, confirmed: false })} />
         <Input
           id="lat"
           label="Latitude"
+          type="number"
+          min={-90}
+          max={90}
+          step="any"
           value={value.latitude ?? ''}
           onChange={(e) => onChange({ ...value, latitude: e.target.value === '' ? null : Number(e.target.value), confirmed: false })}
         />
         <Input
           id="lng"
           label="Longitude"
+          type="number"
+          min={-180}
+          max={180}
+          step="any"
           value={value.longitude ?? ''}
           onChange={(e) => onChange({ ...value, longitude: e.target.value === '' ? null : Number(e.target.value), confirmed: false })}
         />

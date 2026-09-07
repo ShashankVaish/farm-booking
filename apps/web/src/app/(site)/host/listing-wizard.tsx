@@ -147,7 +147,16 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
     setError(null);
     try {
       const saved = await persist();
-      await hostApi.updateProperty(saved.id as string, { status: 'PENDING_APPROVAL' });
+      if (!saved.id) {
+        throw new Error('The listing was saved without an identifier. Please try again.');
+      }
+      if (saved.status === 'APPROVED' || saved.status === 'SUSPENDED') {
+        setError('This listing cannot be submitted for review in its current status.');
+        return;
+      }
+      if (saved.status !== 'PENDING_APPROVAL') {
+        await hostApi.updateProperty(saved.id, { status: 'PENDING_APPROVAL' });
+      }
       notify('Submitted for review. You cannot approve your own listing.');
       router.push('/host/properties');
     } catch (err) {
@@ -274,10 +283,10 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
 
       {step === 2 ? (
         <div className={`${styles.panel} ${styles.twoCol}`}>
-          <Input id="guests" label="Guests" type="number" min={1} value={draft.guestCapacity} onChange={(e) => setDraft({ ...draft, guestCapacity: Number(e.target.value) })} />
-          <Input id="bedrooms" label="Bedrooms" type="number" min={1} value={draft.bedrooms} onChange={(e) => setDraft({ ...draft, bedrooms: Number(e.target.value) })} />
-          <Input id="bathrooms" label="Bathrooms" type="number" min={1} value={draft.bathrooms} onChange={(e) => setDraft({ ...draft, bathrooms: Number(e.target.value) })} />
-          <Input id="beds" label="Beds" type="number" min={1} value={draft.meta.beds} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, beds: Number(e.target.value) } })} />
+          <Input id="guests" label="Guests" type="number" min={1} step={1} value={draft.guestCapacity} onChange={(e) => setDraft({ ...draft, guestCapacity: Math.max(0, Number(e.target.value) || 0) })} />
+          <Input id="bedrooms" label="Bedrooms" type="number" min={1} step={1} value={draft.bedrooms} onChange={(e) => setDraft({ ...draft, bedrooms: Math.max(0, Number(e.target.value) || 0) })} />
+          <Input id="bathrooms" label="Bathrooms" type="number" min={1} step={1} value={draft.bathrooms} onChange={(e) => setDraft({ ...draft, bathrooms: Math.max(0, Number(e.target.value) || 0) })} />
+          <Input id="beds" label="Beds" type="number" min={1} step={1} value={draft.meta.beds} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, beds: Math.max(0, Number(e.target.value) || 0) } })} />
         </div>
       ) : null}
 

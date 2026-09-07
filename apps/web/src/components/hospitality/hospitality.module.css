@@ -21,6 +21,11 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding: 0.7rem;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #1b1b29, #11121d);
+  box-shadow: 0 10px 26px rgb(0 0 0 / 0.18);
 }
 
 .card:hover .mediaWrap img {
@@ -30,7 +35,7 @@
 .mediaWrap {
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius-md);
+  border-radius: 12px;
   transition: opacity var(--duration-base) var(--easing-standard);
 }
 
@@ -47,8 +52,8 @@
   height: var(--touch);
   border: 0;
   border-radius: var(--radius-full);
-  background: rgb(250 247 242 / 0.9);
-  color: var(--color-text-primary);
+  background: rgb(12 13 21 / 0.72);
+  color: #fff;
   cursor: pointer;
 }
 
@@ -60,7 +65,7 @@
 }
 
 .body {
-  padding-top: var(--space-3);
+  padding: 0.85rem 0.25rem 0.25rem;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -82,8 +87,9 @@
 
 .title {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 650;
   line-height: 1.25;
 }
 
@@ -91,7 +97,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted);
   font-size: var(--fs-body-small);
 }
 
@@ -116,6 +122,10 @@
   margin-top: var(--space-1);
 }
 
+.card .t-metadata {
+  color: #d78cff;
+}
+
 .stars {
   display: inline-flex;
   gap: 0.1rem;
@@ -125,10 +135,11 @@
 .search {
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-5);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  padding: 0.55rem;
+  background: rgb(255 255 255 / 0.96);
+  color: #22212a;
+  border: 1px solid rgb(255 255 255 / 0.75);
+  border-radius: 22px;
   box-shadow: var(--shadow-sm);
 }
 
@@ -160,7 +171,7 @@
   font-size: var(--fs-label);
   letter-spacing: var(--ls-label);
   text-transform: uppercase;
-  color: var(--color-text-secondary);
+  color: #6d6875;
 }
 
 .skeletonMedia {
@@ -393,8 +404,8 @@
 .stepper button {
   width: var(--touch);
   height: var(--touch);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-elevated);
+  border: 1px solid #ddd9e2;
+  background: #fff;
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
@@ -523,6 +534,21 @@
   flex-direction: column;
   gap: var(--space-4);
   box-shadow: var(--shadow-md);
+}
+
+.search :global(label) {
+  color: #6d6875;
+}
+
+.search :global(input) {
+  color: #292630;
+  background: transparent;
+  border-color: transparent;
+  padding-inline: 0;
+}
+
+.search :global(input:focus) {
+  box-shadow: none;
 }
 
 .booking form {

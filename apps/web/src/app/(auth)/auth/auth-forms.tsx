@@ -23,10 +23,10 @@ function otpMessage(code: string, fallback: string) {
   return fallback;
 }
 
-export function LoginForm() {
+export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: boolean; onAuthenticated?: () => void }) {
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get('next') || '/dashboard';
+  const next = search.get('next') || (adminOnly ? '/admin' : '/dashboard');
   const [mode, setMode] = useState<Mode>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,7 +53,13 @@ export function LoginForm() {
         { email: email.trim().toLowerCase(), password },
         { auth: false },
       );
+      if (!adminOnly && result.user.role === 'ADMIN') {
+        await apiClient.post('/api/auth/logout', undefined, { auth: false });
+        setError('Admin accounts must sign in from /admin.');
+        return;
+      }
       memoryTokenStore.setAccessToken(result.accessToken);
+      onAuthenticated?.();
       router.push(next);
       router.refresh();
     } catch (err) {
@@ -102,7 +108,13 @@ export function LoginForm() {
         { phone: mobile, code: code.trim(), purpose: 'LOGIN' },
         { auth: false },
       );
+      if (!adminOnly && result.user.role === 'ADMIN') {
+        await apiClient.post('/api/auth/logout', undefined, { auth: false });
+        setError('Admin accounts must sign in from /admin.');
+        return;
+      }
       memoryTokenStore.setAccessToken(result.accessToken);
+      onAuthenticated?.();
       router.push(next);
       router.refresh();
     } catch (err) {
@@ -140,7 +152,7 @@ export function LoginForm() {
         <form className={styles.stack} onSubmit={submitEmail}>
           <Input
             id="email"
-            label="Email or admin login"
+            label={adminOnly ? 'Admin email' : 'Email'}
             type="text"
             autoComplete="username"
             required
@@ -193,9 +205,16 @@ export function LoginForm() {
           ) : null}
         </form>
       )}
-      <p className="t-body-small" style={{ marginTop: 'var(--space-5)' }}>
-        New here? <Link href="/auth/register">Create an account</Link>
-      </p>
+      {!adminOnly ? (
+        <>
+          <p className="t-body-small" style={{ marginTop: 'var(--space-5)' }}>
+            New here? <Link href="/auth/register">Create a customer account</Link>
+          </p>
+          <p className="t-body-small" style={{ marginTop: 'var(--space-2)' }}>
+            Want to host a property? <Link href="/auth/register?role=OWNER">Create a host account</Link>
+          </p>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -390,6 +409,9 @@ export function RegisterForm() {
       )}
       <p className="t-body-small" style={{ marginTop: 'var(--space-5)' }}>
         Already have an account? <Link href="/auth/login">Sign in</Link>
+      </p>
+      <p className="t-body-small" style={{ marginTop: 'var(--space-2)' }}>
+        Want to host a property? <Link href="/auth/register?role=OWNER">Create host account</Link>
       </p>
     </div>
   );
