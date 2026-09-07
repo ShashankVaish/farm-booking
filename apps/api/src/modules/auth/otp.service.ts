@@ -51,20 +51,14 @@ export class OtpService {
     if (purpose === 'LOGIN') {
       const user = await this.prisma.user.findUnique({ where: { phone } });
       if (!user || !user.isActive) {
-        throw new UnauthorizedException({
-          errorCode: ErrorCodes.INVALID_CREDENTIALS,
-          message: 'No active account exists for this phone number.',
-        });
+        return this.opaqueRequestResult(phone, now);
       }
     }
 
     if (purpose === 'REGISTER') {
       const existing = await this.prisma.user.findUnique({ where: { phone } });
       if (existing) {
-        throw new ConflictException({
-          errorCode: ErrorCodes.PHONE_ALREADY_REGISTERED,
-          message: 'An account with this phone number already exists.',
-        });
+        return this.opaqueRequestResult(phone, now);
       }
     }
 
@@ -180,10 +174,16 @@ export class OtpService {
       });
     }
 
-    await this.prisma.otpChallenge.update({
-      where: { id: challenge.id },
+    const claimed = await this.prisma.otpChallenge.updateMany({
+      where: { id: challenge.id, consumedAt: null },
       data: { consumedAt: now },
     });
+    if (claimed.count === 0) {
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.OTP_INVALID,
+        message: 'This OTP has already been used.',
+      });
+    }
 
     const user =
       purpose === 'REGISTER'
@@ -250,6 +250,15 @@ export class OtpService {
       select: { id: true, email: true, role: true, name: true },
     });
     return created;
+  }
+
+  private opaqueRequestResult(phone: string, now: Date) {
+    return {
+      sent: true as const,
+      phone: maskPhone(phone),
+      expiresAt: new Date(now.getTime() + this.ttlMs()).toISOString(),
+      resendAvailableAt: new Date(now.getTime() + this.resendMs()).toISOString(),
+    };
   }
 
   private hashCode(phone: string, code: string): string {

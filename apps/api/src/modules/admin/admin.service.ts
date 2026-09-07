@@ -394,6 +394,7 @@ export class AdminService {
           ? `${property.title} is live again.`
           : `${property.title} is now live.`,
         metadata: { propertyId: id },
+        dedupeKey: `PROPERTY_APPROVED:${id}`,
       });
     }
     if (status === PropertyStatus.REJECTED) {

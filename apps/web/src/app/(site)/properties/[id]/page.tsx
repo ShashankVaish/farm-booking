@@ -75,11 +75,13 @@ export default async function PropertyPage({ params }: Props) {
                   : ('lawn' as const),
           },
         ];
+  const locationName = [property.location, property.city, property.state].filter(Boolean).join(', ');
   const lat = Number(property.latitude);
   const lng = Number(property.longitude);
+  const mapPad = 0.07;
   const mapSrc =
     Number.isFinite(lat) && Number.isFinite(lng)
-      ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.04}%2C${lat - 0.03}%2C${lng + 0.04}%2C${lat + 0.03}&layer=mapnik&marker=${lat}%2C${lng}`
+      ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - mapPad}%2C${lat - mapPad * 0.75}%2C${lng + mapPad}%2C${lat + mapPad * 0.75}&layer=mapnik`
       : null;
   const siteUrl = getSiteUrl();
 
@@ -95,9 +97,7 @@ export default async function PropertyPage({ params }: Props) {
         <div>
           <p className="t-label">{PROPERTY_TYPE_LABEL[property.propertyType] ?? 'Stay'}</p>
           <h1 className="t-h1">{property.title}</h1>
-          <p className="t-body-small">
-            {property.location}, {property.city}, {property.state}
-          </p>
+          <p className="t-body-small">{locationName}</p>
           <Rating value={Number(property.averageRating ?? 0)} count={property.reviewCount} />
         </div>
         {isSample ? null : <WishlistButton propertyId={property.id} propertyName={property.title} />}
@@ -105,8 +105,8 @@ export default async function PropertyPage({ params }: Props) {
 
       <ImageGalleryFoundation images={gallery} />
 
-      <div className={styles.detailGrid} style={{ marginTop: 'var(--space-8)', paddingBottom: '5rem' }}>
-        <div>
+      <div className={styles.detailGrid} style={{ marginTop: 'var(--space-8)', paddingBottom: '5.5rem' }}>
+        <div className={styles.propertyCopy}>
           <p className="t-body">{property.description}</p>
           <p className="t-body-small" style={{ marginTop: 'var(--space-4)' }}>
             {property.guestCapacity} guests · {property.bedrooms} bedrooms · {property.bathrooms} bathrooms
@@ -145,23 +145,37 @@ export default async function PropertyPage({ params }: Props) {
               <p className="t-body-small">{property.cancellationPolicy}</p>
             </>
           ) : null}
+        </div>
 
-          <h2 className="t-h3" style={{ marginTop: 'var(--space-8)' }}>
-            Location
-          </h2>
+        <div className={styles.stickyBooking} id="book-in">
+          <PropertyBookingCard property={property} bookable={!isSample} />
+        </div>
+
+        <div className={styles.propertyMore}>
+          <h2 className="t-h3">Location</h2>
+          <p className="t-body" style={{ marginTop: 'var(--space-2)' }}>
+            {locationName || 'India'}
+          </p>
           {mapSrc ? (
-            <iframe title="Property map" className={styles.mapFrame} src={mapSrc} loading="lazy" />
+            <iframe
+              title={`Approximate map of ${locationName || property.title}`}
+              className={styles.mapFrame}
+              src={mapSrc}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
           ) : (
-            <p className="t-body-small">{property.address}</p>
+            <p className="t-body-small">Map coming soon for this stay.</p>
           )}
+          <p className={`t-caption ${styles.locationNote}`}>
+            Approximate area shown. Exact address stays private until a booking is confirmed.
+          </p>
 
           <h2 className="t-h3" style={{ marginTop: 'var(--space-8)' }}>
             Availability
           </h2>
           {isSample ? (
-            <p className="t-body-small">
-              Calendar and booking open once this stay is published by a host.
-            </p>
+            <p className="t-body-small">Calendar and booking open once this stay is published by a host.</p>
           ) : (
             <AvailabilityCalendar propertyId={property.id} />
           )}
@@ -172,19 +186,19 @@ export default async function PropertyPage({ params }: Props) {
           {reviews.items.length === 0 ? (
             <EmptyState title="No reviews yet" description="Guests who complete a stay will be able to share theirs here." />
           ) : (
-            <ul style={{ listStyle: 'none', padding: 0, margin: 'var(--space-4) 0 0' }}>
+            <ul className={styles.reviewList}>
               {reviews.items.map((review) => (
-                <li key={review.id} style={{ marginBottom: 'var(--space-5)' }}>
+                <li key={review.id} className={styles.reviewItem}>
                   <Rating value={review.rating} />
                   <p className="t-body-small">{review.customer?.name}</p>
                   {review.comment ? <p className="t-body">{review.comment}</p> : null}
+                  {review.ownerResponse ? (
+                    <p className={`t-body-small ${styles.hostReply}`}>Host: {review.ownerResponse}</p>
+                  ) : null}
                 </li>
               ))}
             </ul>
           )}
-        </div>
-        <div className={styles.stickyBooking}>
-          <PropertyBookingCard property={property} bookable={!isSample} />
         </div>
       </div>
 
@@ -195,9 +209,7 @@ export default async function PropertyPage({ params }: Props) {
           )}
           <span className="t-caption"> / night</span>
         </span>
-          <Button href={isSample ? '/explore' : '#book-in'} size="sm">
-            {isSample ? 'Browse stays' : 'Check dates'}
-          </Button>
+        <Button href={isSample ? '/explore' : '#book-in'}>{isSample ? 'Browse stays' : 'Check dates'}</Button>
       </div>
     </article>
   );

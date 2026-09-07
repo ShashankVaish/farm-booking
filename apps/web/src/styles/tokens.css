@@ -92,8 +92,8 @@
 
   /* Shadows — restrained */
   --shadow-none: none;
-  --shadow-sm: 0 1px 2px rgb(22 21 19 / 0.06);
-  --shadow-md: 0 8px 24px rgb(22 21 19 / 0.08);
+  --shadow-sm: 0 1px 3px rgb(22 21 19 / 0.07);
+  --shadow-md: 0 12px 32px rgb(22 21 19 / 0.1);
 
   /* Motion */
   --duration-fast: 120ms;
@@ -118,6 +118,14 @@
   --bp-1280: 1280px;
   --bp-1440: 1440px;
   --bp-1920: 1920px;
+}
+
+@media (max-width: 374px) {
+  :root {
+    --fs-display: 2.125rem;
+    --fs-h1: 1.75rem;
+    --gutter: 0.875rem;
+  }
 }
 
 @media (min-width: 768px) {

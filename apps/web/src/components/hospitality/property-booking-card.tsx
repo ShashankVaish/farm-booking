@@ -28,17 +28,21 @@ export function PropertyBookingCard({
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState('');
   const [quote, setQuote] = useState<PriceQuote | null>(null);
+  const [quoting, setQuoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [couponMessage, setCouponMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
 
   useEffect(() => {
     if (!bookable || !checkIn || !checkOut) {
       setQuote(null);
+      setQuoting(false);
       return;
     }
     let cancelled = false;
     async function load() {
+      setQuoting(true);
       try {
         const result = await bookingApi.quote({
           propertyId: property.id,
@@ -50,12 +54,20 @@ export function PropertyBookingCard({
         if (!cancelled) {
           setQuote(result);
           setError(null);
+          if (appliedCoupon) {
+            setCouponMessage(Number(result.discountAmount) > 0 ? 'Coupon applied to this quote.' : 'Coupon did not change this total.');
+          } else {
+            setCouponMessage(null);
+          }
         }
       } catch (err) {
         if (!cancelled) {
           setQuote(null);
+          setCouponMessage(null);
           setError(err instanceof ApiError || err instanceof NetworkError ? err.message : 'Those dates are not available.');
         }
+      } finally {
+        if (!cancelled) setQuoting(false);
       }
     }
     void load();
@@ -155,6 +167,7 @@ export function PropertyBookingCard({
           min={1}
           max={property.guestCapacity}
           value={guestCount}
+          disabled={busy}
           onChange={(e) => setGuestCount(Math.min(property.guestCapacity, Math.max(1, Number(e.target.value) || 1)))}
         />
         <Input
@@ -162,22 +175,26 @@ export function PropertyBookingCard({
           label="Coupon"
           value={couponCode}
           onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+          success={couponMessage ?? undefined}
+          disabled={busy}
         />
         <Button
           type="button"
           variant="ghost"
           size="sm"
+          disabled={busy || !couponCode.trim()}
           onClick={() => setAppliedCoupon(couponCode.trim())}
         >
           Apply coupon
         </Button>
+        {quoting ? <p className="t-caption" role="status">Updating price…</p> : null}
         {quote ? <PriceBreakdown quote={quote} /> : null}
         {error ? (
           <p className="t-body-small" role="alert" style={{ color: 'var(--color-error)' }}>
             {error}
           </p>
         ) : null}
-        <Button type="submit" block disabled={busy || !checkIn || !checkOut}>
+        <Button type="submit" block loading={busy} disabled={busy || quoting || !checkIn || !checkOut}>
           {busy ? 'Reserving…' : 'Reserve'}
         </Button>
       </form>

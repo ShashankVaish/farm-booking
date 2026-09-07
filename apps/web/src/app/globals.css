@@ -11,6 +11,7 @@ body {
   margin: 0;
   padding: 0;
   max-width: 100%;
+  overflow-x: clip;
 }
 
 html {
@@ -52,9 +53,35 @@ a:hover {
   color: var(--color-primary);
 }
 
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-text-primary);
+}
+
 :focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+button,
+input,
+select,
+textarea {
+  transition:
+    border-color var(--duration-fast) var(--easing-standard),
+    background-color var(--duration-fast) var(--easing-standard),
+    box-shadow var(--duration-fast) var(--easing-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .skip-link {

@@ -25,6 +25,7 @@ import {
   NotificationsService,
 } from '../notifications/notifications.service';
 import { PricingService } from '../pricing/pricing.service';
+import { isUuid } from '../../common/uuid';
 import {
   CancelBookingDto,
   CreateBookingDto,
@@ -162,6 +163,12 @@ export class BookingsService {
 
         if (coupon) {
           await this.coupons.incrementRedemption(tx, coupon.id);
+          await this.coupons.assertPerUserLimit(
+            tx,
+            coupon.id,
+            user.id,
+            coupon.maxRedemptionsPerUser,
+          );
         }
 
         return created;
@@ -173,6 +180,7 @@ export class BookingsService {
         title: 'Booking created',
         body: `Your booking for ${property.title} is awaiting payment.`,
         metadata: { bookingId: booking.id },
+        dedupeKey: `BOOKING_CREATED:${booking.id}:${user.id}`,
       });
       await this.notifications.notify({
         userId: property.ownerId,
@@ -180,7 +188,18 @@ export class BookingsService {
         title: 'New booking',
         body: `A customer started a booking for ${property.title}.`,
         metadata: { bookingId: booking.id },
+        dedupeKey: `BOOKING_CREATED:${booking.id}:${property.ownerId}`,
       });
+      if (coupon) {
+        await this.notifications.notify({
+          userId: user.id,
+          type: NotificationTypes.COUPON,
+          title: 'Coupon applied',
+          body: `Code ${coupon.code} was applied to your booking.`,
+          metadata: { bookingId: booking.id, couponId: coupon.id },
+          dedupeKey: `COUPON:${booking.id}`,
+        });
+      }
 
       return { booking, pricing: breakdown };
     } catch (error) {
@@ -198,6 +217,12 @@ export class BookingsService {
   }
 
   async getById(id: string, user: RequestUser) {
+    if (!isUuid(id)) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.BOOKING_NOT_FOUND,
+        message: 'Booking not found.',
+      });
+    }
     const booking = await this.prisma.booking.findUnique({
       where: { id },
       include: bookingDetailInclude,
@@ -322,6 +347,7 @@ export class BookingsService {
       title: 'Booking cancelled',
       body: `Your booking for ${booking.property.title} was cancelled.`,
       metadata: { bookingId: booking.id, reason: dto.reason },
+      dedupeKey: `BOOKING_CANCELLED:${booking.id}:${booking.customerId}`,
     });
     await this.notifications.notify({
       userId: booking.property.ownerId,
@@ -329,6 +355,7 @@ export class BookingsService {
       title: 'Booking cancelled',
       body: `A booking for ${booking.property.title} was cancelled.`,
       metadata: { bookingId: booking.id },
+      dedupeKey: `BOOKING_CANCELLED:${booking.id}:${booking.property.ownerId}`,
     });
 
     return { booking: updated, refund };
@@ -405,6 +432,12 @@ export class BookingsService {
       throw new BadRequestException({
         errorCode: ErrorCodes.GUEST_CAPACITY_EXCEEDED,
         message: 'Guest count exceeds property capacity.',
+      });
+    }
+    if (enumerateNights(dto.checkInDate, dto.checkOutDate).length > 30) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.INVALID_DATE_RANGE,
+        message: 'Stays cannot exceed 30 nights.',
       });
     }
   }

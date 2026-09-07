@@ -95,6 +95,7 @@ describe('BookingsService', () => {
       getActiveByCode: jest.fn(),
       incrementRedemption: jest.fn(),
       decrementRedemption: jest.fn(),
+      assertPerUserLimit: jest.fn(),
       assertValid: jest.fn(),
     };
     const availability = {

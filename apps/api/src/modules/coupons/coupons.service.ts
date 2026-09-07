@@ -64,6 +64,30 @@ export class CouponsService {
     }
   }
 
+  async assertPerUserLimit(
+    tx: Prisma.TransactionClient,
+    couponId: string,
+    userId: string,
+    maxRedemptionsPerUser: number | null,
+  ): Promise<void> {
+    if (maxRedemptionsPerUser == null) {
+      return;
+    }
+    const used = await tx.booking.count({
+      where: {
+        couponId,
+        customerId: userId,
+        status: { notIn: ['CANCELLED', 'FAILED', 'EXPIRED'] },
+      },
+    });
+    if (used > maxRedemptionsPerUser) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.COUPON_LIMIT_REACHED,
+        message: 'You have already used this coupon the maximum number of times.',
+      });
+    }
+  }
+
   async decrementRedemption(
     tx: Prisma.TransactionClient,
     couponId: string,

@@ -89,6 +89,8 @@ export type ApiReview = {
   id: string;
   rating: number;
   comment?: string | null;
+  ownerResponse?: string | null;
+  ownerRespondedAt?: string | null;
   createdAt: string;
   customer?: { id: string; name: string };
 };

@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   CurrentUser,
   CurrentUserOptional,
@@ -25,6 +26,7 @@ export class BookingsController {
   ) {}
 
   @Public()
+  @Throttle({ default: { limit: 40, ttl: 60000 } })
   @Post('quote')
   quote(
     @Body() dto: QuoteBookingDto,
@@ -34,6 +36,7 @@ export class BookingsController {
   }
 
   @Roles(UserRoles.CUSTOMER)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post()
   create(@CurrentUser() user: RequestUser, @Body() dto: CreateBookingDto) {
     return this.bookings.create(user, dto);

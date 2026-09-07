@@ -190,6 +190,23 @@ export function validateEnv(
     throw new Error(`Invalid environment configuration: ${messages}`);
   }
 
+  if (validated.NODE_ENV === 'production') {
+    if (!validated.COOKIE_SECURE) {
+      throw new Error(
+        'Invalid environment configuration: COOKIE_SECURE must be true in production.',
+      );
+    }
+    const placeholder = /replace-with-a-long-random/;
+    if (
+      placeholder.test(validated.JWT_ACCESS_SECRET) ||
+      placeholder.test(validated.JWT_REFRESH_SECRET)
+    ) {
+      throw new Error(
+        'Invalid environment configuration: JWT secrets must not use example placeholder values in production.',
+      );
+    }
+  }
+
   return validated;
 }
 

@@ -17,9 +17,17 @@ export function StaySearch({
   const [checkIn, setCheckIn] = useState(defaults?.checkIn ?? '');
   const [checkOut, setCheckOut] = useState(defaults?.checkOut ?? '');
   const [guests, setGuests] = useState(Number(defaults?.guests ?? 2));
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (checkIn && checkOut && checkOut <= checkIn) {
+      setError('Check-out must be after check-in.');
+      return;
+    }
+    setError(null);
+    setBusy(true);
     const query = toQueryString({
       location: location.trim() || undefined,
       checkIn: checkIn || undefined,
@@ -44,18 +52,27 @@ export function StaySearch({
         label="Check-in"
         type="date"
         value={checkIn}
-        onChange={(event) => setCheckIn(event.target.value)}
+        onChange={(event) => {
+          setCheckIn(event.target.value);
+          setError(null);
+        }}
       />
       <Input
         id="search-check-out"
         label="Check-out"
         type="date"
         value={checkOut}
-        onChange={(event) => setCheckOut(event.target.value)}
+        error={error ?? undefined}
+        onChange={(event) => {
+          setCheckOut(event.target.value);
+          setError(null);
+        }}
       />
       <div className={styles.guestField}>
-        <p className={styles.guestLabel}>Guests</p>
-        <div className={styles.stepper}>
+        <p className={styles.guestLabel} id="search-guests-label">
+          Guests
+        </p>
+        <div className={styles.stepper} role="group" aria-labelledby="search-guests-label">
           <button
             type="button"
             aria-label="Decrease guests"
@@ -69,7 +86,9 @@ export function StaySearch({
           </button>
         </div>
       </div>
-      <Button type="submit">Search</Button>
+      <Button type="submit" loading={busy} className={styles.searchSubmit}>
+        {busy ? 'Searching…' : 'Search'}
+      </Button>
     </form>
   );
 }

@@ -93,18 +93,11 @@ export class AuthService {
       where: { email },
     });
 
-    if (!user) {
-      throw new UnauthorizedException({
-        errorCode: ErrorCodes.INVALID_CREDENTIALS,
-        message: 'Invalid email or password.',
-      });
-    }
-
-    const matches = await this.passwords.compare(
+    const matches = await this.passwords.compareOrDummy(
       dto.password,
-      user.passwordHash,
+      user?.passwordHash,
     );
-    if (!matches) {
+    if (!user || !matches) {
       throw new UnauthorizedException({
         errorCode: ErrorCodes.INVALID_CREDENTIALS,
         message: 'Invalid email or password.',
@@ -300,10 +293,20 @@ export class AuthService {
 
     await this.prisma.$transaction(async (tx) => {
       if (rotation) {
-        await tx.refreshToken.update({
-          where: { id: rotation.replacesId },
+        const rotated = await tx.refreshToken.updateMany({
+          where: { id: rotation.replacesId, revokedAt: null },
           data: { revokedAt: new Date(), replacedById: id },
         });
+        if (rotated.count === 0) {
+          await tx.refreshToken.updateMany({
+            where: { familyId, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+          throw new UnauthorizedException({
+            errorCode: ErrorCodes.REFRESH_TOKEN_REUSE,
+            message: 'Refresh token reuse was detected. Please sign in again.',
+          });
+        }
       }
 
       await tx.refreshToken.create({

@@ -2,7 +2,7 @@
   position: relative;
   width: 100%;
   overflow: hidden;
-  background: #e6e0d6;
+  background: var(--color-border);
   color: var(--color-text-muted);
 }
 
@@ -19,22 +19,22 @@
   display: flex;
   align-items: flex-end;
   padding: var(--space-4);
-  background: #d9cfc1;
+  background: var(--color-surface);
 }
 
 .tonePool {
-  background: #7f9aa0;
-  color: #f7f4ef;
+  background: var(--color-primary);
+  color: var(--color-inverse);
 }
 
 .toneLawn {
-  background: #6d7f68;
-  color: #f7f4ef;
+  background: var(--color-primary-hover);
+  color: var(--color-inverse);
 }
 
 .toneNight {
-  background: #2c2a27;
-  color: #f7f4ef;
+  background: var(--color-text-primary);
+  color: var(--color-inverse);
 }
 
 .caption {

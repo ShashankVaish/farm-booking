@@ -111,11 +111,17 @@ export function ExploreFilters({
           <option value="rating">Top rated</option>
           <option value="newest">Newest</option>
         </Select>
-        <Button variant="secondary" type="button" onClick={() => setOpen(true)}>
+        <Button
+          variant="secondary"
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-expanded={open}
+          aria-controls="explore-filters"
+        >
           Filters
         </Button>
       </div>
-      <Drawer open={open} title="Filters" onClose={() => setOpen(false)}>
+      <Drawer open={open} title="Filters" onClose={() => setOpen(false)} id="explore-filters">
         <Input
           id="min-price"
           label="Min price"
@@ -174,7 +180,7 @@ export function ExploreFilters({
           />
         ))}
         <div style={{ marginTop: '1rem' }}>
-          <Button type="button" onClick={() => apply(draft)}>
+          <Button type="button" block onClick={() => apply(draft)}>
             Show stays
           </Button>
         </div>

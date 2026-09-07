@@ -87,7 +87,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         };
       }
 
-      if (exception.code === 'P2025') {
+      if (exception.code === 'P2023' || exception.code === 'P2025') {
         return {
           status: HttpStatus.NOT_FOUND,
           code: ErrorCodes.NOT_FOUND,

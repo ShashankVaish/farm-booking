@@ -6,13 +6,22 @@ type FieldProps = {
   label: string;
   hint?: string;
   error?: string;
+  success?: string;
   id: string;
 };
+
+function describedBy(id: string, error?: string, success?: string, hint?: string) {
+  if (error) return `${id}-error`;
+  if (success) return `${id}-success`;
+  if (hint) return `${id}-hint`;
+  return undefined;
+}
 
 export function Input({
   label,
   hint,
   error,
+  success,
   id,
   className,
   ...props
@@ -22,9 +31,28 @@ export function Input({
       <label className={styles.fieldLabel} htmlFor={id}>
         {label}
       </label>
-      <input id={id} className={cn(styles.control, className)} aria-invalid={Boolean(error)} {...props} />
-      {hint && !error ? <p className={styles.hint}>{hint}</p> : null}
-      {error ? <p className={styles.errorText}>{error}</p> : null}
+      <input
+        id={id}
+        className={cn(styles.control, className)}
+        {...props}
+        aria-invalid={Boolean(error)}
+        aria-describedby={describedBy(id, error, success, hint)}
+      />
+      {hint && !error && !success ? (
+        <p id={`${id}-hint`} className={styles.hint}>
+          {hint}
+        </p>
+      ) : null}
+      {success && !error ? (
+        <p id={`${id}-success`} className={styles.successText} role="status">
+          {success}
+        </p>
+      ) : null}
+      {error ? (
+        <p id={`${id}-error`} className={styles.errorText} role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -33,6 +61,7 @@ export function Textarea({
   label,
   hint,
   error,
+  success,
   id,
   className,
   ...props
@@ -42,9 +71,28 @@ export function Textarea({
       <label className={styles.fieldLabel} htmlFor={id}>
         {label}
       </label>
-      <textarea id={id} className={cn(styles.textarea, className)} aria-invalid={Boolean(error)} {...props} />
-      {hint && !error ? <p className={styles.hint}>{hint}</p> : null}
-      {error ? <p className={styles.errorText}>{error}</p> : null}
+      <textarea
+        id={id}
+        className={cn(styles.textarea, className)}
+        {...props}
+        aria-invalid={Boolean(error)}
+        aria-describedby={describedBy(id, error, success, hint)}
+      />
+      {hint && !error && !success ? (
+        <p id={`${id}-hint`} className={styles.hint}>
+          {hint}
+        </p>
+      ) : null}
+      {success && !error ? (
+        <p id={`${id}-success`} className={styles.successText} role="status">
+          {success}
+        </p>
+      ) : null}
+      {error ? (
+        <p id={`${id}-error`} className={styles.errorText} role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -53,6 +101,7 @@ export function Select({
   label,
   hint,
   error,
+  success,
   id,
   children,
   className,
@@ -63,11 +112,30 @@ export function Select({
       <label className={styles.fieldLabel} htmlFor={id}>
         {label}
       </label>
-      <select id={id} className={cn(styles.control, className)} aria-invalid={Boolean(error)} {...props}>
+      <select
+        id={id}
+        className={cn(styles.control, className)}
+        {...props}
+        aria-invalid={Boolean(error)}
+        aria-describedby={describedBy(id, error, success, hint)}
+      >
         {children}
       </select>
-      {hint && !error ? <p className={styles.hint}>{hint}</p> : null}
-      {error ? <p className={styles.errorText}>{error}</p> : null}
+      {hint && !error && !success ? (
+        <p id={`${id}-hint`} className={styles.hint}>
+          {hint}
+        </p>
+      ) : null}
+      {success && !error ? (
+        <p id={`${id}-success`} className={styles.successText} role="status">
+          {success}
+        </p>
+      ) : null}
+      {error ? (
+        <p id={`${id}-error`} className={styles.errorText} role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

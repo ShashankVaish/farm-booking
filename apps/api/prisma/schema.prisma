@@ -125,6 +125,7 @@ model User {
   reviews         Review[]
   wishlistItems   WishlistItem[]
   notifications   Notification[]
+  notificationPreference NotificationPreference?
   supportTickets  SupportTicket[]
   refreshTokens   RefreshToken[]
   auditLogs       AuditLog[]
@@ -336,15 +337,17 @@ model Payment {
 }
 
 model Review {
-  id          String   @id @default(uuid())
-  bookingId   String   @unique
-  propertyId  String
-  customerId  String
-  rating      Int
-  comment     String?  @db.Text
-  isPublished Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String    @id @default(uuid())
+  bookingId        String    @unique
+  propertyId       String
+  customerId       String
+  rating           Int
+  comment          String?   @db.Text
+  ownerResponse    String?   @db.Text
+  ownerRespondedAt DateTime?
+  isPublished      Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -375,12 +378,32 @@ model Notification {
   body      String    @db.Text
   readAt    DateTime?
   metadata  Json?
+  dedupeKey String?
   createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, dedupeKey])
   @@index([userId, readAt])
   @@index([userId, createdAt])
+}
+
+model NotificationPreference {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  bookingConfirmation  Boolean  @default(true)
+  paymentSuccess       Boolean  @default(true)
+  paymentFailure       Boolean  @default(true)
+  cancellation         Boolean  @default(true)
+  refund               Boolean  @default(true)
+  propertyApproval     Boolean  @default(true)
+  propertyRejection    Boolean  @default(true)
+  newReview            Boolean  @default(true)
+  coupon               Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model SupportTicket {

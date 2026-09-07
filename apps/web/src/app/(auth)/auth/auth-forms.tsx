@@ -131,6 +131,11 @@ export function LoginForm() {
           {error}
         </p>
       ) : null}
+      {otpSent && mode === 'otp' && !error ? (
+        <p className={`${styles.success} t-body-small`} role="status">
+          Code sent. Enter it below to continue.
+        </p>
+      ) : null}
       {mode === 'email' ? (
         <form className={styles.stack} onSubmit={submitEmail}>
           <Input
@@ -151,7 +156,7 @@ export function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} loading={busy}>
             {busy ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
@@ -178,7 +183,7 @@ export function LoginForm() {
               onChange={(e) => setCode(e.target.value)}
             />
           ) : null}
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} loading={busy}>
             {busy ? 'Please wait…' : otpSent ? 'Verify OTP' : 'Send OTP'}
           </Button>
           {otpSent ? (
@@ -326,6 +331,11 @@ export function RegisterForm() {
           {error}
         </p>
       ) : null}
+      {otpSent && mode === 'otp' && !error ? (
+        <p className={`${styles.success} t-body-small`} role="status">
+          Code sent. Enter it below to continue.
+        </p>
+      ) : null}
       {mode === 'email' ? (
         <form className={styles.stack} onSubmit={submitEmail}>
           <Input id="name" label="Full name" required value={name} onChange={(e) => setName(e.target.value)} />
@@ -346,7 +356,7 @@ export function RegisterForm() {
             onChange={(e) => setPassword(e.target.value)}
             hint={passwordHint}
           />
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} loading={busy}>
             {busy ? 'Creating…' : 'Create account'}
           </Button>
         </form>
@@ -368,7 +378,7 @@ export function RegisterForm() {
           {otpSent ? (
             <Input id="otp-code" label="OTP" required inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} />
           ) : null}
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} loading={busy}>
             {busy ? 'Please wait…' : otpSent ? 'Verify and continue' : 'Send OTP'}
           </Button>
           {otpSent ? (

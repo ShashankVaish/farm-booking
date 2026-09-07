@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BrandMark } from '@/components/layout/brand-mark';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
@@ -48,6 +48,24 @@ function ProfileIcon() {
 export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'minimal' }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
 
   return (
     <header className={styles.header}>
@@ -114,17 +132,28 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
       </div>
 
       {menuOpen && variant === 'default' ? (
-        <div id="mobile-menu" className={styles.menu}>
+        <nav id="mobile-menu" className={styles.menu} aria-label="Mobile">
           {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className={styles.menuLink} onClick={() => setMenuOpen(false)}>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={styles.menuLink}
+              aria-current={pathname.startsWith(item.href) ? 'page' : undefined}
+              onClick={() => setMenuOpen(false)}
+            >
               {item.label}
             </Link>
           ))}
-          <Link href="/host" className={styles.menuLink} onClick={() => setMenuOpen(false)}>
+          <Link
+            href="/host"
+            className={styles.menuLink}
+            aria-current={pathname.startsWith('/host') ? 'page' : undefined}
+            onClick={() => setMenuOpen(false)}
+          >
             List Your Property
           </Link>
           <Button href="/explore">Find a Stay</Button>
-        </div>
+        </nav>
       ) : null}
     </header>
   );

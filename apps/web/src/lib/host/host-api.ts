@@ -92,6 +92,8 @@ export const hostApi = {
   notifications: () =>
     apiClient.get<Paginated<HostNotification>>(`/api/notifications${toQueryString({ page: 1, limit: 8 })}`),
   markNotificationRead: (id: string) => apiClient.post(`/api/notifications/${id}/read`),
+  respondToReview: (id: string, response: string) =>
+    apiClient.post(`/api/reviews/${id}/response`, { response }),
   amenities: () => apiClient.get<AmenityRecord[]>('/api/amenities', { auth: false }),
   searchPlaces: (q: string) =>
     apiClient.get<PlaceSuggestion[]>(`/api/locations/search${toQueryString({ q })}`),

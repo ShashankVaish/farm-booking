@@ -70,6 +70,8 @@ export class AuthController {
   }
 
   @Public()
+  @SkipThrottle({ default: true })
+  @Throttle({ auth: { limit: 20, ttl: 60000 } })
   @Post('refresh')
   async refresh(
     @Req() request: Request,

@@ -58,10 +58,20 @@ export function StayDatePicker({ propertyId, checkIn, checkOut, onChange }: Prop
       <div className={styles.sectionHead}>
         <p className="t-label">{label}</p>
         <div>
-          <button type="button" className={styles.day} onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
+          <button
+            type="button"
+            className={styles.monthNav}
+            aria-label="Previous month"
+            onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
+          >
             Prev
           </button>
-          <button type="button" className={styles.day} onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
+          <button
+            type="button"
+            className={styles.monthNav}
+            aria-label="Next month"
+            onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
+          >
             Next
           </button>
         </div>
