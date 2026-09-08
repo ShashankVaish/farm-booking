@@ -6,6 +6,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { memoryStorage } from 'multer';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRoles } from '../../common/constants/roles';
@@ -17,11 +18,26 @@ import { MediaService } from './media.service';
 export class MediaController {
   constructor(private readonly media: MediaService) {}
 
+  @Roles(UserRoles.OWNER)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post(['', 'upload'])
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: 8 * 1024 * 1024 },
+      limits: { fileSize: 8 * 1024 * 1024, files: 1 },
+      fileFilter: (_req, file, callback) => {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+          callback(
+            new BadRequestException({
+              errorCode: ErrorCodes.VALIDATION_ERROR,
+              message: 'Upload a JPEG, PNG, or WebP image.',
+            }),
+            false,
+          );
+          return;
+        }
+        callback(null, true);
+      },
     }),
   )
   async upload(@UploadedFile() file?: Express.Multer.File) {

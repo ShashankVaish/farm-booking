@@ -74,7 +74,39 @@ export type HostNotification = {
   createdAt: string;
 };
 
+export type HostKycStatus = {
+  phone: string | null;
+  phoneVerified: boolean;
+  phoneVerifiedAt: string | null;
+  kycStatus: 'NOT_SUBMITTED' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED';
+  kycSubmittedAt: string | null;
+  kycReviewedAt: string | null;
+  kycRejectionReason: string | null;
+  /** Only the last four digits are ever returned by the API. */
+  aadhaarMasked: string;
+  aadhaarImageUrl: string | null;
+  panNumber: string | null;
+  panImageUrl: string | null;
+  businessName: string | null;
+  canSubmitListing: boolean;
+};
+
 export const hostApi = {
+  kyc: () => apiClient.get<HostKycStatus>('/api/owner/kyc'),
+  requestKycPhoneOtp: (phone: string) =>
+    apiClient.post<{ sent: true; phone: string; expiresAt: string; resendAvailableAt: string }>(
+      '/api/owner/kyc/phone/request',
+      { phone },
+    ),
+  verifyKycPhoneOtp: (phone: string, code: string) =>
+    apiClient.post<HostKycStatus>('/api/owner/kyc/phone/verify', { phone, code }),
+  submitKyc: (body: {
+    aadhaarNumber: string;
+    aadhaarImageUrl: string;
+    panNumber: string;
+    panImageUrl: string;
+    businessName?: string;
+  }) => apiClient.post<HostKycStatus>('/api/owner/kyc', body),
   me: () => apiClient.get<AuthUser>('/api/auth/me'),
   overview: () => apiClient.get<OwnerOverview>('/api/owner/overview'),
   properties: (page = 1) =>
@@ -92,6 +124,8 @@ export const hostApi = {
   notifications: () =>
     apiClient.get<Paginated<HostNotification>>(`/api/notifications${toQueryString({ page: 1, limit: 8 })}`),
   markNotificationRead: (id: string) => apiClient.post(`/api/notifications/${id}/read`),
+  respondToReview: (id: string, response: string) =>
+    apiClient.post(`/api/reviews/${id}/response`, { response }),
   amenities: () => apiClient.get<AmenityRecord[]>('/api/amenities', { auth: false }),
   searchPlaces: (q: string) =>
     apiClient.get<PlaceSuggestion[]>(`/api/locations/search${toQueryString({ q })}`),

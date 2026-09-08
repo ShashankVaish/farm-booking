@@ -12,7 +12,7 @@ import { UserRoles } from '../../common/constants/roles';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from './auth.service';
 import type { AuthTokens, RequestUser } from './auth.types';
-import { RequestOtpDto, VerifyOtpDto } from './dto/otp.dto';
+import { RequestOtpDto, VerifyOtpDto, type OtpPurpose } from './dto/otp.dto';
 import { PasswordService } from './password.service';
 import { maskPhone } from './providers/console-sms.provider';
 import {
@@ -35,9 +35,35 @@ export class OtpService {
     @Inject(SMS_PROVIDER) private readonly sms: SmsProvider,
   ) {}
 
+  /**
+   * Sends a code for a purpose that does NOT issue a session — currently the
+   * host phone check during KYC. Kept separate from the public `request` so a
+   * verification code can never be replayed against the login endpoint.
+   */
+  requestForPurpose(
+    phone: string,
+    purpose: OtpPurpose,
+    context: { ipAddress?: string },
+  ) {
+    return this.request({ phone }, context, purpose);
+  }
+
+  /**
+   * Validates and burns a challenge without logging anyone in. The caller is
+   * responsible for whatever the verified phone then unlocks.
+   */
+  async consumeForPurpose(
+    phone: string,
+    purpose: OtpPurpose,
+    code: string,
+  ): Promise<void> {
+    await this.consumeChallenge(phone, purpose, code);
+  }
+
   async request(
     dto: RequestOtpDto,
     context: { ipAddress?: string },
+    purposeOverride?: OtpPurpose,
   ): Promise<{
     sent: true;
     phone: string;
@@ -45,26 +71,20 @@ export class OtpService {
     resendAvailableAt: string;
   }> {
     const phone = dto.phone;
-    const purpose = dto.purpose ?? 'LOGIN';
+    const purpose: OtpPurpose = purposeOverride ?? dto.purpose ?? 'LOGIN';
     const now = new Date();
 
     if (purpose === 'LOGIN') {
       const user = await this.prisma.user.findUnique({ where: { phone } });
       if (!user || !user.isActive) {
-        throw new UnauthorizedException({
-          errorCode: ErrorCodes.INVALID_CREDENTIALS,
-          message: 'No active account exists for this phone number.',
-        });
+        return this.opaqueRequestResult(phone, now);
       }
     }
 
     if (purpose === 'REGISTER') {
       const existing = await this.prisma.user.findUnique({ where: { phone } });
       if (existing) {
-        throw new ConflictException({
-          errorCode: ErrorCodes.PHONE_ALREADY_REGISTERED,
-          message: 'An account with this phone number already exists.',
-        });
+        return this.opaqueRequestResult(phone, now);
       }
     }
 
@@ -130,8 +150,23 @@ export class OtpService {
     dto: VerifyOtpDto,
     context: { userAgent?: string; ipAddress?: string },
   ): Promise<{ user: RequestUser; tokens: AuthTokens }> {
-    const phone = dto.phone;
     const purpose = dto.purpose ?? 'LOGIN';
+    await this.consumeChallenge(dto.phone, purpose, dto.code);
+
+    const user =
+      purpose === 'REGISTER'
+        ? await this.registerFromOtp(dto)
+        : await this.loginFromOtp(dto.phone);
+
+    const tokens = await this.auth.issueSession(user, context);
+    return { user, tokens };
+  }
+
+  private async consumeChallenge(
+    phone: string,
+    purpose: OtpPurpose,
+    code: string,
+  ): Promise<void> {
     const now = new Date();
 
     const challenge = await this.prisma.otpChallenge.findFirst({
@@ -168,7 +203,7 @@ export class OtpService {
       });
     }
 
-    const expected = this.hashCode(phone, dto.code);
+    const expected = this.hashCode(phone, code);
     if (!this.safeEqual(expected, challenge.codeHash)) {
       await this.prisma.otpChallenge.update({
         where: { id: challenge.id },
@@ -180,18 +215,16 @@ export class OtpService {
       });
     }
 
-    await this.prisma.otpChallenge.update({
-      where: { id: challenge.id },
+    const claimed = await this.prisma.otpChallenge.updateMany({
+      where: { id: challenge.id, consumedAt: null },
       data: { consumedAt: now },
     });
-
-    const user =
-      purpose === 'REGISTER'
-        ? await this.registerFromOtp(dto)
-        : await this.loginFromOtp(phone);
-
-    const tokens = await this.auth.issueSession(user, context);
-    return { user, tokens };
+    if (claimed.count === 0) {
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.OTP_INVALID,
+        message: 'This OTP has already been used.',
+      });
+    }
   }
 
   private async loginFromOtp(phone: string): Promise<RequestUser> {
@@ -250,6 +283,15 @@ export class OtpService {
       select: { id: true, email: true, role: true, name: true },
     });
     return created;
+  }
+
+  private opaqueRequestResult(phone: string, now: Date) {
+    return {
+      sent: true as const,
+      phone: maskPhone(phone),
+      expiresAt: new Date(now.getTime() + this.ttlMs()).toISOString(),
+      resendAvailableAt: new Date(now.getTime() + this.resendMs()).toISOString(),
+    };
   }
 
   private hashCode(phone: string, code: string): string {

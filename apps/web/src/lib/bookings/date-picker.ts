@@ -40,6 +40,38 @@ export function isUnavailableStatus(status?: string | null): boolean {
   return status === 'BOOKED' || status === 'BLOCKED';
 }
 
+/**
+ * Weekend nights are priced differently by the server, which decides using the
+ * UTC weekday (`isWeekendUtc`). Parsing the date as UTC here keeps the price
+ * shown on the calendar identical to the price the server will charge.
+ */
+export function isWeekendIso(iso: string): boolean {
+  const day = new Date(`${iso}T00:00:00Z`).getUTCDay();
+  return day === 0 || day === 6;
+}
+
+export function nightlyPrice(
+  iso: string,
+  basePrice: number,
+  weekendPrice?: number | null,
+): number {
+  return isWeekendIso(iso) && weekendPrice ? weekendPrice : basePrice;
+}
+
+/** Compact rupee label so a price fits inside a calendar cell. */
+export function compactInr(amount: number): string {
+  if (!Number.isFinite(amount) || amount <= 0) return '';
+  if (amount >= 10000000) return `₹${trimZero(amount / 10000000)}Cr`;
+  if (amount >= 100000) return `₹${trimZero(amount / 100000)}L`;
+  if (amount >= 1000) return `₹${trimZero(amount / 1000)}k`;
+  return `₹${Math.round(amount)}`;
+}
+
+function trimZero(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
 export function rangeHasUnavailable(
   checkIn: string,
   checkOut: string,

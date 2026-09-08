@@ -51,8 +51,10 @@ export default async function ExplorePage({
     maxPrice: query.maxPrice ? Number(query.maxPrice) : undefined,
     bedrooms: query.bedrooms ? Number(query.bedrooms) : undefined,
     bathrooms: query.bathrooms ? Number(query.bathrooms) : undefined,
-    pool: query.pool === 'true',
-    partyAllowed: query.partyAllowed === 'true',
+    // Must stay undefined when unchecked. `false` survives toQueryString and
+    // reaches the API as `pool=false`, which excludes every stay.
+    pool: query.pool === 'true' ? true : undefined,
+    partyAllowed: query.partyAllowed === 'true' ? true : undefined,
     minRating: query.minRating ? Number(query.minRating) : undefined,
     sort: query.sort,
     propertyType: query.propertyType,
@@ -74,7 +76,17 @@ export default async function ExplorePage({
         <ExploreFilters query={query} amenities={amenities} />
       </div>
       <div style={{ marginTop: 'var(--space-8)' }}>
-        <ExploreResults initial={result.items.map(toPropertyCard)} total={result.meta.total} filters={filters} />
+        {/*
+          ExploreResults seeds its list and page number from props. Without a key
+          tied to the active filters, React keeps the old state on navigation and
+          the grid keeps showing the previous search under a fresh result count.
+        */}
+        <ExploreResults
+          key={JSON.stringify(filters)}
+          initial={result.items.map(toPropertyCard)}
+          total={result.meta.total}
+          filters={filters}
+        />
       </div>
     </section>
   );

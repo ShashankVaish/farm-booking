@@ -1,18 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { BrandMark } from '@/components/layout/brand-mark';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
+import { apiClient } from '@/lib/api/client';
+import { memoryTokenStore } from '@/lib/api/token-store';
+import type { AuthUser } from '@/lib/properties/types';
 import styles from './shell.module.css';
 
 const NAV = [
   { href: '/explore', label: 'Explore' },
-  { href: '/stays', label: 'Stays' },
-  { href: '/experiences', label: 'Experiences' },
-  { href: '/events', label: 'Events' },
+  { href: '/map', label: 'Map view' },
+  { href: '/host', label: 'List your property' },
 ];
 
 function MenuIcon() {
@@ -47,7 +49,57 @@ function ProfileIcon() {
 
 export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'minimal' }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!memoryTokenStore.getAccessToken()) {
+      setSessionLoaded(true);
+      return;
+    }
+    apiClient
+      .get<AuthUser>('/api/auth/me')
+      .then(setUser)
+      .catch(() => {
+        memoryTokenStore.setAccessToken(null);
+        setUser(null);
+      })
+      .finally(() => setSessionLoaded(true));
+  }, [pathname]);
+
+  async function logout() {
+    setLoggingOut(true);
+    try {
+      await apiClient.post('/api/auth/logout', undefined, { auth: false });
+    } finally {
+      memoryTokenStore.setAccessToken(null);
+      setUser(null);
+      setLoggingOut(false);
+      router.push('/');
+      router.refresh();
+    }
+  }
 
   return (
     <header className={styles.header}>
@@ -82,12 +134,6 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
                 {item.label}
               </Link>
             ))}
-            <Link
-              href="/host"
-              className={cn(styles.navLink, pathname.startsWith('/host') && styles.navLinkActive)}
-            >
-              List Your Property
-            </Link>
           </nav>
         ) : (
           <span />
@@ -100,7 +146,7 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
           <Link href="/dashboard" className={styles.iconButton} aria-label="Account">
             <ProfileIcon />
           </Link>
-          {variant === 'default' ? (
+          {variant === 'default' && sessionLoaded && !user ? (
             <span className={styles.desktopCta}>
               <Button href="/auth/login" variant="ghost" size="sm">
                 Sign in
@@ -110,21 +156,40 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
               </Button>
             </span>
           ) : null}
+          {variant === 'default' && sessionLoaded && user ? (
+            <span className={styles.desktopCta}>
+              {user.role === 'ADMIN' ? (
+                <Button href="/admin" variant="ghost" size="sm">
+                  Admin
+                </Button>
+              ) : (
+                <Button href={user.role === 'OWNER' ? '/host' : '/dashboard'} variant="ghost" size="sm">
+                  {user.name || 'Account'}
+                </Button>
+              )}
+              <Button type="button" variant="secondary" size="sm" onClick={() => void logout()} disabled={loggingOut}>
+                {loggingOut ? 'Signing out…' : 'Log out'}
+              </Button>
+            </span>
+          ) : null}
         </div>
       </div>
 
       {menuOpen && variant === 'default' ? (
-        <div id="mobile-menu" className={styles.menu}>
+        <nav id="mobile-menu" className={styles.menu} aria-label="Mobile">
           {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className={styles.menuLink} onClick={() => setMenuOpen(false)}>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={styles.menuLink}
+              aria-current={pathname.startsWith(item.href) ? 'page' : undefined}
+              onClick={() => setMenuOpen(false)}
+            >
               {item.label}
             </Link>
           ))}
-          <Link href="/host" className={styles.menuLink} onClick={() => setMenuOpen(false)}>
-            List Your Property
-          </Link>
           <Button href="/explore">Find a Stay</Button>
-        </div>
+        </nav>
       ) : null}
     </header>
   );

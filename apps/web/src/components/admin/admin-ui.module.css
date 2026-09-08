@@ -12,6 +12,21 @@
   vertical-align: top;
 }
 
+.table th {
+  font-size: var(--fs-caption);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-surface);
+  position: sticky;
+  top: 0;
+}
+
+.table tbody tr:hover td {
+  background: var(--color-surface-elevated);
+}
+
 .filters {
   display: grid;
   gap: var(--space-3);

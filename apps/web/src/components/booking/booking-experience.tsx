@@ -9,6 +9,8 @@ import { PriceBreakdown } from '@/components/hospitality/price-breakdown';
 import { bookingApi } from '@/lib/bookings/api';
 import { paymentStatusLabel, type CustomerBooking, type PriceQuote } from '@/lib/bookings/types';
 import { ApiError, NetworkError } from '@/lib/api/errors';
+import { apiClient } from '@/lib/api/client';
+import type { AuthUser } from '@/lib/properties/types';
 import { brand } from '@/lib/config/brand';
 import styles from '@/app/(site)/dashboard/dashboard.module.css';
 
@@ -18,7 +20,14 @@ type RazorpaySuccess = {
   razorpay_signature: string;
 };
 
-type RazorpayCtor = new (options: Record<string, unknown>) => { open: () => void };
+type RazorpayInstance = {
+  open: () => void;
+  on?: (event: string, handler: (payload: RazorpayFailure) => void) => void;
+};
+
+type RazorpayFailure = { error?: { description?: string; reason?: string } };
+
+type RazorpayCtor = new (options: Record<string, unknown>) => RazorpayInstance;
 
 declare global {
   interface Window {
@@ -50,7 +59,16 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [profile, setProfile] = useState<AuthUser | null>(null);
   const paying = useRef(false);
+
+  // Prefills the gateway form so the guest does not retype what we already know.
+  useEffect(() => {
+    apiClient
+      .get<AuthUser>('/api/auth/me')
+      .then(setProfile)
+      .catch(() => setProfile(null));
+  }, []);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -121,6 +139,13 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
         name: brand.name,
         description: booking.property.title,
         order_id: order.providerOrderId,
+        prefill: {
+          name: profile?.name ?? '',
+          email: profile?.email ?? '',
+          contact: profile?.phone ?? '',
+        },
+        notes: { bookingId: booking.id },
+        theme: { color: '#9b4fe0' },
         handler: async (response: RazorpaySuccess) => {
           try {
             await bookingApi.verify({
@@ -141,6 +166,14 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
             load();
           },
         },
+      });
+      // The gateway reports declines through this event, not the handler above.
+      checkout.on?.('payment.failed', (payload) => {
+        setError(
+          payload.error?.description ??
+            'The payment was declined. You can try again without creating a new booking.',
+        );
+        load();
       });
       checkout.open();
     } catch (err) {

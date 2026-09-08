@@ -8,6 +8,7 @@ import {
   Post,
   Req,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { ErrorCodes } from '../../common/constants/error-codes';
@@ -21,6 +22,7 @@ import { PaymentsService } from './payments.service';
 export class PaymentsController {
   constructor(private readonly payments: PaymentsService) {}
 
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('orders')
   createOrder(
     @CurrentUser() user: RequestUser,
@@ -29,6 +31,7 @@ export class PaymentsController {
     return this.payments.createOrder(user, dto);
   }
 
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @Post('verify')
   verify(@CurrentUser() user: RequestUser, @Body() dto: VerifyPaymentDto) {
     return this.payments.verifyCheckout(user, dto);

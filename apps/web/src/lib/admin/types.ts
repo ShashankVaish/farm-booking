@@ -42,6 +42,85 @@ export type AdminProperty = {
   owner?: { id: string; name: string; email: string };
 };
 
+export type AdminPropertyDetail = {
+  id: string;
+  status: string;
+  title: string;
+  slug: string;
+  description: string;
+  propertyType: string;
+  isPartyFriendly: boolean;
+  createdAt: string;
+  updatedAt: string;
+  location: {
+    location: string;
+    address: string;
+    city: string;
+    state: string;
+    country: string;
+    pincode: string | null;
+    latitude: number;
+    longitude: number;
+  };
+  capacity: { guests: number; bedrooms: number; bathrooms: number };
+  pricing: {
+    basePrice: string;
+    weekendPrice: string | null;
+    extraGuestCharge: string | null;
+  };
+  rules: {
+    propertyRules: string | null;
+    partyRules: string | null;
+    cancellationPolicy: string | null;
+  };
+  images: Array<{
+    id: string;
+    url: string;
+    altText: string | null;
+    isCover: boolean;
+    sortOrder: number;
+  }>;
+  amenities: Array<{ id: string; name: string; slug: string }>;
+  documents: Array<{
+    id: string;
+    name: string;
+    documentType: string;
+    url: string;
+    status: string;
+    createdAt: string;
+  }>;
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    phoneVerified: boolean;
+    isActive: boolean;
+    memberSince: string;
+    otherListings: number;
+    profile: {
+      businessName: string | null;
+      gstNumber: string | null;
+      panNumber: string | null;
+      panImageUrl: string | null;
+      aadhaarLast4: string | null;
+      aadhaarImageUrl: string | null;
+      kycStatus: 'NOT_SUBMITTED' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED';
+      kycSubmittedAt: string | null;
+      kycRejectionReason: string | null;
+      kycVerified: boolean;
+    } | null;
+  };
+  stats: { bookings: number; reviews: number; averageRating: number };
+  auditTrail: Array<{
+    id: string;
+    action: string;
+    metadata: { reason?: string } | null;
+    createdAt: string;
+    actor?: { id: string; name: string; email: string } | null;
+  }>;
+};
+
 export type AdminPaymentView = {
   id: string;
   bookingId: string;

@@ -18,7 +18,29 @@ export function configureApp(app: INestApplication): void {
     }),
   );
   app.use(cookieParser());
-  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+  app.use(
+    '/uploads',
+    express.static(join(process.cwd(), 'uploads'), {
+      setHeaders(res, filePath) {
+        const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
+        const types: Record<string, string> = {
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.png': 'image/png',
+          '.webp': 'image/webp',
+        };
+        const type = types[ext];
+        if (!type) {
+          res.statusCode = 404;
+          return;
+        }
+        res.setHeader('Content-Type', type);
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Disposition', 'inline');
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      },
+    }),
+  );
 
   app.enableCors({
     origin: parseCorsOrigins(

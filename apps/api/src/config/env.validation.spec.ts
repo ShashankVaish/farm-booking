@@ -45,6 +45,18 @@ describe('validateEnv', () => {
     expect(result.ADMIN_EMAIL).toBe('admin');
   });
 
+  it('rejects placeholder JWT secrets in production', () => {
+    expect(() =>
+      validateEnv({
+        ...validEnv,
+        NODE_ENV: 'production',
+        COOKIE_SECURE: 'true',
+        JWT_ACCESS_SECRET: 'replace-with-a-long-random-access-secret-xx',
+        JWT_REFRESH_SECRET: 'b'.repeat(32),
+      }),
+    ).toThrow(/placeholder/);
+  });
+
   it('rejects a missing database URL', () => {
     const rest: Record<string, unknown> = { ...validEnv };
     delete rest.DATABASE_URL;

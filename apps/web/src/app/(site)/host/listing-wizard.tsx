@@ -7,9 +7,10 @@ import { ImageGalleryFoundation } from '@/components/hospitality/foundations';
 import { PropertyCard } from '@/components/hospitality/property-card';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Input, Select, Textarea } from '@/components/ui/forms';
-import { EmptyState, ErrorState, Spinner } from '@/components/ui/feedback';
+import { ErrorState, Spinner } from '@/components/ui/feedback';
+import { AvailabilityCalendar } from '@/components/host/availability-calendar';
 import { ApiError } from '@/lib/api/errors';
-import { hostApi, type AmenityRecord } from '@/lib/host/host-api';
+import { hostApi, type AmenityRecord, type HostKycStatus } from '@/lib/host/host-api';
 import { validateListingLocation } from '@/lib/host/listing-location';
 import { fromApiProperty, toPropertyPayload } from '@/lib/host/listing-payload';
 import { emptyListing, WIZARD_STEPS, type ListingDraft } from '@/lib/host/listing-types';
@@ -20,6 +21,7 @@ import { PROPERTY_TYPE_LABEL, type ApiProperty } from '@/lib/properties/types';
 import { useToast } from '@/components/providers/toast-provider';
 import { cn } from '@/lib/cn';
 import { LocationStep } from './location-step';
+import { VerificationStep } from './verification-step';
 import styles from './host.module.css';
 
 const EXTRA_AMENITIES = [
@@ -76,6 +78,7 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
+  const [kyc, setKyc] = useState<HostKycStatus | null>(null);
 
   useEffect(() => {
     hostApi.amenities().then(setAmenities).catch(() => setAmenities([]));
@@ -138,7 +141,7 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
   }
 
   async function submit() {
-    const all = [0, 1, 2, 4, 5, 9].flatMap((index) => Object.values(validateStep(index, draft)));
+    const all = [0, 1, 2, 4, 5, 10].flatMap((index) => Object.values(validateStep(index, draft)));
     if (all.length > 0) {
       setError(all[0]);
       return;
@@ -147,7 +150,16 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
     setError(null);
     try {
       const saved = await persist();
-      await hostApi.updateProperty(saved.id as string, { status: 'PENDING_APPROVAL' });
+      if (!saved.id) {
+        throw new Error('The listing was saved without an identifier. Please try again.');
+      }
+      if (saved.status === 'APPROVED' || saved.status === 'SUSPENDED') {
+        setError('This listing cannot be submitted for review in its current status.');
+        return;
+      }
+      if (saved.status !== 'PENDING_APPROVAL') {
+        await hostApi.updateProperty(saved.id, { status: 'PENDING_APPROVAL' });
+      }
       notify('Submitted for review. You cannot approve your own listing.');
       router.push('/host/properties');
     } catch (err) {
@@ -274,10 +286,10 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
 
       {step === 2 ? (
         <div className={`${styles.panel} ${styles.twoCol}`}>
-          <Input id="guests" label="Guests" type="number" min={1} value={draft.guestCapacity} onChange={(e) => setDraft({ ...draft, guestCapacity: Number(e.target.value) })} />
-          <Input id="bedrooms" label="Bedrooms" type="number" min={1} value={draft.bedrooms} onChange={(e) => setDraft({ ...draft, bedrooms: Number(e.target.value) })} />
-          <Input id="bathrooms" label="Bathrooms" type="number" min={1} value={draft.bathrooms} onChange={(e) => setDraft({ ...draft, bathrooms: Number(e.target.value) })} />
-          <Input id="beds" label="Beds" type="number" min={1} value={draft.meta.beds} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, beds: Number(e.target.value) } })} />
+          <Input id="guests" label="Guests" type="number" min={1} step={1} value={draft.guestCapacity} onChange={(e) => setDraft({ ...draft, guestCapacity: Math.max(0, Number(e.target.value) || 0) })} />
+          <Input id="bedrooms" label="Bedrooms" type="number" min={1} step={1} value={draft.bedrooms} onChange={(e) => setDraft({ ...draft, bedrooms: Math.max(0, Number(e.target.value) || 0) })} />
+          <Input id="bathrooms" label="Bathrooms" type="number" min={1} step={1} value={draft.bathrooms} onChange={(e) => setDraft({ ...draft, bathrooms: Math.max(0, Number(e.target.value) || 0) })} />
+          <Input id="beds" label="Beds" type="number" min={1} step={1} value={draft.meta.beds} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, beds: Math.max(0, Number(e.target.value) || 0) } })} />
         </div>
       ) : null}
 
@@ -394,10 +406,10 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
 
       {step === 5 ? (
         <div className={`${styles.panel} ${styles.twoCol}`}>
-          <Input id="weekday" label="Weekday price (₹)" type="number" min={0} value={draft.weekdayPrice} onChange={(e) => setDraft({ ...draft, weekdayPrice: Number(e.target.value) })} />
-          <Input id="weekend" label="Weekend price (₹)" type="number" min={0} value={draft.weekendPrice} onChange={(e) => setDraft({ ...draft, weekendPrice: Number(e.target.value) })} />
-          <Input id="extra" label="Extra guest charge (₹)" type="number" min={0} value={draft.extraGuestCharge} onChange={(e) => setDraft({ ...draft, extraGuestCharge: Number(e.target.value) })} />
-          <Input id="minstay" label="Minimum stay (nights)" type="number" min={1} value={draft.meta.minStay} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, minStay: Number(e.target.value) } })} />
+          <Input id="weekday" label="Weekday price (₹)" type="number" inputMode="numeric" min={0} step={1} value={draft.weekdayPrice} onChange={(e) => setDraft({ ...draft, weekdayPrice: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} />
+          <Input id="weekend" label="Weekend price (₹)" type="number" inputMode="numeric" min={0} step={1} value={draft.weekendPrice} onChange={(e) => setDraft({ ...draft, weekendPrice: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} />
+          <Input id="extra" label="Extra guest charge (₹)" type="number" inputMode="numeric" min={0} step={1} value={draft.extraGuestCharge} onChange={(e) => setDraft({ ...draft, extraGuestCharge: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} />
+          <Input id="minstay" label="Minimum stay (nights)" type="number" inputMode="numeric" min={1} step={1} value={draft.meta.minStay} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, minStay: Math.max(0, Math.trunc(Number(e.target.value) || 0)) } })} />
           <Textarea
             id="seasonal"
             label="Seasonal pricing (optional)"
@@ -425,7 +437,7 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
         </div>
       ) : null}
 
-      {step === 7 ? <AvailabilityEditor propertyId={draft.id} /> : null}
+      {step === 7 ? <AvailabilityCalendar propertyId={draft.id} /> : null}
 
       {step === 8 ? (
         <div>
@@ -466,13 +478,29 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
       ) : null}
 
       {step === 9 ? (
+        <VerificationStep onStatus={(next) => setKyc(next)} />
+      ) : null}
+
+      {step === 10 ? (
         <div className={styles.panel}>
           <h2 className="t-h3">Submit for approval</h2>
           <p className="t-body">
             Reviewers will check photos, location, and house rules. Owners cannot approve their own property or change guest booking statuses from this portal.
           </p>
           <p className="t-body-small">Current status: {draft.status || 'DRAFT'}</p>
-          <Button onClick={() => void submit()} disabled={busy || draft.status === 'PENDING_APPROVAL'}>
+          {kyc && !kyc.canSubmitListing ? (
+            <p className="t-body-small" role="status" style={{ color: 'var(--color-warning)' }}>
+              {!kyc.phoneVerified
+                ? 'Verify your mobile number on the Verification step before submitting.'
+                : 'Add your Aadhaar and PAN on the Verification step before submitting.'}
+            </p>
+          ) : null}
+          <Button
+            onClick={() => void submit()}
+            disabled={
+              busy || draft.status === 'PENDING_APPROVAL' || (kyc ? !kyc.canSubmitListing : false)
+            }
+          >
             {busy ? 'Submitting…' : 'Submit for approval'}
           </Button>
         </div>
@@ -482,7 +510,7 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
         <Button variant="ghost" disabled={step === 0} onClick={() => setStep((value) => Math.max(0, value - 1))}>
           Back
         </Button>
-        {step < 9 ? (
+        {step < WIZARD_STEPS.length - 1 ? (
           <Button onClick={() => void goNext()} disabled={busy}>
             {busy ? 'Saving…' : 'Continue'}
           </Button>
@@ -520,94 +548,10 @@ function validateStep(step: number, draft: ListingDraft): Record<string, string>
     if (draft.meta.minStay < 1) return { minStay: 'Minimum stay must be at least 1 night.' };
     return {};
   }
-  if (step === 9 && draft.images.length < MIN_PHOTOS) {
+  if (step === 10 && draft.images.length < MIN_PHOTOS) {
     return { photos: 'Add at least one photo before submitting.' };
   }
   return {};
 }
 
-export function AvailabilityEditor({ propertyId }: { propertyId?: string }) {
-  const [month, setMonth] = useState(() => new Date());
-  const [days, setDays] = useState<Array<{ date: string; status: string }>>([]);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!propertyId) return;
-    const from = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}-01`;
-    const end = new Date(month.getFullYear(), month.getMonth() + 1, 1);
-    const to = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-01`;
-    hostApi
-      .availability(propertyId, from, to)
-      .then(setDays)
-      .catch(() => setDays([]));
-  }, [month, propertyId]);
-
-  if (!propertyId) {
-    return <EmptyState title="Save the listing first" description="Availability can be blocked after the draft is created." />;
-  }
-
-  async function apply(kind: 'block' | 'unblock') {
-    if (!propertyId) return;
-    const dates = selected.filter((date) => days.find((day) => day.date === date)?.status !== 'BOOKED');
-    if (dates.length === 0) return;
-    setMessage(null);
-    try {
-      if (kind === 'block') await hostApi.blockDates(propertyId, dates);
-      else await hostApi.unblockDates(propertyId, dates);
-      setSelected([]);
-      const from = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}-01`;
-      const end = new Date(month.getFullYear(), month.getMonth() + 1, 1);
-      const to = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-01`;
-      setDays(await hostApi.availability(propertyId, from, to));
-    } catch (err) {
-      setMessage(err instanceof ApiError ? err.message : 'Could not update availability.');
-    }
-  }
-
-  return (
-    <div className={styles.panel}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
-        <p className="t-label">{month.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</p>
-        <div>
-          <Button size="sm" variant="ghost" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
-            Prev
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
-            Next
-          </Button>
-        </div>
-      </div>
-      <p className="t-caption">Available · blocked · booked (booked dates cannot be changed)</p>
-      <div className={styles.calendarGrid}>
-        {days.map((day) => (
-          <button
-            key={day.date}
-            type="button"
-            disabled={day.status === 'BOOKED'}
-            className={cn(
-              styles.calDay,
-              day.status === 'BLOCKED' && styles.calBlocked,
-              day.status === 'BOOKED' && styles.calBooked,
-              selected.includes(day.date) && styles.stepCurrent,
-            )}
-            onClick={() =>
-              setSelected((current) => (current.includes(day.date) ? current.filter((item) => item !== day.date) : [...current, day.date]))
-            }
-          >
-            {Number(day.date.slice(8, 10))}
-          </button>
-        ))}
-      </div>
-      <div className={styles.actions}>
-        <Button size="sm" onClick={() => void apply('block')}>
-          Block selected
-        </Button>
-        <Button size="sm" variant="secondary" onClick={() => void apply('unblock')}>
-          Unblock selected
-        </Button>
-      </div>
-      {message ? <p className="t-body-small">{message}</p> : null}
-    </div>
-  );
-}
+export { AvailabilityCalendar as AvailabilityEditor };

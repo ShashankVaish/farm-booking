@@ -56,6 +56,13 @@ export class AdminBootstrapService implements OnModuleInit {
       return 'created';
     }
 
+    if (existing.role !== UserRole.ADMIN) {
+      this.logger.error(
+        `ADMIN_EMAIL "${email}" matches a non-admin user. Refusing to escalate privileges.`,
+      );
+      return 'skipped';
+    }
+
     const samePassword = await this.passwords.compare(
       password,
       existing.passwordHash,
@@ -64,7 +71,6 @@ export class AdminBootstrapService implements OnModuleInit {
     await this.prisma.user.update({
       where: { id: existing.id },
       data: {
-        role: UserRole.ADMIN,
         isActive: true,
         name: name || existing.name,
         ...(samePassword ? {} : { passwordHash }),

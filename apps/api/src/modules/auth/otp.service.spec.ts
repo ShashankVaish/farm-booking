@@ -56,11 +56,14 @@ describe('OtpService', () => {
     expect(JSON.stringify(result)).not.toMatch(/\b\d{6}\b/);
   });
 
-  it('rejects a login OTP request when no account exists', async () => {
+  it('does not reveal whether a phone is registered', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
-    await expect(
-      service.request({ phone: '9876543210', purpose: 'LOGIN' }, {}),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    const result = await service.request(
+      { phone: '9876543210', purpose: 'LOGIN' },
+      {},
+    );
+    expect(result.sent).toBe(true);
+    expect(sms.send).not.toHaveBeenCalled();
   });
 
   it('enforces resend cooldown', async () => {

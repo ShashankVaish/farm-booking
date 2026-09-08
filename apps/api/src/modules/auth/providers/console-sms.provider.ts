@@ -8,7 +8,10 @@ export class ConsoleSmsProvider implements SmsProvider {
 
   send(input: SendSmsInput): Promise<void> {
     const masked = maskPhone(input.phone);
-    this.logger.log(`SMS queued for ${masked} via ${this.name}`);
+    const code = process.env.NODE_ENV !== 'production' ? input.message.match(/code is (\d{6})/i)?.[1] : undefined;
+    this.logger.log(
+      `SMS queued for ${masked} via ${this.name}${code ? ` — development OTP: ${code}` : ''}`,
+    );
     return Promise.resolve();
   }
 }

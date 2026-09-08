@@ -101,6 +101,22 @@ export class EnvironmentVariables {
 
   @IsOptional()
   @IsString()
+  GOOGLE_CLIENT_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_CLIENT_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_OAUTH_REDIRECT_URI?: string;
+
+  @IsOptional()
+  @IsString()
+  WEB_APP_URL?: string;
+
+  @IsOptional()
+  @IsString()
   SMS_PROVIDER?: string;
 
   @IsOptional()
@@ -188,6 +204,23 @@ export function validateEnv(
       .map((error) => Object.values(error.constraints ?? {}).join(', '))
       .join('; ');
     throw new Error(`Invalid environment configuration: ${messages}`);
+  }
+
+  if (validated.NODE_ENV === 'production') {
+    if (!validated.COOKIE_SECURE) {
+      throw new Error(
+        'Invalid environment configuration: COOKIE_SECURE must be true in production.',
+      );
+    }
+    const placeholder = /replace-with-a-long-random/;
+    if (
+      placeholder.test(validated.JWT_ACCESS_SECRET) ||
+      placeholder.test(validated.JWT_REFRESH_SECRET)
+    ) {
+      throw new Error(
+        'Invalid environment configuration: JWT secrets must not use example placeholder values in production.',
+      );
+    }
   }
 
   return validated;

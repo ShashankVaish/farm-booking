@@ -95,6 +95,18 @@
   vertical-align: top;
 }
 
+.table th {
+  font-size: var(--fs-caption);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.table tbody tr:hover td {
+  background: var(--color-surface-elevated);
+}
+
 .badge {
   display: inline-flex;
   padding: 0.15rem 0.55rem;

@@ -52,6 +52,6 @@ import { TokenService } from './token.service';
     },
     OtpService,
   ],
-  exports: [AuthService, PasswordService],
+  exports: [AuthService, PasswordService, OtpService],
 })
 export class AuthModule {}

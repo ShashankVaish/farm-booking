@@ -14,6 +14,23 @@ import styles from './auth.module.css';
 
 type Mode = 'email' | 'otp';
 
+const GOOGLE_ERRORS: Record<string, string> = {
+  access_denied: 'You cancelled Google sign-in.',
+  google_admin: 'Admin accounts must sign in from the admin page.',
+  account_disabled: 'This account has been disabled.',
+  google_email_unverified: 'Verify your email with Google, then try again.',
+  google_not_configured: 'Google sign-in is not configured on the server yet.',
+  google_state: 'Google sign-in timed out. Please try again.',
+  redirect_uri_mismatch:
+    'Google rejected the redirect URL for this app. An administrator needs to add it in the Google Cloud console.',
+};
+
+function googleErrorMessage(code: string) {
+  return (
+    GOOGLE_ERRORS[code] ?? 'Google sign-in could not be completed. Please try again.'
+  );
+}
+
 function otpMessage(code: string, fallback: string) {
   if (code === 'OTP_INVALID') return 'That code is incorrect. Try again.';
   if (code === 'OTP_EXPIRED') return 'This code has expired. Request a new one.';
@@ -23,10 +40,10 @@ function otpMessage(code: string, fallback: string) {
   return fallback;
 }
 
-export function LoginForm() {
+export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: boolean; onAuthenticated?: () => void }) {
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get('next') || '/dashboard';
+  const next = search.get('next') || (adminOnly ? '/admin' : '/dashboard');
   const [mode, setMode] = useState<Mode>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,6 +60,11 @@ export function LoginForm() {
     return () => window.clearTimeout(timer);
   }, [seconds]);
 
+  useEffect(() => {
+    const googleError = search.get('error');
+    if (googleError) setError(googleErrorMessage(googleError));
+  }, [search]);
+
   async function submitEmail(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -53,7 +75,13 @@ export function LoginForm() {
         { email: email.trim().toLowerCase(), password },
         { auth: false },
       );
+      if (!adminOnly && result.user.role === 'ADMIN') {
+        await apiClient.post('/api/auth/logout', undefined, { auth: false });
+        setError('Admin accounts must sign in from /admin.');
+        return;
+      }
       memoryTokenStore.setAccessToken(result.accessToken);
+      onAuthenticated?.();
       router.push(next);
       router.refresh();
     } catch (err) {
@@ -102,7 +130,13 @@ export function LoginForm() {
         { phone: mobile, code: code.trim(), purpose: 'LOGIN' },
         { auth: false },
       );
+      if (!adminOnly && result.user.role === 'ADMIN') {
+        await apiClient.post('/api/auth/logout', undefined, { auth: false });
+        setError('Admin accounts must sign in from /admin.');
+        return;
+      }
       memoryTokenStore.setAccessToken(result.accessToken);
+      onAuthenticated?.();
       router.push(next);
       router.refresh();
     } catch (err) {
@@ -131,11 +165,16 @@ export function LoginForm() {
           {error}
         </p>
       ) : null}
+      {otpSent && mode === 'otp' && !error ? (
+        <p className={`${styles.success} t-body-small`} role="status">
+          Code sent. Enter it below to continue.
+        </p>
+      ) : null}
       {mode === 'email' ? (
         <form className={styles.stack} onSubmit={submitEmail}>
           <Input
             id="email"
-            label="Email or admin login"
+            label={adminOnly ? 'Admin email' : 'Email'}
             type="text"
             autoComplete="username"
             required
@@ -151,7 +190,7 @@ export function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} loading={busy}>
             {busy ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
@@ -178,7 +217,7 @@ export function LoginForm() {
               onChange={(e) => setCode(e.target.value)}
             />
           ) : null}
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} loading={busy}>
             {busy ? 'Please wait…' : otpSent ? 'Verify OTP' : 'Send OTP'}
           </Button>
           {otpSent ? (
@@ -188,9 +227,26 @@ export function LoginForm() {
           ) : null}
         </form>
       )}
-      <p className="t-body-small" style={{ marginTop: 'var(--space-5)' }}>
-        New here? <Link href="/auth/register">Create an account</Link>
-      </p>
+      {!adminOnly ? (
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={busy}
+          onClick={() => window.location.assign(`/api/auth/google?next=${encodeURIComponent(next)}`)}
+        >
+          Continue with Google
+        </Button>
+      ) : null}
+      {!adminOnly ? (
+        <>
+          <p className="t-body-small" style={{ marginTop: 'var(--space-5)' }}>
+            New here? <Link href="/auth/register">Create a customer account</Link>
+          </p>
+          <p className="t-body-small" style={{ marginTop: 'var(--space-2)' }}>
+            Want to host a property? <Link href="/auth/register?role=OWNER">Create a host account</Link>
+          </p>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -326,6 +382,11 @@ export function RegisterForm() {
           {error}
         </p>
       ) : null}
+      {otpSent && mode === 'otp' && !error ? (
+        <p className={`${styles.success} t-body-small`} role="status">
+          Code sent. Enter it below to continue.
+        </p>
+      ) : null}
       {mode === 'email' ? (
         <form className={styles.stack} onSubmit={submitEmail}>
           <Input id="name" label="Full name" required value={name} onChange={(e) => setName(e.target.value)} />
@@ -346,7 +407,7 @@ export function RegisterForm() {
             onChange={(e) => setPassword(e.target.value)}
             hint={passwordHint}
           />
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} loading={busy}>
             {busy ? 'Creating…' : 'Create account'}
           </Button>
         </form>
@@ -368,7 +429,7 @@ export function RegisterForm() {
           {otpSent ? (
             <Input id="otp-code" label="OTP" required inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} />
           ) : null}
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} loading={busy}>
             {busy ? 'Please wait…' : otpSent ? 'Verify and continue' : 'Send OTP'}
           </Button>
           {otpSent ? (
@@ -380,6 +441,9 @@ export function RegisterForm() {
       )}
       <p className="t-body-small" style={{ marginTop: 'var(--space-5)' }}>
         Already have an account? <Link href="/auth/login">Sign in</Link>
+      </p>
+      <p className="t-body-small" style={{ marginTop: 'var(--space-2)' }}>
+        Want to host a property? <Link href="/auth/register?role=OWNER">Create host account</Link>
       </p>
     </div>
   );

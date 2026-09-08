@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Baagly">
+  <circle cx="32" cy="32" r="32" fill="#f9615f" />
+  <circle cx="44.5" cy="19" r="3.4" fill="#f7ece1" />
+  <path
+    d="M7 45 L18.5 29 L23 33.6 L26 30.5 L33.5 19 L40 28.6 L43 26.2 L47.5 32 L51 29 L57 45 Z"
+    fill="#f7ece1"
+  />
+  <g stroke="#f9615f" stroke-width="1.8" stroke-linejoin="round">
+    <path d="M46.5 41.5 V32.5 H56.5 V41.5 Z" fill="#f7ece1" />
+    <path d="M43.6 33.4 L51.5 26.2 L59.4 33.4" fill="none" stroke-linecap="round" />
+  </g>
+  <g fill="#f9615f">
+    <rect x="49.2" y="34.8" width="2" height="2" />
+    <rect x="52" y="34.8" width="2" height="2" />
+    <rect x="49.2" y="37.6" width="2" height="2" />
+    <rect x="52" y="37.6" width="2" height="2" />
+  </g>
+  <path
+    d="M7 46.6 C17 43.6 25.5 48.8 33.5 47.2 C42.5 45.4 49 43.8 57 47.4"
+    fill="none"
+    stroke="#f7ece1"
+    stroke-width="2.2"
+    stroke-linecap="round"
+  />
+</svg>

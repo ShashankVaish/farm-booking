@@ -24,7 +24,8 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  background: var(--color-background);
+  background: color-mix(in srgb, var(--color-background) 88%, transparent);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -49,16 +50,19 @@
 }
 
 .navLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
   font-size: var(--fs-body-small);
   color: var(--color-text-secondary);
-  padding: var(--space-2) 0;
+  padding: 0;
   border-bottom: 1px solid transparent;
 }
 
 .navLink:hover,
 .navLinkActive {
   color: var(--color-text-primary);
-  border-bottom-color: var(--color-primary);
+  border-bottom-color: var(--color-accent);
 }
 
 .headerActions {
@@ -77,7 +81,7 @@
   border: 0;
   background: transparent;
   color: var(--color-text-primary);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   cursor: pointer;
 }
 
@@ -101,6 +105,9 @@
 .menuLink {
   font-size: var(--fs-h3);
   font-family: var(--font-display);
+  min-height: var(--touch);
+  display: inline-flex;
+  align-items: center;
   padding: var(--space-2) 0;
   color: var(--color-text-primary);
 }
@@ -117,19 +124,27 @@
 }
 
 .mark {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2rem;
+  height: 2rem;
   flex-shrink: 0;
+  border-radius: var(--radius-full);
 }
 
 .brandName {
-  font-size: 0.9375rem;
-  font-weight: var(--font-weight-medium);
-  letter-spacing: 0.04em;
+  /* Echoes the serif wordmark on the logo disc. */
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-regular);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.brand {
+  color: var(--color-text-primary);
 }
 
 .footer {
@@ -161,10 +176,10 @@
   bottom: 0;
   z-index: 40;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: var(--color-surface-elevated);
+  background: var(--color-surface);
   border-top: 1px solid var(--color-border);
 }
 
@@ -180,8 +195,12 @@
   letter-spacing: 0.02em;
 }
 
+.bottomItem:hover {
+  color: var(--color-text-primary);
+}
+
 .bottomItemActive {
-  color: var(--color-primary);
+  color: var(--color-text-primary);
 }
 
 .placeholder {
@@ -217,6 +236,6 @@
   }
 
   .brandName {
-    font-size: 0.8125rem;
+    font-size: 1.125rem;
   }
 }

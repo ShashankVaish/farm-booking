@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { StaySearch } from '@/components/hospitality/stay-search';
 import { PropertySection } from '@/components/hospitality/property-section';
 import { Button } from '@/components/ui/button';
-import { demoProperties } from '@/data/demo-properties';
+import { EmptyState } from '@/components/ui/feedback';
 import { brand } from '@/lib/config/brand';
 import { toPropertyCard } from '@/lib/properties/map-property';
 import { safeSearch } from '@/lib/properties/api';
@@ -33,12 +33,18 @@ export default async function HomePage() {
     safeSearch({ minRating: 4.5, sort: 'rating', limit: 6 }),
   ]);
 
-  const fallback = demoProperties;
-  const popularCards = popular.items.map(toPropertyCard);
-  const weekendCards = weekend.items.map(toPropertyCard);
-  const partyCards = party.items.map(toPropertyCard);
-  const poolCards = pool.items.map(toPropertyCard);
-  const ratedCards = rated.items.map(toPropertyCard);
+  // Only collections that actually have approved stays are rendered. Showing a
+  // row of placeholder listings — or five identical empty states — would tell a
+  // guest nothing true about what is bookable right now.
+  const collections = [
+    { kicker: 'Most loved', title: 'Popular farmhouses', href: '/explore?sort=rating', items: popular.items },
+    { kicker: 'Short breaks', title: 'Weekend stays', href: '/explore?propertyType=WEEKEND_STAY', items: weekend.items },
+    { kicker: 'Celebrate', title: 'Party venues', href: '/explore?partyAllowed=true', items: party.items },
+    { kicker: 'Water', title: 'Swimming pool properties', href: '/explore?pool=true', items: pool.items },
+    { kicker: 'Trusted', title: 'Highly rated properties', href: '/explore?minRating=4.5&sort=rating', items: rated.items },
+  ]
+    .map((section) => ({ ...section, properties: section.items.map(toPropertyCard) }))
+    .filter((section) => section.properties.length > 0);
 
   return (
     <>
@@ -57,36 +63,26 @@ export default async function HomePage() {
       </section>
 
       <div className="container">
-        <PropertySection
-          kicker="Most loved"
-          title="Popular farmhouses"
-          href="/explore?sort=rating"
-          properties={popularCards.length ? popularCards : fallback}
-        />
-        <PropertySection
-          kicker="Short breaks"
-          title="Weekend stays"
-          href="/explore?propertyType=WEEKEND_STAY"
-          properties={weekendCards.length ? weekendCards : fallback.slice(0, 2)}
-        />
-        <PropertySection
-          kicker="Celebrate"
-          title="Party venues"
-          href="/explore?partyAllowed=true"
-          properties={partyCards.length ? partyCards : fallback.filter((item) => item.badge === 'Party ready')}
-        />
-        <PropertySection
-          kicker="Water"
-          title="Swimming pool properties"
-          href="/explore?pool=true"
-          properties={poolCards.length ? poolCards : fallback.filter((item) => item.imageTone === 'pool')}
-        />
-        <PropertySection
-          kicker="Trusted"
-          title="Highly rated properties"
-          href="/explore?minRating=4.5&sort=rating"
-          properties={ratedCards.length ? ratedCards : fallback}
-        />
+        {collections.length > 0 ? (
+          collections.map((section) => (
+            <PropertySection
+              key={section.title}
+              kicker={section.kicker}
+              title={section.title}
+              href={section.href}
+              properties={section.properties}
+            />
+          ))
+        ) : (
+          <section style={{ padding: 'var(--space-12) 0' }}>
+            <EmptyState
+              title="No stays are live yet"
+              description="Listings appear here once a host submits a property and it clears review."
+              actionHref="/host"
+              actionLabel="List your property"
+            />
+          </section>
+        )}
 
         <section style={{ padding: 'var(--space-10) 0' }}>
           <p className="t-label">Nearby destinations</p>

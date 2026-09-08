@@ -1,3 +1,4 @@
+import { roundCoordinate } from '@/lib/host/listing-location';
 import { decodeListingMeta, encodeListingMeta } from '@/lib/host/listing-meta';
 import type { ListingDraft } from '@/lib/host/listing-types';
 import type { ApiProperty } from '@/lib/properties/types';
@@ -14,8 +15,8 @@ export function toPropertyPayload(draft: ListingDraft) {
     country: draft.location.country.trim() || 'India',
     address: draft.location.address.trim(),
     pincode: draft.location.pincode.trim(),
-    latitude: draft.location.latitude as number,
-    longitude: draft.location.longitude as number,
+    latitude: roundCoordinate(draft.location.latitude as number),
+    longitude: roundCoordinate(draft.location.longitude as number),
     guestCapacity: draft.guestCapacity,
     bedrooms: draft.bedrooms,
     bathrooms: draft.bathrooms,
@@ -79,8 +80,8 @@ export function fromApiProperty(property: ApiProperty): ListingDraft {
       pincode: property.pincode ?? '',
       country: property.country ?? 'India',
       location: property.location,
-      latitude: Number(property.latitude),
-      longitude: Number(property.longitude),
+      latitude: roundCoordinate(Number(property.latitude)),
+      longitude: roundCoordinate(Number(property.longitude)),
       confirmed: true,
       confirmedAddress: property.address ?? property.location,
     },

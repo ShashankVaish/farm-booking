@@ -1,6 +1,10 @@
 import type { PropertyCardModel } from '@/components/hospitality/property-card';
-import type { ApiProperty } from '@/lib/properties/types';
 
+/**
+ * Sample cards for the design-system showcase only. These must never be
+ * rendered on a guest-facing page: a placeholder listing is not bookable, and
+ * showing one implies inventory that does not exist.
+ */
 export const demoProperties: PropertyCardModel[] = [
   {
     id: 'courtyard-lonavala',
@@ -48,43 +52,3 @@ export const demoProperties: PropertyCardModel[] = [
     imageTone: 'night',
   },
 ];
-
-const DEMO_TYPE: Record<string, ApiProperty['propertyType']> = {
-  'courtyard-lonavala': 'FARMHOUSE',
-  'pool-villa-alibaug': 'VILLA',
-  'evening-house-udaipur': 'EVENT_VENUE',
-};
-
-export function demoPropertyToApi(id: string): ApiProperty | null {
-  const card = demoProperties.find((item) => item.id === id);
-  if (!card) {
-    return null;
-  }
-  const [city, state] = card.location.split(',').map((part) => part.trim());
-  return {
-    id: card.id,
-    slug: card.id,
-    title: card.name,
-    description: `${card.name} is a private ${card.type.toLowerCase()} in ${card.location}, with space for ${card.guests} guests and ${card.bedrooms} bedrooms.`,
-    propertyType: DEMO_TYPE[card.id] ?? 'FARMHOUSE',
-    location: card.location,
-    city: city || card.location,
-    state: state || 'Maharashtra',
-    country: 'India',
-    address: card.location,
-    guestCapacity: card.guests,
-    bedrooms: card.bedrooms,
-    bathrooms: Math.max(1, Math.round(card.bedrooms * 0.8)),
-    basePrice: card.price,
-    weekendPrice: Math.round(card.price * 1.15),
-    extraGuestCharge: 1500,
-    isPartyFriendly: card.badge === 'Party ready' || card.badge === 'Events',
-    averageRating: card.rating,
-    reviewCount: card.reviewCount,
-    amenities: card.amenities.map((name) => ({
-      name,
-      slug: name.toLowerCase().replace(/\s+/g, '-'),
-    })),
-    cancellationPolicy: 'Free cancellation up to 7 days before check-in.',
-  };
-}

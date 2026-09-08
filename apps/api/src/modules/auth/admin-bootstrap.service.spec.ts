@@ -57,18 +57,30 @@ describe('AdminBootstrapService', () => {
     );
   });
 
-  it('promotes an existing user and refreshes the password', async () => {
+  it('refuses to escalate a non-admin account', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 'u1',
       email: 'admin',
       name: 'Old',
+      role: 'CUSTOMER',
+      passwordHash: 'old-hash',
+    });
+    await expect(service.ensureAdminFromEnv()).resolves.toBe('skipped');
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('refreshes password for an existing admin', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'u1',
+      email: 'admin',
+      name: 'Old',
+      role: 'ADMIN',
       passwordHash: 'old-hash',
     });
     await expect(service.ensureAdminFromEnv()).resolves.toBe('updated');
     expect(prisma.user.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          role: 'ADMIN',
           passwordHash: 'hashed',
         }),
       }),

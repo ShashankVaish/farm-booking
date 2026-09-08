@@ -10,6 +10,8 @@
   gap: var(--space-2);
   overflow-x: auto;
   margin-bottom: var(--space-6);
+  padding-bottom: var(--space-1);
+  -webkit-overflow-scrolling: touch;
 }
 
 .nav a {

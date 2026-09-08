@@ -623,6 +623,7 @@ export class PaymentsService {
         title: 'Payment received',
         body: 'Your payment was verified and the booking is confirmed.',
         metadata: { bookingId: payment.bookingId },
+        dedupeKey: `PAYMENT_SUCCESS:${payment.bookingId}`,
       });
       await this.notifications.notify({
         userId: payment.booking.customerId,
@@ -630,6 +631,7 @@ export class PaymentsService {
         title: 'Booking confirmed',
         body: `Your stay at ${payment.booking.property.title} is confirmed.`,
         metadata: { bookingId: payment.bookingId },
+        dedupeKey: `BOOKING_CONFIRMED:${payment.bookingId}:${payment.booking.customerId}`,
       });
       await this.notifications.notify({
         userId: payment.booking.property.ownerId,
@@ -637,6 +639,7 @@ export class PaymentsService {
         title: 'Booking confirmed',
         body: `A booking for ${payment.booking.property.title} is confirmed.`,
         metadata: { bookingId: payment.bookingId },
+        dedupeKey: `BOOKING_CONFIRMED:${payment.bookingId}:${payment.booking.property.ownerId}`,
       });
     }
 
@@ -755,6 +758,7 @@ export class PaymentsService {
       title: 'Payment failed',
       body: 'We could not complete your payment. You can retry from the same booking.',
       metadata: { bookingId: payment.bookingId },
+      dedupeKey: `PAYMENT_FAILURE:${payment.id}`,
     });
 
     return { failed: true };
@@ -882,6 +886,14 @@ export class PaymentsService {
         data: { status: BookingStatus.REFUNDED },
       });
     }
+    await this.notifications.notify({
+      userId: payment.booking.customerId,
+      type: NotificationTypes.REFUND,
+      title: 'Refund processed',
+      body: 'A refund for your booking has been completed.',
+      metadata: { bookingId, paymentId },
+      dedupeKey: `REFUND:${bookingId}:${paymentId}`,
+    });
   }
 
   private mapProviderRefundStatus(providerStatus: string): RefundStatus {

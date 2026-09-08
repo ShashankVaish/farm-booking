@@ -10,6 +10,7 @@ import type {
   AdminOverview,
   AdminPaymentView,
   AdminProperty,
+  AdminPropertyDetail,
   AdminRefund,
   AdminReports,
   AdminReview,
@@ -45,6 +46,7 @@ export const adminApi = {
     apiClient.patch<AdminUser>(`/api/admin/users/${id}`, { isActive }),
   properties: (query: AdminListQuery = {}) =>
     apiClient.get<AdminList<AdminProperty>>(listPath('properties', query)),
+  property: (id: string) => apiClient.get<AdminPropertyDetail>(`/api/admin/properties/${id}`),
   approveProperty: (id: string) => apiClient.post(`/api/admin/properties/${id}/approve`),
   rejectProperty: (id: string, reason: string) =>
     apiClient.post(`/api/admin/properties/${id}/reject`, { reason }),

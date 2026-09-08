@@ -31,6 +31,12 @@ export class AvailabilityService {
     }
 
     const nights = enumerateNights(from, to);
+    if (nights.length === 0 || nights.length > 366) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.INVALID_DATE_RANGE,
+        message: 'Availability range must be between 1 and 366 nights.',
+      });
+    }
     const [overrides, booked] = await Promise.all([
       this.prisma.availability.findMany({
         where: {

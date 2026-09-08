@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/forms';
@@ -34,7 +35,7 @@ function actionsFor(status: string): Array<{ id: Moderation; label: string; dang
     case 'SUSPENDED':
       return [{ id: 'restore', label: 'Restore' }];
     case 'REJECTED':
-      return [{ id: 'request-changes', label: 'Request changes' }];
+      return [];
     default:
       return [];
   }
@@ -68,6 +69,8 @@ export default function AdminPropertiesPage() {
       reload();
     } catch (err) {
       notify(err instanceof ApiError ? err.message : 'Moderation failed.', 'error');
+      setTarget(null);
+      reload();
     } finally {
       setBusy(false);
     }
@@ -102,6 +105,27 @@ export default function AdminPropertiesPage() {
           <option value="DRAFT">Draft</option>
         </Select>
       </FilterForm>
+      <div className={adminUi.actions} style={{ margin: 'var(--space-4) 0 var(--space-5)' }}>
+        {[
+          ['PENDING_APPROVAL', 'Pending approval'],
+          ['APPROVED', 'Approved properties'],
+          ['', 'All properties'],
+        ].map(([status, label]) => (
+          <Button
+            key={label}
+            size="sm"
+            variant={applied.status === status ? 'primary' : 'secondary'}
+            onClick={() => {
+              const next = { ...draft, status };
+              setDraft(next);
+              setApplied(next);
+              setPage(1);
+            }}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
       <QueryGate loading={loading} error={error} onRetry={reload} label="Loading properties">
         <AdminTable isEmpty={!data?.items.length} emptyTitle="No properties" emptyDescription="Nothing matches this filter.">
           <table className={adminUi.table}>
@@ -118,7 +142,7 @@ export default function AdminPropertiesPage() {
               {data?.items.map((property) => (
                 <tr key={property.id}>
                   <td>
-                    {property.title}
+                    <Link href={`/admin/properties/${property.id}`}>{property.title}</Link>
                     <div className="t-caption">
                       {property.city}, {property.state}
                     </div>
@@ -133,6 +157,9 @@ export default function AdminPropertiesPage() {
                   <td>{formatDateTime(property.createdAt)}</td>
                   <td>
                     <div className={adminUi.actions}>
+                      <Button size="sm" variant="ghost" href={`/admin/properties/${property.id}`}>
+                        Review
+                      </Button>
                       {actionsFor(property.status).map((action) => (
                         <Button
                           key={action.id}

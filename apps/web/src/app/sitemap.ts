@@ -4,7 +4,7 @@ import { safeSearch } from '@/lib/properties/api';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = getSiteUrl() || 'http://localhost:3000';
-  const staticRoutes = ['', '/explore', '/stays', '/experiences', '/events', '/host'].map((path) => ({
+  const staticRoutes = ['', '/explore', '/map', '/host'].map((path) => ({
     url: `${siteUrl}${path || '/'}`,
     changeFrequency: 'daily' as const,
     priority: path === '' ? 1 : 0.8,
