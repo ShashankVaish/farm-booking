@@ -21,11 +21,15 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 0.7rem;
-  border: 1px solid rgb(255 255 255 / 0.08);
-  border-radius: 16px;
-  background: linear-gradient(180deg, #1b1b29, #11121d);
-  box-shadow: 0 10px 26px rgb(0 0 0 / 0.18);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  transition: border-color var(--duration-fast) var(--easing-standard);
+}
+
+.card:hover {
+  border-color: var(--color-text-muted);
 }
 
 .card:hover .mediaWrap img {
@@ -35,7 +39,7 @@
 .mediaWrap {
   position: relative;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   transition: opacity var(--duration-base) var(--easing-standard);
 }
 
@@ -52,8 +56,8 @@
   height: var(--touch);
   border: 0;
   border-radius: var(--radius-full);
-  background: rgb(12 13 21 / 0.72);
-  color: #fff;
+  background: var(--color-overlay);
+  color: var(--color-text-primary);
   cursor: pointer;
 }
 
@@ -123,7 +127,7 @@
 }
 
 .card .t-metadata {
-  color: #d78cff;
+  color: var(--color-text-muted);
 }
 
 .stars {
@@ -136,15 +140,61 @@
   display: grid;
   gap: var(--space-4);
   padding: 0.55rem;
-  background: rgb(255 255 255 / 0.96);
-  color: #22212a;
-  border: 1px solid rgb(255 255 255 / 0.75);
-  border-radius: 22px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+}
+
+.searchField {
+  min-width: 0;
+  padding: 0.65rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-elevated);
+}
+
+.searchField :global(.field) {
+  gap: 0.2rem;
+}
+
+.searchField :global(input) {
+  min-width: 0;
+  font-size: 0.9rem;
 }
 
 .searchSubmit {
   width: 100%;
+}
+
+@media (max-width: 767px) {
+  .search {
+    gap: 0.55rem;
+    padding: 0.65rem;
+    border-radius: 18px;
+  }
+
+  .searchField {
+    padding: 0.7rem 0.8rem;
+  }
+
+  .guestField {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 0.7rem 0.8rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-elevated);
+  }
+
+  .guestLabel {
+    margin: 0;
+  }
+
+  .searchSubmit {
+    min-height: 3.1rem;
+    border-radius: 14px;
+  }
 }
 
 @media (min-width: 768px) {
@@ -152,6 +202,11 @@
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.85fr) auto;
     align-items: flex-end;
     padding: var(--space-4) var(--space-5);
+  }
+
+  .searchField {
+    padding: 0.35rem 0.7rem;
+    background: transparent;
   }
 
   .searchSubmit {
@@ -171,7 +226,7 @@
   font-size: var(--fs-label);
   letter-spacing: var(--ls-label);
   text-transform: uppercase;
-  color: #6d6875;
+  color: var(--color-text-secondary);
 }
 
 .skeletonMedia {
@@ -344,7 +399,7 @@
 }
 
 .dayAvailable {
-  background: rgb(46 125 90 / 0.08);
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
 }
 
 .dayLegend {
@@ -404,8 +459,9 @@
 .stepper button {
   width: var(--touch);
   height: var(--touch);
-  border: 1px solid #ddd9e2;
-  background: #fff;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
@@ -414,37 +470,133 @@
   border-color: var(--color-primary);
 }
 
+.stepper button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.calendarHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.calendarMonth {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-h4);
+  letter-spacing: 0.01em;
+}
+
+.calendarNav {
+  display: flex;
+  gap: var(--space-2);
+}
+
 .calendar {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.25rem;
+  gap: 0.2rem;
+}
+
+.weekdayHead {
+  padding-bottom: var(--space-2);
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--color-text-muted);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+.dayNumber {
+  font-size: var(--fs-body-small);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reserves the price row so cells keep a constant height while loading. */
+.dayPrice {
+  min-height: 0.85rem;
+  font-size: 0.625rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dayOutside {
+  visibility: hidden;
+}
+
+.dayPast {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .monthNav {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--touch);
-  min-height: var(--touch);
-  padding: 0 var(--space-3);
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
   border: 1px solid var(--color-border);
   background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
+}
+
+.monthNav:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.monthNav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .day {
-  min-height: var(--touch);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  min-height: 2.9rem;
   min-width: 0;
-  border: 0;
+  padding: 0.15rem 0;
+  border: 1px solid transparent;
   background: transparent;
+  color: var(--color-text-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
+  transition: border-color var(--duration-fast) var(--easing-standard);
 }
 
-.daySelected {
+.day:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.day:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.day:disabled {
+  cursor: not-allowed;
+}
+
+.daySelected,
+.daySelected:hover {
   background: var(--color-primary);
-  color: var(--color-inverse);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.daySelected .dayPrice {
+  color: var(--color-on-primary);
 }
 
 .gallery {
@@ -537,11 +689,11 @@
 }
 
 .search :global(label) {
-  color: #6d6875;
+  color: var(--color-text-secondary);
 }
 
 .search :global(input) {
-  color: #292630;
+  color: var(--color-text-primary);
   background: transparent;
   border-color: transparent;
   padding-inline: 0;
@@ -555,4 +707,38 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+/* "Good to know" facts, decoded from the host meta block. */
+.factGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-4) 0 0;
+}
+
+@media (min-width: 640px) {
+  .factGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.fact {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.fact dt {
+  color: var(--color-text-muted);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+.fact dd {
+  margin: 0.2rem 0 0;
+  font-size: var(--fs-body-small);
+  overflow-wrap: anywhere;
 }

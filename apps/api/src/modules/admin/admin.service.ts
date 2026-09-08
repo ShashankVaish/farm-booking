@@ -300,6 +300,150 @@ export class AdminService {
     return paginated(items, total, page, limit);
   }
 
+  /**
+   * Everything a reviewer needs on one screen: the full listing as submitted,
+   * who owns it and whether their KYC is done, and the moderation history so a
+   * resubmitted listing can be checked against what was asked for last time.
+   */
+  async property(id: string) {
+    const property = await this.prisma.property.findUnique({
+      where: { id },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            phoneVerifiedAt: true,
+            role: true,
+            isActive: true,
+            createdAt: true,
+            ownerProfile: {
+              select: {
+                businessName: true,
+                gstNumber: true,
+                panNumber: true,
+                panImageUrl: true,
+                aadhaarLast4: true,
+                aadhaarImageUrl: true,
+                kycStatus: true,
+                kycSubmittedAt: true,
+                kycRejectionReason: true,
+                kycVerified: true,
+              },
+            },
+          },
+        },
+        images: { orderBy: { sortOrder: 'asc' } },
+        amenities: { include: { amenity: { select: { id: true, name: true, slug: true } } } },
+        documents: true,
+        _count: { select: { bookings: true, reviews: true } },
+      },
+    });
+
+    if (!property || property.deletedAt) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.PROPERTY_NOT_FOUND,
+        message: 'Property not found.',
+      });
+    }
+
+    const [otherListings, auditTrail] = await Promise.all([
+      this.prisma.property.count({
+        where: { ownerId: property.ownerId, deletedAt: null, NOT: { id } },
+      }),
+      this.prisma.auditLog.findMany({
+        where: { entityType: 'Property', entityId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          action: true,
+          metadata: true,
+          createdAt: true,
+          actor: { select: { id: true, name: true, email: true } },
+        },
+      }),
+    ]);
+
+    return {
+      id: property.id,
+      status: property.status,
+      title: property.title,
+      slug: property.slug,
+      description: property.description,
+      propertyType: property.propertyType,
+      isPartyFriendly: property.isPartyFriendly,
+      createdAt: property.createdAt,
+      updatedAt: property.updatedAt,
+      location: {
+        location: property.location,
+        address: property.address,
+        city: property.city,
+        state: property.state,
+        country: property.country,
+        pincode: property.pincode,
+        latitude: Number(property.latitude),
+        longitude: Number(property.longitude),
+      },
+      capacity: {
+        guests: property.guestCapacity,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+      },
+      pricing: {
+        basePrice: money(property.basePrice).toFixed(2),
+        weekendPrice: property.weekendPrice
+          ? money(property.weekendPrice).toFixed(2)
+          : null,
+        extraGuestCharge: property.extraGuestCharge
+          ? money(property.extraGuestCharge).toFixed(2)
+          : null,
+      },
+      rules: {
+        propertyRules: property.propertyRules,
+        partyRules: property.partyRules,
+        cancellationPolicy: property.cancellationPolicy,
+      },
+      images: property.images.map((image) => ({
+        id: image.id,
+        url: image.url,
+        altText: image.altText,
+        isCover: image.isCover,
+        sortOrder: image.sortOrder,
+      })),
+      amenities: property.amenities
+        .map((row) => row.amenity)
+        .filter((amenity): amenity is NonNullable<typeof amenity> => Boolean(amenity)),
+      documents: property.documents.map((document) => ({
+        id: document.id,
+        name: document.name,
+        documentType: document.documentType,
+        url: document.url,
+        status: document.status,
+        createdAt: document.createdAt,
+      })),
+      owner: {
+        id: property.owner.id,
+        name: property.owner.name,
+        email: property.owner.email,
+        phone: property.owner.phone,
+        phoneVerified: Boolean(property.owner.phoneVerifiedAt),
+        isActive: property.owner.isActive,
+        memberSince: property.owner.createdAt,
+        otherListings,
+        profile: property.owner.ownerProfile,
+      },
+      stats: {
+        bookings: property._count.bookings,
+        reviews: property._count.reviews,
+        averageRating: Number(property.averageRating),
+      },
+      auditTrail,
+    };
+  }
+
   approveProperty(id: string, actorId: string) {
     return this.setPropertyStatus(id, PropertyStatus.APPROVED, actorId);
   }
@@ -949,6 +1093,7 @@ export class AdminService {
 
     const allowed: Partial<Record<PropertyStatus, PropertyStatus[]>> = {
       [PropertyStatus.APPROVED]: [
+        PropertyStatus.DRAFT,
         PropertyStatus.PENDING_APPROVAL,
         PropertyStatus.REJECTED,
         PropertyStatus.CHANGES_REQUESTED,

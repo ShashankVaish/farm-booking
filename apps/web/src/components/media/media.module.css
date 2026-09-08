@@ -24,17 +24,17 @@
 
 .tonePool {
   background: var(--color-primary);
-  color: var(--color-inverse);
+  color: var(--color-on-primary);
 }
 
 .toneLawn {
   background: var(--color-primary-hover);
-  color: var(--color-inverse);
+  color: var(--color-on-primary);
 }
 
 .toneNight {
-  background: var(--color-text-primary);
-  color: var(--color-inverse);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
 }
 
 .caption {

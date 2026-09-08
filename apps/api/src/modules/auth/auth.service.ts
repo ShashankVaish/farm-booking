@@ -1,13 +1,14 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UserRoles } from '../../common/constants/roles';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ErrorCodes } from '../../common/constants/error-codes';
-import { randomUUID } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import type { AuthTokens, JwtPayload, RequestUser } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -16,8 +17,36 @@ import { TokenService } from './token.service';
 
 const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
+const GOOGLE_ISSUERS = ['accounts.google.com', 'https://accounts.google.com'];
+
+/**
+ * Carries a short machine-readable reason so the OAuth callback can redirect to
+ * the login page with something more useful than a single generic message.
+ */
+export class GoogleAuthError extends UnauthorizedException {
+  constructor(
+    readonly reason: string,
+    message: string,
+    errorCode: string = ErrorCodes.INVALID_CREDENTIALS,
+  ) {
+    super({ errorCode, message });
+  }
+}
+
+type GoogleClaims = {
+  sub?: string;
+  email?: string;
+  email_verified?: boolean | string;
+  name?: string;
+  aud?: string;
+  iss?: string;
+  exp?: number;
+};
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
@@ -125,6 +154,185 @@ export class AuthService {
 
     const tokens = await this.issueSession(publicUser, context);
     return { user: publicUser, tokens };
+  }
+
+  async loginWithGoogleCode(
+    code: string,
+    context: { userAgent?: string; ipAddress?: string },
+  ): Promise<{ user: RequestUser; tokens: AuthTokens }> {
+    const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
+    const clientSecret = this.config.get<string>('GOOGLE_CLIENT_SECRET');
+    const redirectUri = this.config.get<string>('GOOGLE_OAUTH_REDIRECT_URI');
+    if (!clientId || !clientSecret || !redirectUri) {
+      this.logger.error(
+        'Google sign-in needs GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_OAUTH_REDIRECT_URI to all be set.',
+      );
+      throw new GoogleAuthError(
+        'google_not_configured',
+        'Google sign-in is not configured.',
+      );
+    }
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }),
+    });
+
+    // Google puts the real cause (redirect_uri_mismatch, invalid_client,
+    // invalid_grant) in the response body, so log it instead of discarding it.
+    const tokenBody = await tokenResponse.text();
+    if (!tokenResponse.ok) {
+      this.logger.error(
+        `Google token exchange failed (HTTP ${tokenResponse.status}) for redirect_uri ${redirectUri}: ${tokenBody.slice(0, 500)}`,
+      );
+      throw new GoogleAuthError(
+        'google_token_exchange',
+        'Google sign-in could not be verified.',
+      );
+    }
+
+    let tokens: { access_token?: string; id_token?: string };
+    try {
+      tokens = JSON.parse(tokenBody) as typeof tokens;
+    } catch {
+      this.logger.error('Google token response was not valid JSON.');
+      throw new GoogleAuthError(
+        'google_token_exchange',
+        'Google sign-in could not be verified.',
+      );
+    }
+
+    const profile =
+      this.readGoogleIdToken(tokens.id_token, clientId) ??
+      (await this.fetchGoogleProfile(tokens.access_token));
+
+    if (!profile?.sub || !profile.email) {
+      this.logger.error(
+        'Google returned no usable identity claims (missing sub or email).',
+      );
+      throw new GoogleAuthError(
+        'google_profile',
+        'Google profile could not be loaded.',
+      );
+    }
+    if (profile.email_verified !== true && profile.email_verified !== 'true') {
+      this.logger.warn(
+        `Rejected Google sign-in for an unverified email: ${profile.email}`,
+      );
+      throw new GoogleAuthError(
+        'google_email_unverified',
+        'A verified Google email is required.',
+      );
+    }
+
+    const email = profile.email.trim().toLowerCase();
+    let user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, role: true, name: true, isActive: true },
+    });
+    if (user && !user.isActive) {
+      throw new GoogleAuthError(
+        'account_disabled',
+        'This account has been disabled.',
+        ErrorCodes.ACCOUNT_DISABLED,
+      );
+    }
+    if (user && user.role === UserRoles.ADMIN) {
+      // Mirrors the password/OTP forms: admins sign in from /admin only.
+      throw new GoogleAuthError(
+        'google_admin',
+        'Admin accounts must sign in from the admin page.',
+      );
+    }
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          name: profile.name?.trim() || email.split('@')[0],
+          passwordHash: await this.passwords.hash(randomBytes(32).toString('hex')),
+          role: UserRoles.CUSTOMER,
+        },
+        select: { id: true, email: true, role: true, name: true, isActive: true },
+      });
+    } else {
+      await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    }
+
+    const publicUser: RequestUser = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    };
+    this.logger.log(`Google sign-in succeeded for ${email}.`);
+    return { user: publicUser, tokens: await this.issueSession(publicUser, context) };
+  }
+
+  /**
+   * Reads the identity claims out of Google's id_token. The token arrives over
+   * TLS straight from the token endpoint, authenticated with our client secret,
+   * so the signature is already implied; what still has to be checked is that
+   * the token was minted for *this* client and has not expired.
+   */
+  private readGoogleIdToken(
+    idToken: string | undefined,
+    clientId: string,
+  ): GoogleClaims | null {
+    const payload = idToken?.split('.')[1];
+    if (!payload) {
+      return null;
+    }
+    let claims: GoogleClaims;
+    try {
+      claims = JSON.parse(
+        Buffer.from(payload, 'base64url').toString('utf8'),
+      ) as GoogleClaims;
+    } catch {
+      this.logger.warn('Google id_token payload could not be decoded.');
+      return null;
+    }
+    if (claims.aud !== clientId) {
+      this.logger.error(
+        `Google id_token audience ${String(claims.aud)} does not match GOOGLE_CLIENT_ID.`,
+      );
+      return null;
+    }
+    if (!claims.iss || !GOOGLE_ISSUERS.includes(claims.iss)) {
+      this.logger.error(`Google id_token issuer ${String(claims.iss)} is not Google.`);
+      return null;
+    }
+    if (typeof claims.exp === 'number' && claims.exp * 1000 <= Date.now()) {
+      this.logger.error('Google id_token has already expired.');
+      return null;
+    }
+    return claims;
+  }
+
+  private async fetchGoogleProfile(
+    accessToken: string | undefined,
+  ): Promise<GoogleClaims | null> {
+    if (!accessToken) {
+      this.logger.error('Google token response contained no access_token.');
+      return null;
+    }
+    const response = await fetch(
+      'https://openidconnect.googleapis.com/v1/userinfo',
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!response.ok) {
+      this.logger.error(
+        `Google userinfo request failed (HTTP ${response.status}): ${(await response.text()).slice(0, 300)}`,
+      );
+      return null;
+    }
+    return (await response.json()) as GoogleClaims;
   }
 
   async logout(refreshToken: string | undefined): Promise<void> {

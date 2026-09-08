@@ -14,6 +14,23 @@ import styles from './auth.module.css';
 
 type Mode = 'email' | 'otp';
 
+const GOOGLE_ERRORS: Record<string, string> = {
+  access_denied: 'You cancelled Google sign-in.',
+  google_admin: 'Admin accounts must sign in from the admin page.',
+  account_disabled: 'This account has been disabled.',
+  google_email_unverified: 'Verify your email with Google, then try again.',
+  google_not_configured: 'Google sign-in is not configured on the server yet.',
+  google_state: 'Google sign-in timed out. Please try again.',
+  redirect_uri_mismatch:
+    'Google rejected the redirect URL for this app. An administrator needs to add it in the Google Cloud console.',
+};
+
+function googleErrorMessage(code: string) {
+  return (
+    GOOGLE_ERRORS[code] ?? 'Google sign-in could not be completed. Please try again.'
+  );
+}
+
 function otpMessage(code: string, fallback: string) {
   if (code === 'OTP_INVALID') return 'That code is incorrect. Try again.';
   if (code === 'OTP_EXPIRED') return 'This code has expired. Request a new one.';
@@ -42,6 +59,11 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
     const timer = window.setTimeout(() => setSeconds((value) => value - 1), 1000);
     return () => window.clearTimeout(timer);
   }, [seconds]);
+
+  useEffect(() => {
+    const googleError = search.get('error');
+    if (googleError) setError(googleErrorMessage(googleError));
+  }, [search]);
 
   async function submitEmail(event: FormEvent) {
     event.preventDefault();
@@ -205,6 +227,16 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
           ) : null}
         </form>
       )}
+      {!adminOnly ? (
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={busy}
+          onClick={() => window.location.assign(`/api/auth/google?next=${encodeURIComponent(next)}`)}
+        >
+          Continue with Google
+        </Button>
+      ) : null}
       {!adminOnly ? (
         <>
           <p className="t-body-small" style={{ marginTop: 'var(--space-5)' }}>

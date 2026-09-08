@@ -1,22 +1,34 @@
 :root {
-  /* Color */
-  --color-background: #090a12;
-  --color-surface: #11121d;
-  --color-surface-elevated: #191a27;
-  --color-text-primary: #f7f4fb;
-  --color-text-secondary: #b5b2c2;
-  --color-text-muted: #858294;
-  --color-border: #2c2d3c;
-  --color-primary: #9b4fe0;
-  --color-primary-hover: #7f35c3;
-  --color-accent: #ff8660;
-  --color-accent-soft: #3c2238;
-  --color-success: #74c69d;
-  --color-warning: #f5c453;
-  --color-error: #f07777;
-  --color-focus: #c780ff;
+  /*
+   * Colour — Baagly.
+   * Drawn from the logo: a coral disc with a cream mountain range. The palette
+   * is deliberately two-hue (coral + warm neutral) so the brand reads as one
+   * thing rather than a spectrum. Every pairing below meets WCAG AA.
+   * Text on a coral fill is dark ink, not white: white on this coral is only
+   * 3.0:1, while the ink reaches 6.1:1 and keeps the logo colour intact.
+   */
+  --color-background: #0d0c10;
+  --color-surface: #17151b;
+  --color-surface-elevated: #201d25;
+  --color-text-primary: #f7f2ec;
+  --color-text-secondary: #c9c2bb;
+  --color-text-muted: #a39c95;
+  --color-border: #302c36;
+  --color-primary: #f9615f;
+  --color-primary-hover: #ff7a73;
+  --color-on-primary: #1a1013;
+  --color-accent: #ffa39c;
+  --color-accent-soft: #2a1b1e;
+  --color-success: #7fc9a4;
+  --color-warning: #f0c05a;
+  --color-error: #ff8b84;
+  --color-focus: #ff9d97;
   --color-inverse: #ffffff;
-  --color-overlay: rgb(4 4 10 / 0.72);
+  --color-overlay: rgb(8 6 9 / 0.74);
+
+  /* Brand constants — the logo disc and its cream, used by the mark itself. */
+  --brand-coral: #f9615f;
+  --brand-cream: #f7ece1;
 
   /* Typography */
   --font-sans: var(--font-sans-family), 'Segoe UI', sans-serif;

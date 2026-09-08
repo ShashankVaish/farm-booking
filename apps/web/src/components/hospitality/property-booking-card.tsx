@@ -152,6 +152,8 @@ export function PropertyBookingCard({
           propertyId={property.id}
           checkIn={checkIn}
           checkOut={checkOut}
+          basePrice={Number(property.basePrice) || 0}
+          weekendPrice={property.weekendPrice ? Number(property.weekendPrice) : null}
           onChange={(next) => {
             setCheckIn(next.checkIn);
             setCheckOut(next.checkOut);

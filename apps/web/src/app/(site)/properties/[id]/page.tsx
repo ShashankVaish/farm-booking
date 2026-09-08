@@ -1,5 +1,4 @@
 import { AmenityItem, Rating } from '@/components/hospitality/atoms';
-import { AvailabilityCalendar } from '@/components/hospitality/availability-calendar';
 import { ImageGalleryFoundation } from '@/components/hospitality/foundations';
 import { PropertyBookingCard } from '@/components/hospitality/property-booking-card';
 import { WishlistButton } from '@/components/hospitality/wishlist-button';
@@ -7,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState } from '@/components/ui/feedback';
 import { getProperty, getPropertyReviews } from '@/lib/properties/api';
 import { coverImage, amenityName } from '@/lib/properties/map-property';
+import { decodeListingMeta } from '@/lib/host/listing-meta';
 import { PROPERTY_TYPE_LABEL, type ApiProperty } from '@/lib/properties/types';
 import { isUuid } from '@/lib/ids';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
@@ -77,6 +77,9 @@ export default async function PropertyPage({ params }: Props) {
                   : ('lawn' as const),
           },
         ];
+  // propertyRules stores an encoded host-meta block followed by the free text
+  // rules. Rendering it raw leaked "---host-meta-v1--- beds:3 ..." to guests.
+  const { meta, rules: houseRules } = decodeListingMeta(property.propertyRules);
   const locationName = [property.location, property.city, property.state].filter(Boolean).join(', ');
   const lat = Number(property.latitude);
   const lng = Number(property.longitude);
@@ -123,12 +126,51 @@ export default async function PropertyPage({ params }: Props) {
             ))}
           </div>
 
-          {property.propertyRules ? (
+          <h2 className="t-h3" style={{ marginTop: 'var(--space-8)' }}>
+            Good to know
+          </h2>
+          <dl className={styles.factGrid}>
+            <div className={styles.fact}>
+              <dt className="t-caption">Check-in</dt>
+              <dd>After {meta.checkIn}</dd>
+            </div>
+            <div className={styles.fact}>
+              <dt className="t-caption">Check-out</dt>
+              <dd>Before {meta.checkOut}</dd>
+            </div>
+            <div className={styles.fact}>
+              <dt className="t-caption">Beds</dt>
+              <dd>{meta.beds}</dd>
+            </div>
+            <div className={styles.fact}>
+              <dt className="t-caption">Minimum stay</dt>
+              <dd>
+                {meta.minStay} night{meta.minStay === 1 ? '' : 's'}
+              </dd>
+            </div>
+            <div className={styles.fact}>
+              <dt className="t-caption">Smoking</dt>
+              <dd>{meta.smoking || 'Not specified'}</dd>
+            </div>
+            <div className={styles.fact}>
+              <dt className="t-caption">Pets</dt>
+              <dd>{meta.pets || 'Not specified'}</dd>
+            </div>
+          </dl>
+          {meta.noise ? (
+            <p className="t-body-small" style={{ marginTop: 'var(--space-3)' }}>
+              {meta.noise}
+            </p>
+          ) : null}
+
+          {houseRules ? (
             <>
               <h2 className="t-h3" style={{ marginTop: 'var(--space-8)' }}>
                 House rules
               </h2>
-              <p className="t-body-small">{property.propertyRules}</p>
+              <p className="t-body-small" style={{ whiteSpace: 'pre-wrap' }}>
+                {houseRules}
+              </p>
             </>
           ) : null}
           {property.partyRules ? (
@@ -173,18 +215,10 @@ export default async function PropertyPage({ params }: Props) {
             Approximate area shown. Exact address stays private until a booking is confirmed.
           </p>
 
-          <h2 className="t-h3" style={{ marginTop: 'var(--space-8)' }}>
-            Availability
-          </h2>
-          {!isBookable ? (
-            <p className="t-body-small">
-              {isSample
-                ? 'Calendar and booking open once this stay is published by a host.'
-                : 'Calendar and booking open after this property is approved by admin.'}
-            </p>
-          ) : (
-            <AvailabilityCalendar propertyId={property.id} />
-          )}
+          {/*
+            Availability lives in the booking card only. A second calendar here
+            showed the same month twice and gave guests two places to pick dates.
+          */}
 
           <h2 className="t-h3" style={{ marginTop: 'var(--space-8)' }}>
             Reviews

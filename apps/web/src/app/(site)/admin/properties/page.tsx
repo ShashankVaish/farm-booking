@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/forms';
@@ -141,7 +142,7 @@ export default function AdminPropertiesPage() {
               {data?.items.map((property) => (
                 <tr key={property.id}>
                   <td>
-                    {property.title}
+                    <Link href={`/admin/properties/${property.id}`}>{property.title}</Link>
                     <div className="t-caption">
                       {property.city}, {property.state}
                     </div>
@@ -156,6 +157,9 @@ export default function AdminPropertiesPage() {
                   <td>{formatDateTime(property.createdAt)}</td>
                   <td>
                     <div className={adminUi.actions}>
+                      <Button size="sm" variant="ghost" href={`/admin/properties/${property.id}`}>
+                        Review
+                      </Button>
                       {actionsFor(property.status).map((action) => (
                         <Button
                           key={action.id}

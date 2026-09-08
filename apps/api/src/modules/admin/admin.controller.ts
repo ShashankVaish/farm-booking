@@ -72,6 +72,11 @@ export class AdminController {
     return this.admin.properties(query);
   }
 
+  @Get('properties/:id')
+  property(@Param('id') id: string) {
+    return this.admin.property(id);
+  }
+
   @Post('properties/:id/approve')
   approve(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.admin.approveProperty(id, user.id);

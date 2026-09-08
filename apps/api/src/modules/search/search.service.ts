@@ -44,11 +44,45 @@ export class SearchService {
       where.state = { equals: query.state, mode: 'insensitive' };
     }
     if (query.location) {
-      where.OR = [
-        { location: { contains: query.location, mode: 'insensitive' } },
-        { address: { contains: query.location, mode: 'insensitive' } },
-        { city: { contains: query.location, mode: 'insensitive' } },
-      ];
+      // Every word in the query must appear somewhere on the property, and each
+      // word matches as a substring. So "sambhal garden" finds "sambhal garden",
+      // "garden sambhal" and "Sambhal Gardens", while "goa villa" will not match
+      // a Goa property that is not a villa. Title was previously not searched at
+      // all, so searching a stay by its own name returned nothing.
+      const terms = Array.from(
+        new Set(
+          query.location
+            .toLowerCase()
+            .split(/[\s,]+/)
+            .map((term) => term.trim())
+            .filter((term) => term.length > 0),
+        ),
+      ).slice(0, 8);
+
+      if (terms.length > 0) {
+        where.AND = [
+          ...((where.AND as Prisma.PropertyWhereInput[]) ?? []),
+          ...terms.map((term) => ({
+            OR: [
+              { title: { contains: term, mode: 'insensitive' as const } },
+              { location: { contains: term, mode: 'insensitive' as const } },
+              { address: { contains: term, mode: 'insensitive' as const } },
+              { city: { contains: term, mode: 'insensitive' as const } },
+              { state: { contains: term, mode: 'insensitive' as const } },
+              { country: { contains: term, mode: 'insensitive' as const } },
+              { pincode: { contains: term, mode: 'insensitive' as const } },
+              { description: { contains: term, mode: 'insensitive' as const } },
+              {
+                amenities: {
+                  some: {
+                    amenity: { name: { contains: term, mode: 'insensitive' as const } },
+                  },
+                },
+              },
+            ],
+          })),
+        ];
+      }
     }
     if (query.propertyType) {
       where.propertyType = query.propertyType;

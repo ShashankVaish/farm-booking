@@ -1,6 +1,5 @@
 import { apiClient } from '@/lib/api/client';
 import { toQueryString } from '@/lib/api/query';
-import { demoPropertyToApi } from '@/data/demo-properties';
 import type {
   ApiProperty,
   ApiReview,
@@ -38,16 +37,10 @@ export async function searchProperties(filters: SearchFilters = {}): Promise<Pag
   return publicGet<Paginated<ApiProperty>>(`/api/search${query}`);
 }
 
-export async function getProperty(id: string): Promise<ApiProperty> {
-  try {
-    return await publicGet<ApiProperty>(`/api/properties/${encodeURIComponent(id)}`);
-  } catch (error) {
-    const sample = demoPropertyToApi(id);
-    if (sample) {
-      return sample;
-    }
-    throw error;
-  }
+export function getProperty(id: string): Promise<ApiProperty> {
+  // No placeholder fallback here: a listing that cannot be loaded must surface
+  // as not-found rather than rendering a fabricated, bookable-looking stay.
+  return publicGet<ApiProperty>(`/api/properties/${encodeURIComponent(id)}`);
 }
 
 export function getPropertyReviews(id: string, page = 1): Promise<Paginated<ApiReview>> {

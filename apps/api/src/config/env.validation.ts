@@ -101,6 +101,22 @@ export class EnvironmentVariables {
 
   @IsOptional()
   @IsString()
+  GOOGLE_CLIENT_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_CLIENT_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_OAUTH_REDIRECT_URI?: string;
+
+  @IsOptional()
+  @IsString()
+  WEB_APP_URL?: string;
+
+  @IsOptional()
+  @IsString()
   SMS_PROVIDER?: string;
 
   @IsOptional()

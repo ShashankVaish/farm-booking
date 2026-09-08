@@ -28,7 +28,7 @@ body {
   line-height: var(--lh-body);
   letter-spacing: var(--ls-body);
   -webkit-font-smoothing: antialiased;
-  background-image: radial-gradient(circle at 72% 0%, rgb(52 35 91 / 0.24), transparent 32rem);
+  background-image: radial-gradient(circle at 72% 0%, color-mix(in srgb, var(--color-primary) 9%, transparent), transparent 34rem);
 }
 
 img,
@@ -99,7 +99,7 @@ textarea {
   z-index: 80;
   padding: var(--space-2) var(--space-3);
   background: var(--color-primary);
-  color: var(--color-inverse);
+  color: var(--color-on-primary);
   border-radius: var(--radius-sm);
 }
 

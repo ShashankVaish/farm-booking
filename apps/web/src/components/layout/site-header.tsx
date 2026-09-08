@@ -13,9 +13,8 @@ import styles from './shell.module.css';
 
 const NAV = [
   { href: '/explore', label: 'Explore' },
-  { href: '/stays', label: 'Stays' },
-  { href: '/experiences', label: 'Experiences' },
-  { href: '/events', label: 'Events' },
+  { href: '/map', label: 'Map view' },
+  { href: '/host', label: 'List your property' },
 ];
 
 function MenuIcon() {
@@ -135,12 +134,6 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
                 {item.label}
               </Link>
             ))}
-            <Link
-              href="/host"
-              className={cn(styles.navLink, pathname.startsWith('/host') && styles.navLinkActive)}
-            >
-              List Your Property
-            </Link>
           </nav>
         ) : (
           <span />
@@ -195,14 +188,6 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
               {item.label}
             </Link>
           ))}
-          <Link
-            href="/host"
-            className={styles.menuLink}
-            aria-current={pathname.startsWith('/host') ? 'page' : undefined}
-            onClick={() => setMenuOpen(false)}
-          >
-            List Your Property
-          </Link>
           <Button href="/explore">Find a Stay</Button>
         </nav>
       ) : null}

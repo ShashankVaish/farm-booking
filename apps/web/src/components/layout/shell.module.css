@@ -24,9 +24,9 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  background: color-mix(in srgb, #090a12 84%, transparent);
+  background: color-mix(in srgb, var(--color-background) 88%, transparent);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .headerInner {
@@ -54,14 +54,14 @@
   align-items: center;
   min-height: var(--touch);
   font-size: var(--fs-body-small);
-  color: #d0ccda;
+  color: var(--color-text-secondary);
   padding: 0;
   border-bottom: 1px solid transparent;
 }
 
 .navLink:hover,
 .navLinkActive {
-  color: #fff;
+  color: var(--color-text-primary);
   border-bottom-color: var(--color-accent);
 }
 
@@ -124,23 +124,27 @@
 }
 
 .mark {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2rem;
+  height: 2rem;
   flex-shrink: 0;
+  border-radius: var(--radius-full);
 }
 
 .brandName {
-  font-size: 0.9375rem;
-  font-weight: var(--font-weight-medium);
-  letter-spacing: 0.04em;
+  /* Echoes the serif wordmark on the logo disc. */
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-regular);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .brand {
-  color: #fff;
+  color: var(--color-text-primary);
 }
 
 .footer {
@@ -172,11 +176,11 @@
   bottom: 0;
   z-index: 40;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: rgb(15 15 26 / 0.96);
-  border-top: 1px solid rgb(255 255 255 / 0.1);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
 }
 
 .bottomItem {
@@ -196,7 +200,7 @@
 }
 
 .bottomItemActive {
-  color: #ff8cc5;
+  color: var(--color-text-primary);
 }
 
 .placeholder {
@@ -232,6 +236,6 @@
   }
 
   .brandName {
-    font-size: 0.8125rem;
+    font-size: 1.125rem;
   }
 }

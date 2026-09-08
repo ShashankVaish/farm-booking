@@ -8,7 +8,7 @@ function readPublic(name: string, fallback = ''): string {
  * Base URLs live here so pages and components do not hardcode hosts.
  */
 export const publicEnv = {
-  brandName: readPublic('NEXT_PUBLIC_BRAND_NAME', 'BRAND_NAME'),
+  brandName: readPublic('NEXT_PUBLIC_BRAND_NAME', 'Baagly'),
   apiUrl: readPublic('NEXT_PUBLIC_API_URL'),
   siteUrl: readPublic('NEXT_PUBLIC_SITE_URL'),
 } as const;

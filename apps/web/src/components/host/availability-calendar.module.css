@@ -1,0 +1,317 @@
+.wrap {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+/* Header ------------------------------------------------------------------ */
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.month {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  letter-spacing: var(--ls-h3);
+}
+
+.monthSub {
+  margin: 0.15rem 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.navButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch);
+  height: var(--touch);
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--easing-standard);
+}
+
+.navButton:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.navButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.todayButton {
+  min-height: var(--touch);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+  cursor: pointer;
+}
+
+.todayButton:hover {
+  border-color: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+/* Grid -------------------------------------------------------------------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+.weekday {
+  padding-bottom: var(--space-2);
+  text-align: center;
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.pad {
+  aspect-ratio: 1;
+}
+
+.day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  aspect-ratio: 1;
+  min-height: var(--touch);
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  font-size: var(--fs-body-small);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--easing-standard),
+    background var(--duration-fast) var(--easing-standard);
+}
+
+.day:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.day:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.dayNumber {
+  line-height: 1;
+}
+
+/* A single dot carries the status, so the number stays readable. */
+.dot {
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: var(--radius-full);
+  background: transparent;
+}
+
+.available .dot {
+  background: var(--color-success);
+}
+
+.blocked {
+  background: color-mix(in srgb, var(--color-warning) 14%, var(--color-surface-elevated));
+  border-color: color-mix(in srgb, var(--color-warning) 34%, var(--color-border));
+  color: var(--color-text-secondary);
+}
+
+.blocked .dot {
+  background: var(--color-warning);
+}
+
+.booked {
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface-elevated));
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
+  cursor: not-allowed;
+}
+
+.booked .dot {
+  background: var(--color-primary);
+}
+
+.past {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-text-muted);
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.past .dot {
+  background: transparent;
+}
+
+.today {
+  box-shadow: inset 0 0 0 1px var(--color-text-secondary);
+}
+
+.selected,
+.selected:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.selected .dot {
+  background: var(--color-inverse);
+}
+
+/* Footer ------------------------------------------------------------------ */
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-caption);
+}
+
+.swatch {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.swatchAvailable {
+  background: var(--color-success);
+}
+
+.swatchBlocked {
+  background: var(--color-warning);
+}
+
+.swatchBooked {
+  background: var(--color-primary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.count {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+}
+
+.message {
+  margin: 0;
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--fs-body-small);
+}
+
+.messageError {
+  color: var(--color-error);
+}
+
+.messageOk {
+  color: var(--color-success);
+}
+
+.hint {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+}
+
+/* Loading ----------------------------------------------------------------- */
+
+.skeletonDay {
+  aspect-ratio: 1;
+  min-height: var(--touch);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-elevated) 0%,
+    var(--color-border) 50%,
+    var(--color-surface-elevated) 100%
+  );
+  background-size: 200% 100%;
+  animation: calendarShimmer 1.4s var(--easing-standard) infinite;
+}
+
+@keyframes calendarShimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonDay {
+    animation: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .head,
+  .grid,
+  .footer {
+    padding-inline: var(--space-4);
+  }
+
+  .footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

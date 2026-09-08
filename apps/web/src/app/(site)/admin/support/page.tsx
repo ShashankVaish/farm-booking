@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/forms';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import { AdminPager, AdminTable, FilterForm, adminUi } from '@/components/admin/admin-kit';

@@ -6,7 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/forms';
 import { hostApi, type PlaceSuggestion } from '@/lib/host/host-api';
 import type { LocationDraft } from '@/lib/host/listing-location';
-import { validateListingLocation } from '@/lib/host/listing-location';
+import {
+  isValidLatitude,
+  isValidLongitude,
+  roundCoordinate,
+  validateListingLocation,
+} from '@/lib/host/listing-location';
 import styles from './host.module.css';
 
 const HostMap = dynamic(() => import('./host-map').then((mod) => mod.HostMap), { ssr: false });
@@ -43,7 +48,13 @@ export function LocationStep({ value, onChange }: Props) {
   }, [value.query]);
 
   const applyCoords = useCallback(
-    (latitude: number, longitude: number) => {
+    (rawLatitude: number, rawLongitude: number) => {
+      const latitude = roundCoordinate(rawLatitude);
+      const longitude = roundCoordinate(rawLongitude);
+      if (!isValidLatitude(latitude) || !isValidLongitude(longitude)) {
+        setGpsHint('That location could not be read. Search for the address instead.');
+        return;
+      }
       const current = valueRef.current;
       onChange({ ...current, latitude, longitude, confirmed: false });
       hostApi
@@ -78,8 +89,8 @@ export function LocationStep({ value, onChange }: Props) {
       country: place.country || 'India',
       pincode: place.pincode || value.pincode,
       location: place.displayName,
-      latitude: place.latitude,
-      longitude: place.longitude,
+      latitude: roundCoordinate(place.latitude),
+      longitude: roundCoordinate(place.longitude),
       confirmed: false,
       confirmedAddress: '',
     });
@@ -200,7 +211,7 @@ export function LocationStep({ value, onChange }: Props) {
           max={90}
           step="any"
           value={value.latitude ?? ''}
-          onChange={(e) => onChange({ ...value, latitude: e.target.value === '' ? null : Number(e.target.value), confirmed: false })}
+          onChange={(e) => onChange({ ...value, latitude: e.target.value === '' ? null : roundCoordinate(Number(e.target.value)), confirmed: false })}
         />
         <Input
           id="lng"
@@ -210,7 +221,7 @@ export function LocationStep({ value, onChange }: Props) {
           max={180}
           step="any"
           value={value.longitude ?? ''}
-          onChange={(e) => onChange({ ...value, longitude: e.target.value === '' ? null : Number(e.target.value), confirmed: false })}
+          onChange={(e) => onChange({ ...value, longitude: e.target.value === '' ? null : roundCoordinate(Number(e.target.value)), confirmed: false })}
         />
       </div>
 

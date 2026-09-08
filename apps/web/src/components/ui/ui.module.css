@@ -34,13 +34,13 @@
 }
 
 .primary {
-  background: linear-gradient(110deg, #8f42d1, #d758b1 58%, #ff8c5c);
-  color: var(--color-inverse);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 .primary:hover:not(:disabled) {
-  background: linear-gradient(110deg, #7e32c1, #c64aa2 58%, #f17a4e);
-  color: var(--color-inverse);
+  background: var(--color-primary-hover);
+  color: var(--color-on-primary);
 }
 
 .secondary {
@@ -64,12 +64,12 @@
 
 .accent {
   background: var(--color-accent);
-  color: var(--color-inverse);
+  color: var(--color-on-primary);
 }
 
 .accent:hover:not(:disabled) {
   filter: brightness(0.95);
-  color: var(--color-inverse);
+  color: var(--color-on-primary);
 }
 
 .danger {
@@ -236,7 +236,7 @@
 .badgeSolid {
   border-color: transparent;
   background: var(--color-primary);
-  color: var(--color-inverse);
+  color: var(--color-on-primary);
 }
 
 .card {
@@ -255,7 +255,7 @@
   height: 2.5rem;
   border-radius: var(--radius-full);
   background: var(--color-primary);
-  color: var(--color-inverse);
+  color: var(--color-on-primary);
   font-size: var(--fs-body-small);
   font-weight: var(--font-weight-medium);
 }
@@ -382,7 +382,7 @@
   max-width: 14rem;
   padding: var(--space-1) var(--space-2);
   background: var(--color-text-primary);
-  color: var(--color-inverse);
+  color: var(--color-background);
   font-size: var(--fs-caption);
   border-radius: var(--radius-sm);
   pointer-events: none;
@@ -477,7 +477,7 @@
   max-width: 22rem;
   padding: var(--space-3) var(--space-4);
   background: var(--color-text-primary);
-  color: var(--color-inverse);
+  color: var(--color-background);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
   animation: riseIn var(--duration-base) var(--easing-standard);

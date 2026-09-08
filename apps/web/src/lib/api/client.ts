@@ -13,13 +13,54 @@ function isEnvelope(value: unknown): value is ApiEnvelope<unknown> {
   return typeof value === 'object' && value !== null && 'success' in value;
 }
 
+const REFRESH_PATH = '/api/auth/refresh';
+
 export function createApiClient(options: ClientOptions = {}) {
   const tokenStore = options.tokenStore ?? memoryTokenStore;
   const fetchImpl = options.fetchImpl ?? fetch;
 
-  async function request<T>(path: string, requestOptions: RequestOptions = {}): Promise<T> {
+  // One shared refresh at a time: several components can 401 at once after the
+  // 15-minute access token expires, and each must not rotate the token again.
+  let refreshing: Promise<string | null> | null = null;
+
+  function resolveUrl(path: string): string {
     const baseUrl = (options.getBaseUrl ?? getApiBaseUrl)();
-    const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+    return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  }
+
+  async function refreshAccessToken(): Promise<string | null> {
+    try {
+      const response = await fetchImpl(resolveUrl(REFRESH_PATH), {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const payload = (await response.json().catch(() => null)) as unknown;
+      const data = isEnvelope(payload) && payload.success ? payload.data : payload;
+      const token = (data as { accessToken?: string } | null)?.accessToken ?? null;
+      tokenStore.setAccessToken?.(token);
+      return token;
+    } catch {
+      return null;
+    }
+  }
+
+  function refreshOnce(): Promise<string | null> {
+    refreshing ??= refreshAccessToken().finally(() => {
+      refreshing = null;
+    });
+    return refreshing;
+  }
+
+  async function request<T>(
+    path: string,
+    requestOptions: RequestOptions = {},
+    retryAfterRefresh = true,
+  ): Promise<T> {
+    const url = resolveUrl(path);
     const headers: Record<string, string> = {
       Accept: 'application/json',
       ...requestOptions.headers,
@@ -56,6 +97,24 @@ export function createApiClient(options: ClientOptions = {}) {
       });
     } catch {
       throw new NetworkError();
+    }
+
+    // The access token lives 15 minutes; the refresh cookie lives 7 days. Trade
+    // the cookie for a fresh token once and replay the call, so a long session
+    // does not silently look logged out. FormData bodies are single-use streams,
+    // so those are not replayed.
+    if (
+      response.status === 401 &&
+      shouldAuth &&
+      retryAfterRefresh &&
+      !isFormData &&
+      path !== REFRESH_PATH
+    ) {
+      const token = await refreshOnce();
+      if (token) {
+        return request<T>(path, requestOptions, false);
+      }
+      tokenStore.setAccessToken?.(null);
     }
 
     const payload = (await response.json().catch(() => null)) as unknown;
