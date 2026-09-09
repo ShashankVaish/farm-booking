@@ -8,10 +8,28 @@ import { Input } from '@/components/ui/forms';
 import { apiClient } from '@/lib/api/client';
 import { ApiError } from '@/lib/api/errors';
 import { memoryTokenStore } from '@/lib/api/token-store';
+import { authErrorMessage, indianMobile, isStrongPassword } from '@/lib/auth/form';
 import type { AuthUser } from '@/lib/properties/types';
 import styles from './auth.module.css';
 
 type Mode = 'email' | 'otp';
+
+const GOOGLE_ERRORS: Record<string, string> = {
+  access_denied: 'You cancelled Google sign-in.',
+  google_admin: 'Admin accounts must sign in from the admin page.',
+  account_disabled: 'This account has been disabled.',
+  google_email_unverified: 'Verify your email with Google, then try again.',
+  google_not_configured: 'Google sign-in is not configured on the server yet.',
+  google_state: 'Google sign-in timed out. Please try again.',
+  redirect_uri_mismatch:
+    'Google rejected the redirect URL for this app. An administrator needs to add it in the Google Cloud console.',
+};
+
+function googleErrorMessage(code: string) {
+  return (
+    GOOGLE_ERRORS[code] ?? 'Google sign-in could not be completed. Please try again.'
+  );
+}
 
 function otpMessage(code: string, fallback: string) {
   if (code === 'OTP_INVALID') return 'That code is incorrect. Try again.';
@@ -22,10 +40,10 @@ function otpMessage(code: string, fallback: string) {
   return fallback;
 }
 
-export function LoginForm() {
+export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: boolean; onAuthenticated?: () => void }) {
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get('next') || '/dashboard';
+  const next = search.get('next') || (adminOnly ? '/admin' : '/dashboard');
   const [mode, setMode] = useState<Mode>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,6 +60,11 @@ export function LoginForm() {
     return () => window.clearTimeout(timer);
   }, [seconds]);
 
+  useEffect(() => {
+    const googleError = search.get('error');
+    if (googleError) setError(googleErrorMessage(googleError));
+  }, [search]);
+
   async function submitEmail(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -49,14 +72,20 @@ export function LoginForm() {
     try {
       const result = await apiClient.post<{ user: AuthUser; accessToken: string }>(
         '/api/auth/login',
-        { email, password },
+        { email: email.trim().toLowerCase(), password },
         { auth: false },
       );
+      if (!adminOnly && result.user.role === 'ADMIN') {
+        await apiClient.post('/api/auth/logout', undefined, { auth: false });
+        setError('Admin accounts must sign in from /admin.');
+        return;
+      }
       memoryTokenStore.setAccessToken(result.accessToken);
+      onAuthenticated?.();
       router.push(next);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Unable to sign in.');
+      setError(authErrorMessage(err, 'Unable to sign in.'));
     } finally {
       setBusy(false);
     }
@@ -66,16 +95,21 @@ export function LoginForm() {
     setBusy(true);
     setError(null);
     try {
+      const mobile = indianMobile(phone);
+      if (!mobile) {
+        setError('Enter a valid 10-digit Indian mobile number.');
+        return;
+      }
       const result = await apiClient.post<{ resendAvailableAt: string }>(
         '/api/auth/otp/request',
-        { phone, purpose: 'LOGIN' },
+        { phone: mobile, purpose: 'LOGIN' },
         { auth: false },
       );
       setOtpSent(true);
       const wait = Math.max(0, Math.ceil((new Date(result.resendAvailableAt).getTime() - Date.now()) / 1000));
       setSeconds(wait || 60);
     } catch (err) {
-      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : 'Could not send OTP.');
+      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : authErrorMessage(err, 'Could not send OTP.'));
     } finally {
       setBusy(false);
     }
@@ -86,16 +120,27 @@ export function LoginForm() {
     setBusy(true);
     setError(null);
     try {
+      const mobile = indianMobile(phone);
+      if (!mobile) {
+        setError('Enter a valid 10-digit Indian mobile number.');
+        return;
+      }
       const result = await apiClient.post<{ user: AuthUser; accessToken: string }>(
         '/api/auth/otp/verify',
-        { phone, code, purpose: 'LOGIN' },
+        { phone: mobile, code: code.trim(), purpose: 'LOGIN' },
         { auth: false },
       );
+      if (!adminOnly && result.user.role === 'ADMIN') {
+        await apiClient.post('/api/auth/logout', undefined, { auth: false });
+        setError('Admin accounts must sign in from /admin.');
+        return;
+      }
       memoryTokenStore.setAccessToken(result.accessToken);
+      onAuthenticated?.();
       router.push(next);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : 'Could not verify OTP.');
+      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : authErrorMessage(err, 'Could not verify OTP.'));
     } finally {
       setBusy(false);
     }
@@ -120,9 +165,22 @@ export function LoginForm() {
           {error}
         </p>
       ) : null}
+      {otpSent && mode === 'otp' && !error ? (
+        <p className={`${styles.success} t-body-small`} role="status">
+          Code sent. Enter it below to continue.
+        </p>
+      ) : null}
       {mode === 'email' ? (
         <form className={styles.stack} onSubmit={submitEmail}>
-          <Input id="email" label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input
+            id="email"
+            label={adminOnly ? 'Admin email' : 'Email'}
+            type="text"
+            autoComplete="username"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
           <Input
             id="password"
             label="Password"
@@ -132,7 +190,7 @@ export function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} loading={busy}>
             {busy ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
@@ -159,7 +217,7 @@ export function LoginForm() {
               onChange={(e) => setCode(e.target.value)}
             />
           ) : null}
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} loading={busy}>
             {busy ? 'Please wait…' : otpSent ? 'Verify OTP' : 'Send OTP'}
           </Button>
           {otpSent ? (
@@ -169,9 +227,26 @@ export function LoginForm() {
           ) : null}
         </form>
       )}
-      <p className="t-body-small" style={{ marginTop: 'var(--space-5)' }}>
-        New here? <Link href="/auth/register">Create an account</Link>
-      </p>
+      {!adminOnly ? (
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={busy}
+          onClick={() => window.location.assign(`/api/auth/google?next=${encodeURIComponent(next)}`)}
+        >
+          Continue with Google
+        </Button>
+      ) : null}
+      {!adminOnly ? (
+        <>
+          <p className="t-body-small" style={{ marginTop: 'var(--space-5)' }}>
+            New here? <Link href="/auth/register">Create a customer account</Link>
+          </p>
+          <p className="t-body-small" style={{ marginTop: 'var(--space-2)' }}>
+            Want to host a property? <Link href="/auth/register?role=OWNER">Create a host account</Link>
+          </p>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -207,16 +282,31 @@ export function RegisterForm() {
     setBusy(true);
     setError(null);
     try {
+      if (!isStrongPassword(password)) {
+        setError('Use at least 8 characters with a letter and a number.');
+        return;
+      }
+      const mobile = indianMobile(phone);
+      if (phone.trim() && !mobile) {
+        setError('Enter a valid 10-digit Indian mobile number, or leave it blank.');
+        return;
+      }
       const result = await apiClient.post<{ accessToken: string }>(
         '/api/auth/register',
-        { name, email, password, phone: phone || undefined, role: asHost ? 'OWNER' : 'CUSTOMER' },
+        {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+          phone: mobile,
+          role: asHost ? 'OWNER' : 'CUSTOMER',
+        },
         { auth: false },
       );
       memoryTokenStore.setAccessToken(result.accessToken);
       router.push(asHost ? '/host' : '/dashboard');
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not create account.');
+      setError(authErrorMessage(err, 'Could not create account.'));
     } finally {
       setBusy(false);
     }
@@ -226,16 +316,25 @@ export function RegisterForm() {
     setBusy(true);
     setError(null);
     try {
+      const mobile = indianMobile(phone);
+      if (!mobile) {
+        setError('Enter a valid 10-digit Indian mobile number.');
+        return;
+      }
+      if (name.trim().length < 2) {
+        setError('Enter your full name.');
+        return;
+      }
       const result = await apiClient.post<{ resendAvailableAt: string }>(
         '/api/auth/otp/request',
-        { phone, purpose: 'REGISTER' },
+        { phone: mobile, purpose: 'REGISTER' },
         { auth: false },
       );
       setOtpSent(true);
       const wait = Math.max(0, Math.ceil((new Date(result.resendAvailableAt).getTime() - Date.now()) / 1000));
       setSeconds(wait || 60);
     } catch (err) {
-      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : 'Could not send OTP.');
+      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : authErrorMessage(err, 'Could not send OTP.'));
     } finally {
       setBusy(false);
     }
@@ -246,16 +345,21 @@ export function RegisterForm() {
     setBusy(true);
     setError(null);
     try {
+      const mobile = indianMobile(phone);
+      if (!mobile) {
+        setError('Enter a valid 10-digit Indian mobile number.');
+        return;
+      }
       const result = await apiClient.post<{ accessToken: string }>(
         '/api/auth/otp/verify',
-        { phone, code, purpose: 'REGISTER', name },
+        { phone: mobile, code: code.trim(), purpose: 'REGISTER', name: name.trim() },
         { auth: false },
       );
       memoryTokenStore.setAccessToken(result.accessToken);
-      router.push('/dashboard');
+      router.push(asHost ? '/host' : '/dashboard');
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : 'Could not verify OTP.');
+      setError(err instanceof ApiError ? otpMessage(err.code, err.message) : authErrorMessage(err, 'Could not verify OTP.'));
     } finally {
       setBusy(false);
     }
@@ -278,6 +382,11 @@ export function RegisterForm() {
           {error}
         </p>
       ) : null}
+      {otpSent && mode === 'otp' && !error ? (
+        <p className={`${styles.success} t-body-small`} role="status">
+          Code sent. Enter it below to continue.
+        </p>
+      ) : null}
       {mode === 'email' ? (
         <form className={styles.stack} onSubmit={submitEmail}>
           <Input id="name" label="Full name" required value={name} onChange={(e) => setName(e.target.value)} />
@@ -298,7 +407,7 @@ export function RegisterForm() {
             onChange={(e) => setPassword(e.target.value)}
             hint={passwordHint}
           />
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} loading={busy}>
             {busy ? 'Creating…' : 'Create account'}
           </Button>
         </form>
@@ -320,7 +429,7 @@ export function RegisterForm() {
           {otpSent ? (
             <Input id="otp-code" label="OTP" required inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} />
           ) : null}
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} loading={busy}>
             {busy ? 'Please wait…' : otpSent ? 'Verify and continue' : 'Send OTP'}
           </Button>
           {otpSent ? (
@@ -332,6 +441,9 @@ export function RegisterForm() {
       )}
       <p className="t-body-small" style={{ marginTop: 'var(--space-5)' }}>
         Already have an account? <Link href="/auth/login">Sign in</Link>
+      </p>
+      <p className="t-body-small" style={{ marginTop: 'var(--space-2)' }}>
+        Want to host a property? <Link href="/auth/register?role=OWNER">Create host account</Link>
       </p>
     </div>
   );

@@ -60,7 +60,7 @@ export function toPropertyCard(property: ApiProperty): PropertyCardModel {
     amenities: amenityNames(property),
     price: money(property.basePrice),
     badge: propertyBadge(property),
-    href: `/properties/${property.id}`,
+    href: `/properties/${property.slug || property.id}`,
     image: coverImage(property),
     imageTone:
       property.propertyType === 'POOL_PROPERTY'

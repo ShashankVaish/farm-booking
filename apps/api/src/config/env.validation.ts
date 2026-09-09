@@ -101,6 +101,22 @@ export class EnvironmentVariables {
 
   @IsOptional()
   @IsString()
+  GOOGLE_CLIENT_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_CLIENT_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_OAUTH_REDIRECT_URI?: string;
+
+  @IsOptional()
+  @IsString()
+  WEB_APP_URL?: string;
+
+  @IsOptional()
+  @IsString()
   SMS_PROVIDER?: string;
 
   @IsOptional()
@@ -143,6 +159,18 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(5)
   BOOKING_EXPIRE_MINUTES!: number;
+
+  @IsOptional()
+  @IsString()
+  ADMIN_EMAIL?: string;
+
+  @IsOptional()
+  @IsString()
+  ADMIN_PASSWORD?: string;
+
+  @IsOptional()
+  @IsString()
+  ADMIN_NAME?: string;
 }
 
 export function validateEnv(
@@ -178,12 +206,41 @@ export function validateEnv(
     throw new Error(`Invalid environment configuration: ${messages}`);
   }
 
+  if (validated.NODE_ENV === 'production') {
+    if (!validated.COOKIE_SECURE) {
+      throw new Error(
+        'Invalid environment configuration: COOKIE_SECURE must be true in production.',
+      );
+    }
+    const placeholder = /replace-with-a-long-random/;
+    if (
+      placeholder.test(validated.JWT_ACCESS_SECRET) ||
+      placeholder.test(validated.JWT_REFRESH_SECRET)
+    ) {
+      throw new Error(
+        'Invalid environment configuration: JWT secrets must not use example placeholder values in production.',
+      );
+    }
+  }
+
   return validated;
 }
 
 export function parseCorsOrigins(origins: string): string[] {
-  return origins
+  const listed = origins
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+
+  const extras: string[] = [];
+  for (const origin of listed) {
+    if (origin.includes('://localhost')) {
+      extras.push(origin.replace('://localhost', '://127.0.0.1'));
+    }
+    if (origin.includes('://127.0.0.1')) {
+      extras.push(origin.replace('://127.0.0.1', '://localhost'));
+    }
+  }
+
+  return [...new Set([...listed, ...extras])];
 }

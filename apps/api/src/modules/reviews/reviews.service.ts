@@ -8,17 +8,37 @@ import { BookingStatus, Prisma } from '@prisma/client';
 import { ErrorCodes } from '../../common/constants/error-codes';
 import { UserRoles } from '../../common/constants/roles';
 import { paginated } from '../../common/pagination';
+import { isUuid } from '../../common/uuid';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { RequestUser } from '../auth/auth.types';
-import { CreateReviewDto, UpdateReviewDto } from './dto/review.dto';
+import {
+  NotificationTypes,
+  NotificationsService,
+} from '../notifications/notifications.service';
+import {
+  CreateReviewDto,
+  OwnerReviewResponseDto,
+  UpdateReviewDto,
+} from './dto/review.dto';
 
 @Injectable()
 export class ReviewsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async create(propertyId: string, user: RequestUser, dto: CreateReviewDto) {
+    if (user.role !== UserRoles.CUSTOMER && user.role !== UserRoles.ADMIN) {
+      throw new ForbiddenException({
+        errorCode: ErrorCodes.FORBIDDEN,
+        message: 'Only customers can write reviews.',
+      });
+    }
+
     const booking = await this.prisma.booking.findUnique({
       where: { id: dto.bookingId },
+      include: { property: { select: { id: true, ownerId: true, title: true } } },
     });
     if (!booking || booking.propertyId !== propertyId) {
       throw new BadRequestException({
@@ -30,6 +50,12 @@ export class ReviewsService {
       throw new ForbiddenException({
         errorCode: ErrorCodes.FORBIDDEN,
         message: 'You can only review your own stay.',
+      });
+    }
+    if (booking.property.ownerId === user.id) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.REVIEW_NOT_ALLOWED,
+        message: 'You cannot review your own property.',
       });
     }
     if (booking.status !== BookingStatus.COMPLETED) {
@@ -53,6 +79,14 @@ export class ReviewsService {
         await this.recalculateRating(tx, propertyId);
         return created;
       });
+      await this.notifications.notify({
+        userId: booking.property.ownerId,
+        type: NotificationTypes.NEW_REVIEW,
+        title: 'New review',
+        body: `A guest rated ${booking.property.title} ${dto.rating}/5.`,
+        metadata: { reviewId: review.id, propertyId },
+        dedupeKey: `NEW_REVIEW:${review.id}`,
+      });
       return review;
     } catch (error) {
       if (
@@ -69,7 +103,16 @@ export class ReviewsService {
   }
 
   async list(propertyId: string, page: number, limit: number) {
-    const where = { propertyId, isPublished: true };
+    const property = await this.prisma.property.findFirst({
+      where: isUuid(propertyId)
+        ? { OR: [{ id: propertyId }, { slug: propertyId }] }
+        : { slug: propertyId },
+      select: { id: true },
+    });
+    if (!property) {
+      return paginated([], 0, page, limit);
+    }
+    const where = { propertyId: property.id, isPublished: true };
     const [items, total] = await this.prisma.$transaction([
       this.prisma.review.findMany({
         where,
@@ -85,7 +128,7 @@ export class ReviewsService {
 
   async update(id: string, user: RequestUser, dto: UpdateReviewDto) {
     const review = await this.requireOwned(id, user);
-    const updated = await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       const next = await tx.review.update({
         where: { id },
         data: dto,
@@ -93,7 +136,39 @@ export class ReviewsService {
       await this.recalculateRating(tx, review.propertyId);
       return next;
     });
-    return updated;
+  }
+
+  async respond(
+    id: string,
+    user: RequestUser,
+    dto: OwnerReviewResponseDto,
+  ) {
+    const review = await this.prisma.review.findUnique({
+      where: { id },
+      include: { property: { select: { ownerId: true } } },
+    });
+    if (!review) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.NOT_FOUND,
+        message: 'Review not found.',
+      });
+    }
+    if (
+      review.property.ownerId !== user.id &&
+      user.role !== UserRoles.ADMIN
+    ) {
+      throw new ForbiddenException({
+        errorCode: ErrorCodes.FORBIDDEN,
+        message: 'Only the property owner can respond to this review.',
+      });
+    }
+    return this.prisma.review.update({
+      where: { id },
+      data: {
+        ownerResponse: dto.response.trim(),
+        ownerRespondedAt: new Date(),
+      },
+    });
   }
 
   async moderate(id: string, isPublished: boolean) {
@@ -104,7 +179,7 @@ export class ReviewsService {
         message: 'Review not found.',
       });
     }
-    const updated = await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       const next = await tx.review.update({
         where: { id },
         data: { isPublished },
@@ -112,7 +187,6 @@ export class ReviewsService {
       await this.recalculateRating(tx, review.propertyId);
       return next;
     });
-    return updated;
   }
 
   async remove(id: string, user: RequestUser) {

@@ -14,6 +14,19 @@ export type LocationDraft = {
 
 const INDIAN_PIN = /^\d{6}$/;
 
+/**
+ * The API validates coordinates with `@IsNumber({ maxDecimalPlaces: 7 })`, so a
+ * raw browser GPS reading (which carries far more precision than that) is
+ * rejected outright. Round at every point where a coordinate enters the draft —
+ * device location, search results, map drags and manual entry alike.
+ * Seven decimals is roughly 1 cm, well beyond what a map pin needs.
+ */
+export const COORDINATE_PRECISION = 7;
+
+export function roundCoordinate(value: number): number {
+  return Number.isFinite(value) ? Number(value.toFixed(COORDINATE_PRECISION)) : Number.NaN;
+}
+
 export function isValidLatitude(value: number): boolean {
   return Number.isFinite(value) && value >= -90 && value <= 90;
 }

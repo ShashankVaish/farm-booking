@@ -7,6 +7,8 @@ import {
   MinLength,
 } from 'class-validator';
 
+export type OtpPurpose = 'LOGIN' | 'REGISTER' | 'VERIFY_PHONE';
+
 export class RequestOtpDto {
   @IsString()
   @Matches(/^[6-9]\d{9}$/, {

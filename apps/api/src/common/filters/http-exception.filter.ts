@@ -61,9 +61,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const status = exception.getStatus();
       const payload = exception.getResponse();
       const message =
-        typeof payload === 'string'
-          ? payload
-          : this.extractMessage(payload) || exception.message;
+        status === HttpStatus.TOO_MANY_REQUESTS
+          ? 'Too many attempts. Wait a minute and try again.'
+          : typeof payload === 'string'
+            ? payload
+            : this.extractMessage(payload) || exception.message;
 
       return {
         status,
@@ -85,7 +87,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         };
       }
 
-      if (exception.code === 'P2025') {
+      if (exception.code === 'P2023' || exception.code === 'P2025') {
         return {
           status: HttpStatus.NOT_FOUND,
           code: ErrorCodes.NOT_FOUND,

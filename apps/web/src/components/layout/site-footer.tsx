@@ -12,8 +12,7 @@ export function SiteFooter() {
         </div>
         <nav className={styles.footerNav} aria-label="Footer">
           <Link href="/explore">Explore</Link>
-          <Link href="/stays">Stays</Link>
-          <Link href="/events">Events</Link>
+          <Link href="/map">Map view</Link>
           <Link href="/host">List your property</Link>
           <Link href="/auth/login">Sign in</Link>
         </nav>

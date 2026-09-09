@@ -1,4 +1,4 @@
-import { RoutePlaceholder } from '@/components/layout/route-placeholder';
+import { BookingExperience } from '@/components/booking/booking-experience';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 
 type Props = { params: Promise<{ id: string }> };
@@ -6,7 +6,7 @@ type Props = { params: Promise<{ id: string }> };
 export async function generateMetadata({ params }: Props) {
   const { id } = await params;
   return buildPageMetadata({
-    title: 'Booking',
+    title: 'Checkout',
     path: `/booking/${id}`,
     noIndex: true,
   });
@@ -15,9 +15,8 @@ export async function generateMetadata({ params }: Props) {
 export default async function BookingPage({ params }: Props) {
   const { id } = await params;
   return (
-    <RoutePlaceholder
-      title="Booking"
-      description={`Checkout for booking “${id}” is reserved for a later phase. Dates, guests, and payment will not be collected here yet.`}
-    />
+    <section className="container" style={{ padding: 'var(--space-10) 0 var(--space-16)' }}>
+      <BookingExperience bookingId={id} />
+    </section>
   );
 }

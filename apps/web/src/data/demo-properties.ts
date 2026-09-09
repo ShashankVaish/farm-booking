@@ -1,5 +1,10 @@
 import type { PropertyCardModel } from '@/components/hospitality/property-card';
 
+/**
+ * Sample cards for the design-system showcase only. These must never be
+ * rendered on a guest-facing page: a placeholder listing is not bookable, and
+ * showing one implies inventory that does not exist.
+ */
 export const demoProperties: PropertyCardModel[] = [
   {
     id: 'courtyard-lonavala',
@@ -13,6 +18,7 @@ export const demoProperties: PropertyCardModel[] = [
     amenities: ['Pool', 'Lawn', 'BBQ'],
     price: 28000,
     badge: 'Party ready',
+    href: '/properties/courtyard-lonavala',
     imageTone: 'lawn',
   },
   {
@@ -27,6 +33,7 @@ export const demoProperties: PropertyCardModel[] = [
     amenities: ['Pool', 'Chef', 'Parking'],
     price: 42000,
     badge: 'Pool',
+    href: '/properties/pool-villa-alibaug',
     imageTone: 'pool',
   },
   {
@@ -41,6 +48,7 @@ export const demoProperties: PropertyCardModel[] = [
     amenities: ['Lawn', 'Dining', 'Music'],
     price: 65000,
     badge: 'Events',
+    href: '/properties/evening-house-udaipur',
     imageTone: 'night',
   },
 ];

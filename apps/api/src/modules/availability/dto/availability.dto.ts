@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsDateString,
@@ -17,6 +18,7 @@ export class AvailabilityQueryDto {
 export class BlockDatesDto {
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(366)
   @IsDateString({}, { each: true })
   dates!: string[];
 

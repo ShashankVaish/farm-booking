@@ -1,0 +1,334 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.title {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  letter-spacing: var(--ls-h1);
+}
+
+.subtitle {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+}
+
+/* Status pill ------------------------------------------------------------- */
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+.status::before {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: var(--radius-full);
+  background: var(--color-text-muted);
+}
+
+.statusPending::before {
+  background: var(--color-warning);
+}
+
+.statusApproved::before {
+  background: var(--color-success);
+}
+
+.statusRejected::before,
+.statusSuspended::before {
+  background: var(--color-error);
+}
+
+.statusChanges::before {
+  background: var(--color-accent);
+}
+
+/* Sticky action bar ------------------------------------------------------- */
+
+.actionBar {
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-3));
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface-elevated) 92%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
+}
+
+.actionNote {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+  min-width: 0;
+}
+
+.actionButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Layout ------------------------------------------------------------------ */
+
+.layout {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 1080px) {
+  .layout {
+    grid-template-columns: minmax(0, 1.6fr) minmax(20rem, 0.85fr);
+  }
+}
+
+.column {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.card {
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.cardTitle {
+  margin: 0 0 var(--space-4);
+  font-size: var(--fs-h4);
+  font-weight: var(--font-weight-semibold);
+}
+
+.checklist {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--color-primary);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+}
+
+/* Definition rows --------------------------------------------------------- */
+
+.rows {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.row {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+@media (min-width: 600px) {
+  .row {
+    grid-template-columns: 11rem minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: baseline;
+  }
+}
+
+.rowLabel {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+.rowValue {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.missing {
+  color: var(--color-warning);
+  font-style: italic;
+}
+
+.prose {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: var(--lh-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Photos ------------------------------------------------------------------ */
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--space-3);
+}
+
+.shot {
+  position: relative;
+  margin: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+}
+
+.shot img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.coverTag {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: var(--color-overlay);
+  color: var(--color-inverse);
+  font-size: var(--fs-caption);
+}
+
+.shotAlt {
+  padding: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+}
+
+/* Chips ------------------------------------------------------------------- */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-elevated);
+  font-size: var(--fs-caption);
+}
+
+/* Owner + stats ----------------------------------------------------------- */
+
+.kyc {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-body-small);
+}
+
+.kycYes {
+  color: var(--color-success);
+}
+
+.kycNo {
+  color: var(--color-warning);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.stat {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-elevated);
+  text-align: center;
+}
+
+.statValue {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+}
+
+.statLabel {
+  margin: 0.15rem 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+}
+
+/* Audit trail ------------------------------------------------------------- */
+
+.trail {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.trailItem {
+  display: grid;
+  gap: 0.15rem;
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--color-border);
+}
+
+.trailAction {
+  font-size: var(--fs-body-small);
+  font-weight: var(--font-weight-medium);
+}
+
+.trailMeta {
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+}
+
+.trailReason {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+}
+
+.mapLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-body-small);
+}

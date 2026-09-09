@@ -1,26 +1,38 @@
 :root {
-  /* Color */
-  --color-background: #f3efe8;
-  --color-surface: #faf7f2;
-  --color-surface-elevated: #ffffff;
-  --color-text-primary: #161513;
-  --color-text-secondary: #5a554c;
-  --color-text-muted: #847e73;
-  --color-border: #d8d2c6;
-  --color-primary: #2b4638;
-  --color-primary-hover: #1f3429;
-  --color-accent: #a35b3c;
-  --color-accent-soft: #f3e4dc;
-  --color-success: #2c6a4e;
-  --color-warning: #9a7424;
-  --color-error: #93382e;
-  --color-focus: #2b4638;
-  --color-inverse: #faf7f2;
-  --color-overlay: rgb(22 21 19 / 0.48);
+  /*
+   * Colour — Baagly.
+   * Drawn from the logo: a coral disc with a cream mountain range. The palette
+   * is deliberately two-hue (coral + warm neutral) so the brand reads as one
+   * thing rather than a spectrum. Every pairing below meets WCAG AA.
+   * Text on a coral fill is dark ink, not white: white on this coral is only
+   * 3.0:1, while the ink reaches 6.1:1 and keeps the logo colour intact.
+   */
+  --color-background: #0d0c10;
+  --color-surface: #17151b;
+  --color-surface-elevated: #201d25;
+  --color-text-primary: #f7f2ec;
+  --color-text-secondary: #c9c2bb;
+  --color-text-muted: #a39c95;
+  --color-border: #302c36;
+  --color-primary: #f9615f;
+  --color-primary-hover: #ff7a73;
+  --color-on-primary: #1a1013;
+  --color-accent: #ffa39c;
+  --color-accent-soft: #2a1b1e;
+  --color-success: #7fc9a4;
+  --color-warning: #f0c05a;
+  --color-error: #ff8b84;
+  --color-focus: #ff9d97;
+  --color-inverse: #ffffff;
+  --color-overlay: rgb(8 6 9 / 0.74);
+
+  /* Brand constants — the logo disc and its cream, used by the mark itself. */
+  --brand-coral: #f9615f;
+  --brand-cream: #f7ece1;
 
   /* Typography */
   --font-sans: var(--font-sans-family), 'Segoe UI', sans-serif;
-  --font-display: var(--font-display-family), Georgia, serif;
+  --font-display: var(--font-display-family), 'Segoe UI', sans-serif;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
@@ -85,15 +97,15 @@
 
   /* Radii — few, intentional */
   --radius-none: 0;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
   --radius-full: 999px;
 
   /* Shadows — restrained */
   --shadow-none: none;
-  --shadow-sm: 0 1px 2px rgb(22 21 19 / 0.06);
-  --shadow-md: 0 8px 24px rgb(22 21 19 / 0.08);
+  --shadow-sm: 0 8px 24px rgb(0 0 0 / 0.2);
+  --shadow-md: 0 18px 48px rgb(0 0 0 / 0.35);
 
   /* Motion */
   --duration-fast: 120ms;
@@ -104,8 +116,8 @@
   /* Layout */
   --header-height: 3.5rem;
   --bottom-nav-height: 4rem;
-  --container: 72rem;
-  --gutter: 1rem;
+  --container: 82rem;
+  --gutter: 1.25rem;
   --touch: 2.75rem;
 
   /* Breakpoints (documentation + JS mirror; CSS uses matching media) */
@@ -118,6 +130,14 @@
   --bp-1280: 1280px;
   --bp-1440: 1440px;
   --bp-1920: 1920px;
+}
+
+@media (max-width: 374px) {
+  :root {
+    --fs-display: 2.125rem;
+    --fs-h1: 1.75rem;
+    --gutter: 0.875rem;
+  }
 }
 
 @media (min-width: 768px) {

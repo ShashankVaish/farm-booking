@@ -1,12 +1,14 @@
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsDateString,
   IsEnum,
   IsInt,
   IsOptional,
   IsString,
   MaxLength,
   Min,
+  MinLength,
 } from 'class-validator';
 import {
   BookingStatus,
@@ -37,6 +39,18 @@ export class AdminUsersQueryDto extends AdminListQueryDto {
   @IsOptional()
   @IsEnum(['CUSTOMER', 'OWNER', 'ADMIN'] as const)
   role?: UserRole;
+
+  @IsOptional()
+  @IsEnum(['ACTIVE', 'DISABLED'] as const)
+  status?: 'ACTIVE' | 'DISABLED';
+
+  @IsOptional()
+  @IsDateString()
+  registeredFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  registeredTo?: string;
 }
 
 export class AdminPropertiesQueryDto extends AdminListQueryDto {
@@ -51,11 +65,21 @@ export class AdminBookingsQueryDto extends AdminListQueryDto {
   status?: BookingStatus;
 }
 
-export class RejectPropertyDto {
+export class AdminReportsQueryDto {
   @IsOptional()
+  @IsDateString()
+  from?: string;
+
+  @IsOptional()
+  @IsDateString()
+  to?: string;
+}
+
+export class PropertyModerationDto {
   @IsString()
+  @MinLength(8)
   @MaxLength(1000)
-  reason?: string;
+  reason!: string;
 }
 
 export class SetUserActiveDto {
@@ -74,8 +98,12 @@ export class UpdateSupportTicketDto {
 }
 
 export class AdminRefundDto {
-  @IsOptional()
   @IsString()
+  @MinLength(8)
   @MaxLength(500)
-  reason?: string;
+  reason!: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  amount?: number;
 }

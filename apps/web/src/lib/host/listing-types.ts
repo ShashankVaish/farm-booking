@@ -74,5 +74,6 @@ export const WIZARD_STEPS = [
   'Rules',
   'Availability',
   'Preview',
+  'Verification',
   'Submit',
 ] as const;

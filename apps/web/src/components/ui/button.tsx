@@ -26,6 +26,7 @@ type Shared = {
   size?: Size;
   block?: boolean;
   className?: string;
+  loading?: boolean;
 };
 
 type ButtonAsButton = Shared &
@@ -44,25 +45,29 @@ export function Button(props: ButtonAsButton | ButtonAsLink) {
 
   if ('href' in props && props.href) {
     return (
-      <Link href={props.href} className={classNames}>
+      <Link href={props.href} className={classNames} aria-busy={props.loading || undefined}>
         {props.children}
       </Link>
     );
   }
 
   const buttonProps = props as ButtonAsButton;
+  const disabled = Boolean(buttonProps.disabled || buttonProps.loading);
 
   return (
     <button
       type={buttonProps.type ?? 'button'}
       className={classNames}
-      disabled={buttonProps.disabled}
+      disabled={disabled}
       name={buttonProps.name}
       value={buttonProps.value}
       onClick={buttonProps.onClick}
       id={buttonProps.id}
       form={buttonProps.form}
       aria-label={buttonProps['aria-label']}
+      aria-busy={buttonProps.loading || undefined}
+      aria-expanded={buttonProps['aria-expanded']}
+      aria-controls={buttonProps['aria-controls']}
     >
       {buttonProps.children}
     </button>

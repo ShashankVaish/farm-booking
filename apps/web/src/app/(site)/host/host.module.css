@@ -87,7 +87,7 @@
   border: 1px solid var(--color-border);
   background: transparent;
   border-radius: var(--radius-full);
-  min-height: 2.25rem;
+  min-height: var(--touch);
   padding: 0 var(--space-3);
   white-space: nowrap;
   cursor: pointer;
@@ -96,7 +96,7 @@
 
 .stepCurrent {
   background: var(--color-primary);
-  color: var(--color-inverse);
+  color: var(--color-on-primary);
   border-color: var(--color-primary);
 }
 
@@ -127,6 +127,7 @@
   text-align: left;
   border: 0;
   background: transparent;
+  min-height: var(--touch);
   padding: var(--space-3);
   cursor: pointer;
 }
@@ -136,11 +137,18 @@
 }
 
 .map {
-  height: 22rem;
+  height: min(28rem, 70dvh);
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--color-border);
-  margin-top: var(--space-4);
+  margin-top: var(--space-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.mapCanvas {
+  width: 100%;
+  height: 100%;
+  min-height: 20rem;
 }
 
 .amenityGrid {
@@ -224,9 +232,21 @@
 .table th,
 .table td {
   text-align: left;
-  padding: var(--space-3) 0;
+  padding: var(--space-3) var(--space-2);
   border-bottom: 1px solid var(--color-border);
   vertical-align: top;
+}
+
+.table th {
+  font-size: var(--fs-caption);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.table tbody tr:hover td {
+  background: var(--color-surface);
 }
 
 .badge {
@@ -258,7 +278,7 @@
 }
 
 .calDay {
-  min-height: 2.5rem;
+  min-height: var(--touch);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: transparent;
@@ -266,11 +286,11 @@
 }
 
 .calBlocked {
-  background: rgb(120 80 40 / 0.18);
+  background: color-mix(in srgb, var(--color-warning) 16%, transparent);
 }
 
 .calBooked {
-  background: rgb(40 90 70 / 0.2);
+  background: color-mix(in srgb, var(--color-success) 18%, transparent);
   cursor: not-allowed;
 }
 
@@ -294,4 +314,88 @@
   object-fit: cover;
   border-radius: var(--radius-sm);
   background: var(--color-surface-elevated);
+}
+
+/* Host verification (KYC) step */
+.verifyBlock {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.verifyHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.verifyDone,
+.verifyPending {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+.verifyDone {
+  color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-border));
+}
+
+.verifyPending {
+  color: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+}
+
+.docBox {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-elevated);
+}
+
+.docPreview {
+  width: 100%;
+  max-height: 11rem;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.factGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+}
+
+.fact {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-elevated);
+}
+
+.fact dt {
+  color: var(--color-text-muted);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+.fact dd {
+  margin: 0.2rem 0 0;
+  font-size: var(--fs-body-small);
+  overflow-wrap: anywhere;
 }

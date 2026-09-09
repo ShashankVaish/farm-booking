@@ -38,10 +38,11 @@ describe('property ownership authorization', () => {
   });
 
   it('hides non-approved properties from customers', async () => {
+    const id = '11111111-1111-4111-8111-111111111111';
     const prisma = {
       property: {
         findUnique: jest.fn().mockResolvedValue({
-          id: 'p1',
+          id,
           ownerId: 'owner-1',
           status: 'DRAFT',
           deletedAt: null,
@@ -49,10 +50,33 @@ describe('property ownership authorization', () => {
       },
     };
     const service = new PropertiesService(prisma as never);
-    await expect(service.getById('p1', customer)).rejects.toBeInstanceOf(
+    await expect(service.getById(id, customer)).rejects.toBeInstanceOf(
       NotFoundException,
     );
-    await expect(service.getById('p1', owner)).resolves.toBeDefined();
+    await expect(service.getById(id, owner)).resolves.toBeDefined();
+  });
+
+  it('loads an approved listing by slug', async () => {
+    const listing = {
+      id: 'p1',
+      slug: 'courtyard-lonavala',
+      ownerId: 'owner-1',
+      status: 'APPROVED',
+      deletedAt: null,
+    };
+    const prisma = {
+      property: {
+        findUnique: jest.fn().mockResolvedValue(listing),
+      },
+    };
+    const service = new PropertiesService(prisma as never);
+    await expect(
+      service.getById('courtyard-lonavala', customer),
+    ).resolves.toMatchObject({ slug: 'courtyard-lonavala' });
+    expect(prisma.property.findUnique).toHaveBeenCalledTimes(1);
+    expect(prisma.property.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { slug: 'courtyard-lonavala' } }),
+    );
   });
 
   it('rejects invalid map coordinates on create', async () => {

@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -22,6 +23,7 @@ export class CreateBookingDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(100)
   guestCount!: number;
 
   @IsOptional()
@@ -43,6 +45,7 @@ export class QuoteBookingDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(100)
   guestCount!: number;
 
   @IsOptional()

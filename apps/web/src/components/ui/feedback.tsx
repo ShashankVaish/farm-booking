@@ -34,7 +34,7 @@ export function EmptyState({
   actionLabel?: string;
 }) {
   return (
-    <div className={styles.state}>
+    <div className={styles.state} role="status">
       <h2 className="t-h3">{title}</h2>
       <p className="t-body-small">{description}</p>
       {actionHref && actionLabel ? (

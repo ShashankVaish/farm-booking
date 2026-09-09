@@ -6,6 +6,7 @@ import {
   Max,
   MaxLength,
   Min,
+  MinLength,
 } from 'class-validator';
 
 export class CreateReviewDto {
@@ -36,4 +37,11 @@ export class UpdateReviewDto {
   @IsString()
   @MaxLength(5000)
   comment?: string;
+}
+
+export class OwnerReviewResponseDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(5000)
+  response!: string;
 }

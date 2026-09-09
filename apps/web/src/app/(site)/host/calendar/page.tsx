@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { Select } from '@/components/ui/forms';
 import { EmptyState, ErrorState, Spinner } from '@/components/ui/feedback';
+import { AvailabilityCalendar } from '@/components/host/availability-calendar';
 import { hostApi, type OwnerProperty } from '@/lib/host/host-api';
 import { ApiError } from '@/lib/api/errors';
-import { AvailabilityEditor } from '../listing-wizard';
 
 export default function HostCalendarPage() {
   const [properties, setProperties] = useState<OwnerProperty[]>([]);
@@ -37,18 +37,35 @@ export default function HostCalendarPage() {
     );
   }
 
+  const active = properties.find((property) => property.id === selected);
+
   return (
     <div>
       <p className="t-label">Availability</p>
       <h1 className="t-h2">Calendar</h1>
-      <Select id="cal-property" label="Property" value={selected} onChange={(e) => setSelected(e.target.value)}>
-        {properties.map((property) => (
-          <option key={property.id} value={property.id}>
-            {property.title}
-          </option>
-        ))}
-      </Select>
-      {selected ? <AvailabilityEditor propertyId={selected} /> : null}
+      <p className="t-body-small" style={{ marginTop: 'var(--space-2)', maxWidth: '44rem' }}>
+        Select dates to close them off for maintenance or personal use. Click a date to pick it,
+        or hold <kbd>Shift</kbd> to take a whole range. Booked nights are locked — cancel the
+        booking first if you need those dates back.
+      </p>
+
+      <div style={{ maxWidth: '26rem', margin: 'var(--space-6) 0 var(--space-5)' }}>
+        <Select
+          id="cal-property"
+          label="Property"
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          hint={active?.status && active.status !== 'APPROVED' ? `This listing is ${active.status.toLowerCase().replace(/_/g, ' ')} — blocked dates still apply once it goes live.` : undefined}
+        >
+          {properties.map((property) => (
+            <option key={property.id} value={property.id}>
+              {property.title}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      {selected ? <AvailabilityCalendar propertyId={selected} /> : null}
     </div>
   );
 }

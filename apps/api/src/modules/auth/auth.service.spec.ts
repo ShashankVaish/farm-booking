@@ -27,6 +27,10 @@ describe('AuthService', () => {
   const passwords = {
     hash: jest.fn(),
     compare: jest.fn(),
+    compareOrDummy: jest.fn(async (plain: string, hash?: string | null) => {
+      if (!hash) return false;
+      return passwords.compare(plain, hash);
+    }),
   };
 
   const tokens = {

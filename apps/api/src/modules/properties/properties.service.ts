@@ -1,14 +1,16 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, PropertyStatus } from '@prisma/client';
+import { KycStatus, Prisma, PropertyStatus } from '@prisma/client';
 import { ErrorCodes } from '../../common/constants/error-codes';
 import { UserRoles } from '../../common/constants/roles';
 import { paginated } from '../../common/pagination';
 import { slugify } from '../../common/slug';
+import { isUuid } from '../../common/uuid';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { RequestUser } from '../auth/auth.types';
 import { assertValidCoordinates } from '../locations/geo';
@@ -110,10 +112,18 @@ export class PropertiesService {
   }
 
   async getById(id: string, user?: RequestUser) {
-    const property = await this.prisma.property.findUnique({
-      where: { id },
-      include: publicInclude,
-    });
+    const byId = isUuid(id)
+      ? await this.prisma.property.findUnique({
+          where: { id },
+          include: publicInclude,
+        })
+      : null;
+    const property =
+      byId ??
+      (await this.prisma.property.findUnique({
+        where: { slug: id },
+        include: publicInclude,
+      }));
 
     if (!property || property.deletedAt) {
       throw new NotFoundException({
@@ -135,11 +145,48 @@ export class PropertiesService {
     return property;
   }
 
+  /**
+   * A listing cannot enter the review queue until the host has verified their
+   * mobile number and submitted identity documents. Enforced server-side so it
+   * holds even if the wizard step is bypassed.
+   */
+  private async assertHostVerified(ownerId: string): Promise<void> {
+    const owner = await this.prisma.user.findUnique({
+      where: { id: ownerId },
+      select: {
+        phoneVerifiedAt: true,
+        ownerProfile: { select: { kycStatus: true } },
+      },
+    });
+
+    if (!owner?.phoneVerifiedAt) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.VALIDATION_ERROR,
+        message: 'Verify your mobile number before submitting a listing for review.',
+      });
+    }
+
+    const kycStatus = owner.ownerProfile?.kycStatus;
+    if (kycStatus !== KycStatus.SUBMITTED && kycStatus !== KycStatus.VERIFIED) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.VALIDATION_ERROR,
+        message:
+          'Submit your Aadhaar and PAN details before submitting a listing for review.',
+      });
+    }
+  }
+
   async update(id: string, user: RequestUser, dto: UpdatePropertyDto) {
     const property = await this.requireManaged(id, user);
 
     if (dto.status && dto.status !== property.status) {
       assertPropertyStatusTransition(property.status, dto.status, user);
+      if (
+        dto.status === PropertyStatus.PENDING_APPROVAL &&
+        user.role !== UserRoles.ADMIN
+      ) {
+        await this.assertHostVerified(property.ownerId);
+      }
     }
 
     const { amenityIds, status, images, ...rest } = dto;

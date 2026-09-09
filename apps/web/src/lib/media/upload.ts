@@ -34,6 +34,7 @@ export function uploadListingImage(
     xhr.open('POST', `${getApiBaseUrl()}/api/media`);
     xhr.responseType = 'json';
 
+    xhr.withCredentials = true;
     void Promise.resolve(memoryTokenStore.getAccessToken()).then((token) => {
       if (token) {
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);

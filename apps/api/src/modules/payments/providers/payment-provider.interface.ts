@@ -1,5 +1,12 @@
 export type PaymentIntentStatus =
-  'CREATED' | 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
+  | 'CREATED'
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'SUCCESS'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'EXPIRED'
+  | 'REFUNDED';
 
 export interface CreatePaymentIntentInput {
   bookingId: string;
@@ -44,6 +51,17 @@ export interface FetchOrderResult {
   providerOrderId: string;
   status: PaymentIntentStatus;
   providerPaymentId?: string;
+  amountPaise?: number;
+}
+
+export interface FetchPaymentResult {
+  providerPaymentId: string;
+  providerOrderId: string;
+  amountPaise: number;
+  currency: string;
+  captured: boolean;
+  status: PaymentIntentStatus;
+  bookingId?: string;
 }
 
 export interface PaymentProvider {
@@ -54,7 +72,8 @@ export interface PaymentProvider {
   verifyPayment(input: VerifyPaymentInput): Promise<VerifyPaymentResult>;
   verifyWebhookSignature(rawBody: string, signature: string): boolean;
   createRefund(input: CreateRefundInput): Promise<CreateRefundResult>;
-  fetchOrder?(providerOrderId: string): Promise<FetchOrderResult | null>;
+  fetchOrder(providerOrderId: string): Promise<FetchOrderResult | null>;
+  fetchPayment(providerPaymentId: string): Promise<FetchPaymentResult | null>;
 }
 
 export const PAYMENT_PROVIDER = Symbol('PAYMENT_PROVIDER');

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import styles from './host.module.css';
 
 type Props = {
   latitude: number;
@@ -24,6 +25,7 @@ export function HostMap({ latitude, longitude, onMove }: Props) {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap',
     }).addTo(map);
+    window.setTimeout(() => map.invalidateSize(), 80);
 
     const icon = L.icon({
       iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -55,5 +57,5 @@ export function HostMap({ latitude, longitude, onMove }: Props) {
     mapRef.current?.panTo([latitude, longitude]);
   }, [latitude, longitude]);
 
-  return <div id="host-listing-map" role="application" aria-label="Property map" />;
+  return <div id="host-listing-map" className={styles.mapCanvas} role="application" aria-label="Drag the pin to the property" />;
 }

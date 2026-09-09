@@ -1,4 +1,4 @@
-import { validateEnv } from './env.validation';
+import { validateEnv, parseCorsOrigins } from './env.validation';
 
 const validEnv = {
   NODE_ENV: 'test',
@@ -35,11 +35,42 @@ describe('validateEnv', () => {
     ).toThrow(/Invalid environment configuration/);
   });
 
+  it('accepts optional admin bootstrap fields', () => {
+    const result = validateEnv({
+      ...validEnv,
+      ADMIN_EMAIL: 'admin',
+      ADMIN_PASSWORD: 'LocalOnly1',
+      ADMIN_NAME: 'Admin',
+    });
+    expect(result.ADMIN_EMAIL).toBe('admin');
+  });
+
+  it('rejects placeholder JWT secrets in production', () => {
+    expect(() =>
+      validateEnv({
+        ...validEnv,
+        NODE_ENV: 'production',
+        COOKIE_SECURE: 'true',
+        JWT_ACCESS_SECRET: 'replace-with-a-long-random-access-secret-xx',
+        JWT_REFRESH_SECRET: 'b'.repeat(32),
+      }),
+    ).toThrow(/placeholder/);
+  });
+
   it('rejects a missing database URL', () => {
     const rest: Record<string, unknown> = { ...validEnv };
     delete rest.DATABASE_URL;
     expect(() => validateEnv(rest)).toThrow(
       /Invalid environment configuration/,
     );
+  });
+});
+
+describe('parseCorsOrigins', () => {
+  it('includes 127.0.0.1 when localhost is listed', () => {
+    expect(parseCorsOrigins('http://localhost:3000')).toEqual([
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+    ]);
   });
 });

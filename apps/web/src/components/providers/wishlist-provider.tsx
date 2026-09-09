@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { apiClient } from '@/lib/api/client';
 import { memoryTokenStore } from '@/lib/api/token-store';
+import { nextWishlistIds, rollbackWishlistIds } from '@/lib/wishlist/optimistic';
 
 type WishlistContextValue = {
   ids: Set<string>;
@@ -16,6 +17,8 @@ const WishlistContext = createContext<WishlistContextValue | null>(null);
 export function WishlistProvider({ children }: { children: ReactNode }) {
   const [ids, setIds] = useState<Set<string>>(new Set());
   const [ready, setReady] = useState(false);
+  const idsRef = useRef(ids);
+  idsRef.current = ids;
 
   useEffect(() => {
     let cancelled = false;
@@ -45,20 +48,20 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     if (!memoryTokenStore.getAccessToken()) {
       return 'auth' as const;
     }
-    const exists = ids.has(propertyId);
-    if (exists) {
-      await apiClient.delete(`/api/wishlist/${propertyId}`);
-      setIds((current) => {
-        const next = new Set(current);
-        next.delete(propertyId);
-        return next;
-      });
-      return 'removed';
+    const { next, action } = nextWishlistIds(idsRef.current, propertyId);
+    setIds(next);
+    try {
+      if (action === 'removed') {
+        await apiClient.delete(`/api/wishlist/${propertyId}`);
+      } else {
+        await apiClient.post(`/api/wishlist/${propertyId}`);
+      }
+      return action;
+    } catch (error) {
+      setIds((current) => rollbackWishlistIds(current, propertyId, action));
+      throw error;
     }
-    await apiClient.post(`/api/wishlist/${propertyId}`);
-    setIds((current) => new Set(current).add(propertyId));
-    return 'added';
-  }, [ids]);
+  }, []);
 
   const value = useMemo(
     () => ({

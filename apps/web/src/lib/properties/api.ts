@@ -38,7 +38,9 @@ export async function searchProperties(filters: SearchFilters = {}): Promise<Pag
 }
 
 export function getProperty(id: string): Promise<ApiProperty> {
-  return publicGet<ApiProperty>(`/api/properties/${id}`);
+  // No placeholder fallback here: a listing that cannot be loaded must surface
+  // as not-found rather than rendering a fabricated, bookable-looking stay.
+  return publicGet<ApiProperty>(`/api/properties/${encodeURIComponent(id)}`);
 }
 
 export function getPropertyReviews(id: string, page = 1): Promise<Paginated<ApiReview>> {

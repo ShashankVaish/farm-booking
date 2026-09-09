@@ -25,12 +25,34 @@ import {
   NotificationsService,
 } from '../notifications/notifications.service';
 import { PricingService } from '../pricing/pricing.service';
+import { isUuid } from '../../common/uuid';
 import {
   CancelBookingDto,
   CreateBookingDto,
   QuoteBookingDto,
 } from './dto/booking.dto';
 import { assertBookingTransition, canCustomerCancel } from './booking-status';
+import { AuditActions, AuditService } from '../../common/audit.service';
+
+const bookingDetailInclude = {
+  property: {
+    select: {
+      id: true,
+      title: true,
+      ownerId: true,
+      city: true,
+      state: true,
+      location: true,
+      address: true,
+      cancellationPolicy: true,
+      guestCapacity: true,
+      images: { take: 1, orderBy: { sortOrder: 'asc' as const } },
+    },
+  },
+  payments: { orderBy: { createdAt: 'desc' as const } },
+  coupon: { select: { code: true } },
+  review: { select: { id: true, rating: true } },
+} as const;
 
 @Injectable()
 export class BookingsService {
@@ -40,6 +62,7 @@ export class BookingsService {
     private readonly coupons: CouponsService,
     private readonly availability: AvailabilityService,
     private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
   ) {}
 
   async quote(dto: QuoteBookingDto, userId?: string) {
@@ -140,6 +163,12 @@ export class BookingsService {
 
         if (coupon) {
           await this.coupons.incrementRedemption(tx, coupon.id);
+          await this.coupons.assertPerUserLimit(
+            tx,
+            coupon.id,
+            user.id,
+            coupon.maxRedemptionsPerUser,
+          );
         }
 
         return created;
@@ -151,6 +180,7 @@ export class BookingsService {
         title: 'Booking created',
         body: `Your booking for ${property.title} is awaiting payment.`,
         metadata: { bookingId: booking.id },
+        dedupeKey: `BOOKING_CREATED:${booking.id}:${user.id}`,
       });
       await this.notifications.notify({
         userId: property.ownerId,
@@ -158,7 +188,18 @@ export class BookingsService {
         title: 'New booking',
         body: `A customer started a booking for ${property.title}.`,
         metadata: { bookingId: booking.id },
+        dedupeKey: `BOOKING_CREATED:${booking.id}:${property.ownerId}`,
       });
+      if (coupon) {
+        await this.notifications.notify({
+          userId: user.id,
+          type: NotificationTypes.COUPON,
+          title: 'Coupon applied',
+          body: `Code ${coupon.code} was applied to your booking.`,
+          metadata: { bookingId: booking.id, couponId: coupon.id },
+          dedupeKey: `COUPON:${booking.id}`,
+        });
+      }
 
       return { booking, pricing: breakdown };
     } catch (error) {
@@ -176,13 +217,15 @@ export class BookingsService {
   }
 
   async getById(id: string, user: RequestUser) {
+    if (!isUuid(id)) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.BOOKING_NOT_FOUND,
+        message: 'Booking not found.',
+      });
+    }
     const booking = await this.prisma.booking.findUnique({
       where: { id },
-      include: {
-        property: { select: { id: true, title: true, ownerId: true } },
-        payments: true,
-        nights: true,
-      },
+      include: bookingDetailInclude,
     });
     if (!booking) {
       throw new NotFoundException({
@@ -200,7 +243,21 @@ export class BookingsService {
       this.prisma.booking.findMany({
         where,
         include: {
-          property: { select: { id: true, title: true, city: true } },
+          property: {
+            select: {
+              id: true,
+              title: true,
+              city: true,
+              state: true,
+              images: { take: 1, orderBy: { sortOrder: 'asc' } },
+            },
+          },
+          review: { select: { id: true } },
+          payments: {
+            select: { status: true },
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -216,6 +273,7 @@ export class BookingsService {
     user: RequestUser,
     dto: CancelBookingDto,
     refundHandler?: (bookingId: string, reason?: string) => Promise<unknown>,
+    onUnpaidCancel?: (bookingId: string) => Promise<unknown>,
   ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
@@ -266,10 +324,22 @@ export class BookingsService {
       });
     });
 
+    if (booking.status !== BookingStatus.CONFIRMED && onUnpaidCancel) {
+      await onUnpaidCancel(booking.id);
+    }
+
     let refund = null;
     if (booking.status === BookingStatus.CONFIRMED && refundHandler) {
       refund = await refundHandler(booking.id, dto.reason);
     }
+
+    await this.audit.record({
+      actorId: user.id,
+      action: AuditActions.BOOKING_CANCELLED,
+      entityType: 'Booking',
+      entityId: booking.id,
+      metadata: { reason: dto.reason, previousStatus: booking.status },
+    });
 
     await this.notifications.notify({
       userId: booking.customerId,
@@ -277,6 +347,7 @@ export class BookingsService {
       title: 'Booking cancelled',
       body: `Your booking for ${booking.property.title} was cancelled.`,
       metadata: { bookingId: booking.id, reason: dto.reason },
+      dedupeKey: `BOOKING_CANCELLED:${booking.id}:${booking.customerId}`,
     });
     await this.notifications.notify({
       userId: booking.property.ownerId,
@@ -284,6 +355,7 @@ export class BookingsService {
       title: 'Booking cancelled',
       body: `A booking for ${booking.property.title} was cancelled.`,
       metadata: { bookingId: booking.id },
+      dedupeKey: `BOOKING_CANCELLED:${booking.id}:${booking.property.ownerId}`,
     });
 
     return { booking: updated, refund };
@@ -360,6 +432,12 @@ export class BookingsService {
       throw new BadRequestException({
         errorCode: ErrorCodes.GUEST_CAPACITY_EXCEEDED,
         message: 'Guest count exceeds property capacity.',
+      });
+    }
+    if (enumerateNights(dto.checkInDate, dto.checkOutDate).length > 30) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.INVALID_DATE_RANGE,
+        message: 'Stays cannot exceed 30 nights.',
       });
     }
   }

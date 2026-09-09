@@ -35,6 +35,12 @@ describe('toPropertyCard', () => {
     expect(card.location).toContain('Tungarli');
     expect(card.amenities).toEqual(['Pool']);
     expect(card.image?.src).toContain('cdn.example');
+    expect(card.href).toBe('/properties/p1');
     expect(propertyBadge(sample)).toBe('Party ready');
+  });
+
+  it('prefers slug in the property href', () => {
+    const card = toPropertyCard({ ...sample, slug: 'courtyard-lonavala' });
+    expect(card.href).toBe('/properties/courtyard-lonavala');
   });
 });

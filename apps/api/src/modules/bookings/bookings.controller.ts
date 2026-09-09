@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   CurrentUser,
   CurrentUserOptional,
@@ -25,6 +26,7 @@ export class BookingsController {
   ) {}
 
   @Public()
+  @Throttle({ default: { limit: 40, ttl: 60000 } })
   @Post('quote')
   quote(
     @Body() dto: QuoteBookingDto,
@@ -34,6 +36,7 @@ export class BookingsController {
   }
 
   @Roles(UserRoles.CUSTOMER)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post()
   create(@CurrentUser() user: RequestUser, @Body() dto: CreateBookingDto) {
     return this.bookings.create(user, dto);
@@ -47,7 +50,16 @@ export class BookingsController {
 
   @Get(':id')
   getById(@CurrentUser() user: RequestUser, @Param('id') id: string) {
-    return this.bookings.getById(id, user);
+    return this.bookings.getById(id, user).then(async (booking) => {
+      if (
+        booking.status === 'PENDING' ||
+        booking.status === 'PAYMENT_PENDING'
+      ) {
+        await this.payments.recoverOpenBooking(id);
+        return this.bookings.getById(id, user);
+      }
+      return booking;
+    });
   }
 
   @Post(':id/cancel')
@@ -56,8 +68,13 @@ export class BookingsController {
     @Param('id') id: string,
     @Body() dto: CancelBookingDto,
   ) {
-    return this.bookings.cancel(id, user, dto, (bookingId, reason) =>
-      this.payments.requestRefundForBooking(bookingId, reason),
+    return this.bookings.cancel(
+      id,
+      user,
+      dto,
+      (bookingId, reason) =>
+        this.payments.requestRefundForBooking(bookingId, reason),
+      (bookingId) => this.payments.cancelOpenPayments(bookingId),
     );
   }
 

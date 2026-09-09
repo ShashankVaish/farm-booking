@@ -13,7 +13,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { normalizePagination } from '../../common/pagination';
 import type { RequestUser } from '../auth/auth.types';
-import { CreateReviewDto, UpdateReviewDto } from './dto/review.dto';
+import { CreateReviewDto, OwnerReviewResponseDto, UpdateReviewDto } from './dto/review.dto';
 import { ReviewsService } from './reviews.service';
 
 @Controller()
@@ -43,6 +43,15 @@ export class ReviewsController {
     @Body() dto: UpdateReviewDto,
   ) {
     return this.reviews.update(id, user, dto);
+  }
+
+  @Post('reviews/:id/response')
+  respond(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: OwnerReviewResponseDto,
+  ) {
+    return this.reviews.respond(id, user, dto);
   }
 
   @Delete('reviews/:id')

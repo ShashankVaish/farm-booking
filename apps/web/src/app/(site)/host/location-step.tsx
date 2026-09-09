@@ -6,7 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/forms';
 import { hostApi, type PlaceSuggestion } from '@/lib/host/host-api';
 import type { LocationDraft } from '@/lib/host/listing-location';
-import { validateListingLocation } from '@/lib/host/listing-location';
+import {
+  isValidLatitude,
+  isValidLongitude,
+  roundCoordinate,
+  validateListingLocation,
+} from '@/lib/host/listing-location';
 import styles from './host.module.css';
 
 const HostMap = dynamic(() => import('./host-map').then((mod) => mod.HostMap), { ssr: false });
@@ -20,6 +25,7 @@ export function LocationStep({ value, onChange }: Props) {
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [searching, setSearching] = useState(false);
   const [pending, setPending] = useState<LocationDraft | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const [gpsHint, setGpsHint] = useState<string | null>(null);
   const valueRef = useRef(value);
   valueRef.current = value;
@@ -42,7 +48,13 @@ export function LocationStep({ value, onChange }: Props) {
   }, [value.query]);
 
   const applyCoords = useCallback(
-    (latitude: number, longitude: number) => {
+    (rawLatitude: number, rawLongitude: number) => {
+      const latitude = roundCoordinate(rawLatitude);
+      const longitude = roundCoordinate(rawLongitude);
+      if (!isValidLatitude(latitude) || !isValidLongitude(longitude)) {
+        setGpsHint('That location could not be read. Search for the address instead.');
+        return;
+      }
       const current = valueRef.current;
       onChange({ ...current, latitude, longitude, confirmed: false });
       hostApi
@@ -77,8 +89,8 @@ export function LocationStep({ value, onChange }: Props) {
       country: place.country || 'India',
       pincode: place.pincode || value.pincode,
       location: place.displayName,
-      latitude: place.latitude,
-      longitude: place.longitude,
+      latitude: roundCoordinate(place.latitude),
+      longitude: roundCoordinate(place.longitude),
       confirmed: false,
       confirmedAddress: '',
     });
@@ -117,30 +129,37 @@ export function LocationStep({ value, onChange }: Props) {
 
   async function confirm() {
     if (!pending || pending.latitude === null || pending.longitude === null) return;
-    const result = await hostApi.confirmLocation({
-      latitude: pending.latitude,
-      longitude: pending.longitude,
-      displayName: pending.location,
-      address: pending.address,
-      city: pending.city,
-      state: pending.state,
-      country: pending.country,
-      pincode: pending.pincode,
-    });
-    onChange({
-      ...pending,
-      location: result.location || pending.location,
-      address: result.address || pending.address,
-      city: result.city || pending.city,
-      state: result.state || pending.state,
-      country: result.country || pending.country,
-      pincode: result.pincode || pending.pincode,
-      latitude: result.latitude,
-      longitude: result.longitude,
-      confirmed: true,
-      confirmedAddress: result.address || pending.address,
-    });
-    setPending(null);
+    setConfirming(true);
+    try {
+      const result = await hostApi.confirmLocation({
+        latitude: pending.latitude,
+        longitude: pending.longitude,
+        displayName: pending.location,
+        address: pending.address,
+        city: pending.city,
+        state: pending.state,
+        country: pending.country,
+        pincode: pending.pincode,
+      });
+      onChange({
+        ...pending,
+        location: result.location || pending.location,
+        address: result.address || pending.address,
+        city: result.city || pending.city,
+        state: result.state || pending.state,
+        country: result.country || pending.country,
+        pincode: result.pincode || pending.pincode,
+        latitude: result.latitude,
+        longitude: result.longitude,
+        confirmed: true,
+        confirmedAddress: result.address || pending.address,
+      });
+      setPending(null);
+    } catch {
+      setGpsHint('Could not confirm this location. Try again.');
+    } finally {
+      setConfirming(false);
+    }
   }
 
   const showMap = value.latitude !== null && value.longitude !== null;
@@ -161,12 +180,15 @@ export function LocationStep({ value, onChange }: Props) {
           onChange={(event) => onChange({ ...value, query: event.target.value, confirmed: false })}
           hint={searching ? 'Searching…' : 'Start typing a village, city, or street'}
           autoComplete="off"
+          aria-autocomplete="list"
+          aria-expanded={suggestions.length > 0}
+          aria-controls="location-suggestions"
         />
         {suggestions.length > 0 ? (
-          <ul className={styles.suggestions}>
+          <ul className={styles.suggestions} id="location-suggestions" role="listbox" aria-label="Address suggestions">
             {suggestions.map((place) => (
-              <li key={`${place.latitude}-${place.longitude}-${place.displayName}`}>
-                <button type="button" onClick={() => pickSuggestion(place)}>
+              <li key={`${place.latitude}-${place.longitude}-${place.displayName}`} role="none">
+                <button type="button" role="option" aria-selected={false} onClick={() => pickSuggestion(place)}>
                   {place.displayName}
                 </button>
               </li>
@@ -179,19 +201,27 @@ export function LocationStep({ value, onChange }: Props) {
         <Input id="address" label="Address" required value={value.address} onChange={(e) => onChange({ ...value, address: e.target.value, confirmed: false })} />
         <Input id="city" label="City" required value={value.city} onChange={(e) => onChange({ ...value, city: e.target.value, confirmed: false })} />
         <Input id="state" label="State" required value={value.state} onChange={(e) => onChange({ ...value, state: e.target.value, confirmed: false })} />
-        <Input id="pincode" label="PIN code" required value={value.pincode} onChange={(e) => onChange({ ...value, pincode: e.target.value, confirmed: false })} hint="6-digit Indian PIN where applicable" />
+        <Input id="pincode" label="PIN code" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={value.pincode} onChange={(e) => onChange({ ...value, pincode: e.target.value.replace(/\D/g, '').slice(0, 6), confirmed: false })} hint="6-digit Indian PIN where applicable" />
         <Input id="country" label="Country" required value={value.country} onChange={(e) => onChange({ ...value, country: e.target.value, confirmed: false })} />
         <Input
           id="lat"
           label="Latitude"
+          type="number"
+          min={-90}
+          max={90}
+          step="any"
           value={value.latitude ?? ''}
-          onChange={(e) => onChange({ ...value, latitude: e.target.value === '' ? null : Number(e.target.value), confirmed: false })}
+          onChange={(e) => onChange({ ...value, latitude: e.target.value === '' ? null : roundCoordinate(Number(e.target.value)), confirmed: false })}
         />
         <Input
           id="lng"
           label="Longitude"
+          type="number"
+          min={-180}
+          max={180}
+          step="any"
           value={value.longitude ?? ''}
-          onChange={(e) => onChange({ ...value, longitude: e.target.value === '' ? null : Number(e.target.value), confirmed: false })}
+          onChange={(e) => onChange({ ...value, longitude: e.target.value === '' ? null : roundCoordinate(Number(e.target.value)), confirmed: false })}
         />
       </div>
 
@@ -200,12 +230,21 @@ export function LocationStep({ value, onChange }: Props) {
           Use device location (optional)
         </Button>
       </div>
-      {gpsHint ? <p className="t-body-small">{gpsHint}</p> : null}
+      {gpsHint ? (
+        <p className="t-body-small" role="status">
+          {gpsHint}
+        </p>
+      ) : null}
 
       {showMap ? (
-        <div className={styles.map}>
-          <HostMap latitude={value.latitude as number} longitude={value.longitude as number} onMove={applyCoords} />
-        </div>
+        <>
+          <p className="t-caption" style={{ marginTop: 'var(--space-5)' }}>
+            Drag the pin onto the property. Guests will only see an approximate area.
+          </p>
+          <div className={styles.map}>
+            <HostMap latitude={value.latitude as number} longitude={value.longitude as number} onMove={applyCoords} />
+          </div>
+        </>
       ) : (
         <p className="t-body-small" style={{ marginTop: 'var(--space-4)' }}>
           Search an address to open the map.
@@ -241,8 +280,8 @@ export function LocationStep({ value, onChange }: Props) {
             {pending.latitude}, {pending.longitude}
           </p>
           <div className={styles.actions}>
-            <Button type="button" onClick={() => void confirm()}>
-              Save coordinates and address
+            <Button type="button" loading={confirming} onClick={() => void confirm()}>
+              {confirming ? 'Saving…' : 'Save coordinates and address'}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setPending(null)}>
               Adjust pin

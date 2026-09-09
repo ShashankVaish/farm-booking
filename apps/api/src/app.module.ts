@@ -1,8 +1,9 @@
 import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
+import { AppThrottlerGuard } from './common/guards/app-throttler.guard';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { validateEnv } from './config/env.validation';
@@ -49,9 +50,17 @@ import { PrismaModule } from './prisma/prisma.module';
               'req.body.code',
               'req.body.otp',
               'req.body.signature',
+              'req.body.razorpay_signature',
+              'req.body.card',
+              'req.body.cvv',
+              'req.body.cvc',
+              'req.body.otp',
               'TWILIO_AUTH_TOKEN',
               'RAZORPAY_KEY_SECRET',
+              'RAZORPAY_KEY_ID',
+              'RAZORPAY_WEBHOOK_SECRET',
               'GOOGLE_MAPS_API_KEY',
+              'ADMIN_PASSWORD',
             ],
             remove: true,
           },
@@ -60,12 +69,21 @@ import { PrismaModule } from './prisma/prisma.module';
     }),
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => [
-        {
-          ttl: config.get<number>('THROTTLE_TTL_MS', 60000),
-          limit: config.get<number>('THROTTLE_LIMIT', 100),
-        },
-      ],
+      useFactory: (config: ConfigService) => ({
+        errorMessage: 'Too many attempts. Wait a minute and try again.',
+        throttlers: [
+          {
+            name: 'default',
+            ttl: config.get<number>('THROTTLE_TTL_MS', 60000),
+            limit: config.get<number>('THROTTLE_LIMIT', 100),
+          },
+          {
+            name: 'auth',
+            ttl: config.get<number>('AUTH_THROTTLE_TTL_MS', 60000),
+            limit: config.get<number>('AUTH_THROTTLE_LIMIT', 30),
+          },
+        ],
+      }),
     }),
     PrismaModule,
     HealthModule,
@@ -99,7 +117,7 @@ import { PrismaModule } from './prisma/prisma.module';
     },
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: AppThrottlerGuard,
     },
   ],
 })
