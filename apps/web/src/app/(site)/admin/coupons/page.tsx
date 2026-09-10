@@ -156,23 +156,23 @@ export default function AdminCouponsPage() {
               <tbody>
                 {data?.items.map((coupon) => (
                   <tr key={coupon.id}>
-                    <td>
+                    <td data-label="Code">
                       {coupon.code}
                       <div className="t-caption">{coupon.description}</div>
                     </td>
-                    <td>
+                    <td data-label="Discount">
                       {coupon.discountType === 'PERCENTAGE'
                         ? `${coupon.discountValue}%`
                         : formatInr(coupon.discountValue)}
                     </td>
-                    <td>
+                    <td data-label="Window">
                       {formatDay(coupon.startsAt)} → {formatDay(coupon.endsAt)}
                     </td>
-                    <td>
+                    <td data-label="Redemptions">
                       {coupon.redemptionCount}
                       {coupon.maxRedemptions ? ` / ${coupon.maxRedemptions}` : ''}
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <span className={adminUi.badge}>{coupon.isActive ? 'Active' : 'Inactive'}</span>
                     </td>
                     <td>

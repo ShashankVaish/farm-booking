@@ -1,19 +1,22 @@
 import type { Metadata } from 'next';
-import { Instrument_Sans, Instrument_Serif } from 'next/font/google';
+import { Manrope, Playfair_Display } from 'next/font/google';
 import { AppProviders } from '@/components/providers/app-providers';
 import { brand } from '@/lib/config/brand';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 import './globals.css';
 
-const sans = Instrument_Sans({
+// Body copy, UI and numerals.
+const sans = Manrope({
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
   variable: '--font-sans-family',
   display: 'swap',
 });
 
-const display = Instrument_Serif({
+// Headings and the wordmark.
+const display = Playfair_Display({
   subsets: ['latin'],
-  weight: '400',
+  weight: ['400', '500', '600', '700'],
   variable: '--font-display-family',
   display: 'swap',
 });

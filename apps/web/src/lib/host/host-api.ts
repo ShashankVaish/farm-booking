@@ -88,6 +88,12 @@ export type HostKycStatus = {
   panNumber: string | null;
   panImageUrl: string | null;
   businessName: string | null;
+  bankAccountName: string | null;
+  /** Masked to the last four digits; the full number is never returned. */
+  bankAccountMasked: string;
+  bankIfsc: string | null;
+  bankName: string | null;
+  bankAccountSaved: boolean;
   canSubmitListing: boolean;
 };
 
@@ -107,6 +113,12 @@ export const hostApi = {
     panImageUrl: string;
     businessName?: string;
   }) => apiClient.post<HostKycStatus>('/api/owner/kyc', body),
+  saveBankAccount: (body: {
+    accountHolderName: string;
+    accountNumber: string;
+    ifsc: string;
+    bankName?: string;
+  }) => apiClient.post<HostKycStatus>('/api/owner/bank-account', body),
   me: () => apiClient.get<AuthUser>('/api/auth/me'),
   overview: () => apiClient.get<OwnerOverview>('/api/owner/overview'),
   properties: (page = 1) =>

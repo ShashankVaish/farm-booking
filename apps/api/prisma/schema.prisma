@@ -156,10 +156,18 @@ model OwnerProfile {
   // restricts retention of the full number, so we keep only the last four
   // digits for display plus a keyed hash for duplicate detection. The uploaded
   // image is what a reviewer actually checks against.
-  panImageUrl        String?
-  aadhaarLast4       String?
-  aadhaarHash        String?
-  aadhaarImageUrl    String?
+  panImageUrl       String?
+  aadhaarLast4      String?
+  aadhaarHash       String?
+  aadhaarImageUrl   String?
+  // Payout destination for host earnings. Distinct from refunds, which always
+  // return to the guest's original payment method via the gateway.
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankAccountLast4  String?
+  bankIfsc          String?
+  bankName          String?
+
   kycStatus          KycStatus @default(NOT_SUBMITTED)
   kycSubmittedAt     DateTime?
   kycReviewedAt      DateTime?
@@ -170,6 +178,16 @@ model OwnerProfile {
 
   user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   payouts OwnerPayout[]
+}
+
+/// Runtime configuration an admin can change without a redeploy.
+/// Values fall back to the matching environment variable when no row exists.
+model PlatformSetting {
+  key         String   @id
+  value       String
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
 }
 
 model Property {
@@ -197,6 +215,8 @@ model Property {
   propertyRules      String?        @db.Text
   cancellationPolicy String?        @db.Text
   isPartyFriendly    Boolean        @default(false)
+  isAdultOnly        Boolean        @default(false)
+  isCoupleFriendly   Boolean        @default(false)
   averageRating      Decimal        @default(0) @db.Decimal(3, 2)
   reviewCount        Int            @default(0)
   status             PropertyStatus @default(DRAFT)

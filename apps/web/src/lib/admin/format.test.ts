@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  formatDay,
-  formatInr,
-  hasSensitivePaymentFields,
-  isPublicPaymentView,
-  occupancyPercent,
-  statusLabel,
-} from '@/lib/admin/format';
+import { formatDay, formatInr, hasSensitivePaymentFields, isPublicPaymentView, occupancyPercent, refundFailureHint, statusLabel } from '@/lib/admin/format';
 
 describe('admin format helpers', () => {
   it('formats money and occupancy', () => {
@@ -39,5 +32,25 @@ describe('admin format helpers', () => {
       }),
     ).toBe(true);
     expect(isPublicPaymentView({ ...safe, failureReason: 'card declined' })).toBe(false);
+  });
+});
+
+describe('refundFailureHint', () => {
+  it('explains the opaque gateway error that really means low balance', () => {
+    const hint = refundFailureHint('invalid request sent');
+    expect(hint).toContain('balance');
+    expect(hint).toContain('retry');
+  });
+
+  it('handles an explicit balance error', () => {
+    expect(refundFailureHint('Your account does not have enough balance')).toContain(
+      'Top up',
+    );
+  });
+
+  it('stays quiet when there is nothing useful to add', () => {
+    expect(refundFailureHint(null)).toBeNull();
+    expect(refundFailureHint(undefined)).toBeNull();
+    expect(refundFailureHint('processed')).toBeNull();
   });
 });

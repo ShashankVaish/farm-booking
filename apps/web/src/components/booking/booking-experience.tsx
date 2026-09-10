@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState, Spinner } from '@/components/ui/feedback';
 import { PriceBreakdown } from '@/components/hospitality/price-breakdown';
 import { bookingApi } from '@/lib/bookings/api';
+import { payErrorMessage } from '@/lib/bookings/payment-errors';
 import { paymentStatusLabel, type CustomerBooking, type PriceQuote } from '@/lib/bookings/types';
-import { ApiError, NetworkError } from '@/lib/api/errors';
+import { ApiError } from '@/lib/api/errors';
 import { apiClient } from '@/lib/api/client';
 import type { AuthUser } from '@/lib/properties/types';
 import { brand } from '@/lib/config/brand';
@@ -60,6 +61,9 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [profile, setProfile] = useState<AuthUser | null>(null);
+  // Razorpay's script is loaded on the page; the button waits for it rather
+  // than failing the first click with "checkout is still loading".
+  const [checkoutReady, setCheckoutReady] = useState(false);
   const paying = useRef(false);
 
   // Prefills the gateway form so the guest does not retype what we already know.
@@ -94,8 +98,12 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
     async function syncFromGateway() {
       try {
         const latest = await bookingApi.reconcile(bookingId);
-        if (!cancelled && latest) {
+        // Only adopt a response that carries the relations this screen renders.
+        // A thinner payload would blank the property and crash on the next paint.
+        if (!cancelled && latest?.property?.title) {
           setBooking(latest);
+        } else if (!cancelled && latest) {
+          setBooking((current) => (current ? { ...current, ...latest, property: current.property } : current));
         }
       } catch {
         if (!cancelled) load();
@@ -124,12 +132,14 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
     setError(null);
     try {
       const order = await bookingApi.createOrder(booking.id);
-      if (!order.keyId || !window.Razorpay) {
+      if (!order.keyId) {
         setError(
-          order.keyId
-            ? 'Payment checkout is still loading. Try again in a moment.'
-            : 'Payment is temporarily unavailable. Your booking is saved — refresh this page to retry.',
+          'Payments are not configured on the server. Your booking is saved — please contact support.',
         );
+        return;
+      }
+      if (!window.Razorpay) {
+        setError('Payment checkout is still loading. Try again in a moment.');
         return;
       }
       const checkout = new window.Razorpay({
@@ -145,7 +155,7 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
           contact: profile?.phone ?? '',
         },
         notes: { bookingId: booking.id },
-        theme: { color: '#9b4fe0' },
+        theme: { color: '#f9615f' },
         handler: async (response: RazorpaySuccess) => {
           try {
             await bookingApi.verify({
@@ -156,7 +166,7 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
             router.replace(`/booking/${booking.id}/confirmation`);
             router.refresh();
           } catch (err) {
-            setError(err instanceof ApiError || err instanceof NetworkError ? err.message : 'Payment could not be verified.');
+            setError(payErrorMessage(err, 'Payment could not be verified.'));
             load();
           }
         },
@@ -177,7 +187,7 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
       });
       checkout.open();
     } catch (err) {
-      setError(err instanceof ApiError || err instanceof NetworkError ? err.message : 'Could not start payment.');
+      setError(payErrorMessage(err, 'Could not start payment.'));
       load();
     } finally {
       paying.current = false;
@@ -195,7 +205,15 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
 
   return (
     <article className={styles.panel}>
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+        onReady={() => setCheckoutReady(true)}
+        onLoad={() => setCheckoutReady(true)}
+        onError={() =>
+          setError('The payment checkout script could not load. Disable any blocker and refresh.')
+        }
+      />
       <p className="t-label">Booking</p>
       <h1 className="t-h2">{showConfirmation ? 'Booking confirmed' : booking.property.title}</h1>
       <p className={styles.badge}>{paymentStatusLabel(booking)}</p>
@@ -235,8 +253,8 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
 
       {awaitingPay ? (
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: 'var(--space-5)' }}>
-          <Button onClick={() => void pay()} disabled={busy}>
-            {busy ? 'Opening payment…' : 'Pay now'}
+          <Button onClick={() => void pay()} disabled={busy || !checkoutReady}>
+            {busy ? 'Opening payment…' : checkoutReady ? 'Pay now' : 'Loading payment…'}
           </Button>
           <Button href={`/properties/${booking.property.id}`} variant="ghost">
             Back to property

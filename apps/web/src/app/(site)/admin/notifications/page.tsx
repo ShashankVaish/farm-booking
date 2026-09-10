@@ -52,19 +52,19 @@ export default function AdminNotificationsPage() {
             <tbody>
               {data?.items.map((note) => (
                 <tr key={note.id}>
-                  <td>
+                  <td data-label="Type">
                     <span className={adminUi.badge}>{statusLabel(note.type)}</span>
                   </td>
-                  <td>
+                  <td data-label="Title">
                     {note.title}
                     <div className="t-caption">{note.body}</div>
                   </td>
-                  <td>
+                  <td data-label="Recipient">
                     {note.user?.name}
                     <div className="t-caption">{note.user?.email}</div>
                   </td>
-                  <td>{note.readAt ? formatDateTime(note.readAt) : 'Unread'}</td>
-                  <td>{formatDateTime(note.createdAt)}</td>
+                  <td data-label="Read">{note.readAt ? formatDateTime(note.readAt) : 'Unread'}</td>
+                  <td data-label="Sent">{formatDateTime(note.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

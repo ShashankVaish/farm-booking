@@ -10,9 +10,22 @@ import { ApiError } from '@/lib/api/errors';
 import { memoryTokenStore } from '@/lib/api/token-store';
 import { authErrorMessage, indianMobile, isStrongPassword } from '@/lib/auth/form';
 import type { AuthUser } from '@/lib/properties/types';
+import {
+  AccountTypeChooser,
+  AuthShell,
+  Divider,
+  GoogleButton,
+  PasswordField,
+  Segmented,
+} from './auth-chrome';
 import styles from './auth.module.css';
 
 type Mode = 'email' | 'otp';
+
+const METHODS = [
+  { value: 'email' as const, label: 'Email' },
+  { value: 'otp' as const, label: 'Mobile OTP' },
+];
 
 const GOOGLE_ERRORS: Record<string, string> = {
   access_denied: 'You cancelled Google sign-in.',
@@ -38,6 +51,24 @@ function otpMessage(code: string, fallback: string) {
   if (code === 'OTP_LOCKED') return 'Too many attempts. Request a new code.';
   if (code === 'OTP_RATE_LIMITED') return 'Too many OTP requests. Try again later.';
   return fallback;
+}
+
+function Alert({ children }: { children: React.ReactNode }) {
+  return (
+    <p className={styles.alert} role="alert">
+      <span aria-hidden="true">⚠</span>
+      <span>{children}</span>
+    </p>
+  );
+}
+
+function Notice({ children }: { children: React.ReactNode }) {
+  return (
+    <p className={styles.success} role="status">
+      <span aria-hidden="true">✓</span>
+      <span>{children}</span>
+    </p>
+  );
 }
 
 export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: boolean; onAuthenticated?: () => void }) {
@@ -148,30 +179,17 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
 
   const canResend = seconds === 0;
 
-  return (
-    <div className={styles.panel}>
-      <p className="t-label">Account</p>
-      <h1 className="t-h2">Sign in</h1>
-      <div className={styles.tabs}>
-        <Button variant={mode === 'email' ? 'primary' : 'secondary'} size="sm" type="button" onClick={() => setMode('email')}>
-          Email
-        </Button>
-        <Button variant={mode === 'otp' ? 'primary' : 'secondary'} size="sm" type="button" onClick={() => setMode('otp')}>
-          Mobile OTP
-        </Button>
-      </div>
-      {error ? (
-        <p className={`${styles.alert} t-body-small`} role="alert">
-          {error}
-        </p>
-      ) : null}
+  const body = (
+    <>
+      <Segmented label="Sign-in method" value={mode} options={METHODS} onChange={setMode} />
+
+      {error ? <Alert>{error}</Alert> : null}
       {otpSent && mode === 'otp' && !error ? (
-        <p className={`${styles.success} t-body-small`} role="status">
-          Code sent. Enter it below to continue.
-        </p>
+        <Notice>Code sent. Enter it below to continue.</Notice>
       ) : null}
+
       {mode === 'email' ? (
-        <form className={styles.stack} onSubmit={submitEmail}>
+        <form className={styles.stack} onSubmit={submitEmail} style={{ marginTop: 'var(--space-5)' }}>
           <Input
             id="email"
             label={adminOnly ? 'Admin email' : 'Email'}
@@ -181,25 +199,29 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <Input
+          <PasswordField
             id="password"
             label="Password"
-            type="password"
-            required
+            autoComplete="current-password"
             minLength={8}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
           />
-          <Button type="submit" disabled={busy} loading={busy}>
+          <Button className={styles.submit} type="submit" block disabled={busy} loading={busy}>
             {busy ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
       ) : (
-        <form className={styles.stack} onSubmit={otpSent ? verifyOtp : (event) => { event.preventDefault(); void requestOtp(); }}>
+        <form
+          className={styles.stack}
+          style={{ marginTop: 'var(--space-5)' }}
+          onSubmit={otpSent ? verifyOtp : (event) => { event.preventDefault(); void requestOtp(); }}
+        >
           <Input
             id="phone"
             label="Mobile number"
             inputMode="numeric"
+            autoComplete="tel-national"
             pattern="[6-9][0-9]{9}"
             placeholder="10-digit Indian mobile"
             required
@@ -209,45 +231,70 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
           {otpSent ? (
             <Input
               id="otp"
-              label="OTP"
+              label="One-time code"
               inputMode="numeric"
+              autoComplete="one-time-code"
               pattern="[0-9]{6}"
               required
               value={code}
               onChange={(e) => setCode(e.target.value)}
             />
           ) : null}
-          <Button type="submit" disabled={busy} loading={busy}>
-            {busy ? 'Please wait…' : otpSent ? 'Verify OTP' : 'Send OTP'}
+          <Button className={styles.submit} type="submit" block disabled={busy} loading={busy}>
+            {busy ? 'Please wait…' : otpSent ? 'Verify and sign in' : 'Send code'}
           </Button>
           {otpSent ? (
-            <Button type="button" variant="ghost" disabled={!canResend || busy} onClick={() => void requestOtp()}>
+            <Button type="button" variant="ghost" block disabled={!canResend || busy} onClick={() => void requestOtp()}>
               {canResend ? 'Resend code' : `Resend in ${seconds}s`}
             </Button>
           ) : null}
         </form>
       )}
-      {!adminOnly ? (
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={busy}
-          onClick={() => window.location.assign(`/api/auth/google?next=${encodeURIComponent(next)}`)}
-        >
-          Continue with Google
-        </Button>
-      ) : null}
+
       {!adminOnly ? (
         <>
-          <p className="t-body-small" style={{ marginTop: 'var(--space-5)' }}>
-            New here? <Link href="/auth/register">Create a customer account</Link>
-          </p>
-          <p className="t-body-small" style={{ marginTop: 'var(--space-2)' }}>
-            Want to host a property? <Link href="/auth/register?role=OWNER">Create a host account</Link>
-          </p>
+          <Divider>or</Divider>
+          <GoogleButton
+            label="Continue with Google"
+            disabled={busy}
+            onClick={() => window.location.assign(`/api/auth/google?next=${encodeURIComponent(next)}`)}
+          />
+
+          <div className={styles.foot}>
+            New to {"Baagly"}? <Link href="/auth/register">Create an account</Link>
+          </div>
+
+          <div className={styles.hostCta}>
+            <p className={styles.hostCtaTitle}>Have a property to rent out?</p>
+            <p className={styles.hostCtaNote}>
+              List a farmhouse, villa or party house and take bookings from verified guests.
+            </p>
+            <Button href="/auth/register?role=OWNER" variant="secondary" size="sm">
+              Become a host
+            </Button>
+          </div>
         </>
       ) : null}
-    </div>
+    </>
+  );
+
+  // Inside the admin panel the form is embedded, so it renders without the
+  // marketing column or its own page container.
+  if (adminOnly) {
+    return (
+      <div className={styles.card} style={{ maxWidth: '27rem', margin: 'var(--space-10) auto' }}>
+        <p className={styles.kicker}>Restricted</p>
+        <h1 className={styles.title}>Admin sign in</h1>
+        <p className={styles.subtitle}>Access is enforced by the API, not by hiding screens.</p>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <AuthShell kicker="Welcome back" title="Sign in" subtitle="Pick up where you left off.">
+      {body}
+    </AuthShell>
   );
 }
 
@@ -276,6 +323,13 @@ export function RegisterForm() {
     () => (/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password) ? undefined : 'Use at least 8 characters with a letter and a number.'),
     [password],
   );
+
+  /** Keeps the choice in the URL so a refresh or shared link lands the same way. */
+  function chooseRole(role: 'CUSTOMER' | 'OWNER') {
+    router.replace(role === 'OWNER' ? '/auth/register?role=OWNER' : '/auth/register', {
+      scroll: false,
+    });
+  }
 
   async function submitEmail(event: FormEvent) {
     event.preventDefault();
@@ -366,85 +420,130 @@ export function RegisterForm() {
   }
 
   return (
-    <div className={styles.panel}>
-      <p className="t-label">Account</p>
-      <h1 className="t-h2">{asHost ? 'Create host account' : 'Create account'}</h1>
-      <div className={styles.tabs}>
-        <Button variant={mode === 'email' ? 'primary' : 'secondary'} size="sm" type="button" onClick={() => setMode('email')}>
-          Email
-        </Button>
-        <Button variant={mode === 'otp' ? 'primary' : 'secondary'} size="sm" type="button" onClick={() => setMode('otp')}>
-          Mobile OTP
-        </Button>
-      </div>
-      {error ? (
-        <p className={`${styles.alert} t-body-small`} role="alert">
-          {error}
-        </p>
-      ) : null}
+    <AuthShell
+      kicker="Get started"
+      title={asHost ? 'Create a host account' : 'Create your account'}
+      subtitle={
+        asHost
+          ? 'List your property and start taking bookings.'
+          : 'Book private farmhouses, villas and party houses across India.'
+      }
+    >
+      <AccountTypeChooser value={asHost ? 'OWNER' : 'CUSTOMER'} onChange={chooseRole} />
+
+      <Segmented label="Sign-up method" value={mode} options={METHODS} onChange={setMode} />
+
+      {error ? <Alert>{error}</Alert> : null}
       {otpSent && mode === 'otp' && !error ? (
-        <p className={`${styles.success} t-body-small`} role="status">
-          Code sent. Enter it below to continue.
-        </p>
+        <Notice>Code sent. Enter it below to continue.</Notice>
       ) : null}
+
       {mode === 'email' ? (
-        <form className={styles.stack} onSubmit={submitEmail}>
-          <Input id="name" label="Full name" required value={name} onChange={(e) => setName(e.target.value)} />
-          <Input id="reg-email" label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <form className={styles.stack} onSubmit={submitEmail} style={{ marginTop: 'var(--space-5)' }}>
+          <Input
+            id="name"
+            label="Full name"
+            autoComplete="name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <Input
+            id="reg-email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
           <Input
             id="reg-phone"
             label="Mobile (optional)"
             inputMode="numeric"
+            autoComplete="tel-national"
+            placeholder="10-digit Indian mobile"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
-          <Input
+          <PasswordField
             id="reg-password"
             label="Password"
-            type="password"
-            required
+            autoComplete="new-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
             hint={passwordHint}
           />
-          <Button type="submit" disabled={busy} loading={busy}>
-            {busy ? 'Creating…' : 'Create account'}
+          <Button className={styles.submit} type="submit" block disabled={busy} loading={busy}>
+            {busy ? 'Creating…' : asHost ? 'Create host account' : 'Create account'}
           </Button>
         </form>
       ) : (
         <form
           className={styles.stack}
+          style={{ marginTop: 'var(--space-5)' }}
           onSubmit={otpSent ? verifyOtp : (event) => { event.preventDefault(); void requestOtp(); }}
         >
-          <Input id="otp-name" label="Full name" required value={name} onChange={(e) => setName(e.target.value)} />
+          <Input
+            id="otp-name"
+            label="Full name"
+            autoComplete="name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
           <Input
             id="otp-phone"
             label="Mobile number"
             required
             inputMode="numeric"
+            autoComplete="tel-national"
             pattern="[6-9][0-9]{9}"
+            placeholder="10-digit Indian mobile"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
           {otpSent ? (
-            <Input id="otp-code" label="OTP" required inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} />
+            <Input
+              id="otp-code"
+              label="One-time code"
+              required
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
           ) : null}
-          <Button type="submit" disabled={busy} loading={busy}>
-            {busy ? 'Please wait…' : otpSent ? 'Verify and continue' : 'Send OTP'}
+          <Button className={styles.submit} type="submit" block disabled={busy} loading={busy}>
+            {busy ? 'Please wait…' : otpSent ? 'Verify and continue' : 'Send code'}
           </Button>
           {otpSent ? (
-            <Button type="button" variant="ghost" disabled={seconds > 0 || busy} onClick={() => void requestOtp()}>
+            <Button type="button" variant="ghost" block disabled={seconds > 0 || busy} onClick={() => void requestOtp()}>
               {seconds > 0 ? `Resend in ${seconds}s` : 'Resend code'}
             </Button>
           ) : null}
         </form>
       )}
-      <p className="t-body-small" style={{ marginTop: 'var(--space-5)' }}>
+
+      <Divider>or</Divider>
+      <GoogleButton
+        label="Continue with Google"
+        disabled={busy}
+        onClick={() =>
+          window.location.assign(
+            `/api/auth/google?next=${encodeURIComponent(asHost ? '/host' : '/dashboard')}`,
+          )
+        }
+      />
+
+      <div className={styles.foot}>
         Already have an account? <Link href="/auth/login">Sign in</Link>
-      </p>
-      <p className="t-body-small" style={{ marginTop: 'var(--space-2)' }}>
-        Want to host a property? <Link href="/auth/register?role=OWNER">Create host account</Link>
-      </p>
-    </div>
+        <p className={styles.footNote}>
+          {asHost
+            ? 'Hosts verify a mobile number and submit Aadhaar and PAN before a listing goes live.'
+            : 'You can switch to hosting later from your account.'}
+        </p>
+      </div>
+    </AuthShell>
   );
 }

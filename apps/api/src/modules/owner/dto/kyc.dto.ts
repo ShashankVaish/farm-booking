@@ -43,3 +43,23 @@ export class SubmitHostKycDto {
   @MaxLength(160)
   businessName?: string;
 }
+
+export class SaveBankAccountDto {
+  @IsString()
+  @MaxLength(120)
+  accountHolderName!: string;
+
+  // Length and shape are checked in the service.
+  @IsString()
+  @MaxLength(30)
+  accountNumber!: string;
+
+  @IsString()
+  @MaxLength(15)
+  ifsc!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  bankName?: string;
+}

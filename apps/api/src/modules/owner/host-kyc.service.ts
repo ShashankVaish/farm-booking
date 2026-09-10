@@ -12,16 +12,23 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OtpService } from '../auth/otp.service';
 import {
   RequestHostPhoneOtpDto,
+  SaveBankAccountDto,
   SubmitHostKycDto,
   VerifyHostPhoneOtpDto,
 } from './dto/kyc.dto';
 import {
   aadhaarLast4,
+  accountLast4,
   hashAadhaar,
   isValidAadhaar,
+  isValidAccountNumber,
+  isValidIfsc,
   isValidPan,
   maskAadhaar,
+  maskAccount,
   normalizeAadhaar,
+  normalizeAccountNumber,
+  normalizeIfsc,
   normalizePan,
 } from './kyc.util';
 
@@ -53,6 +60,10 @@ export class HostKycService {
             kycReviewedAt: true,
             kycRejectionReason: true,
             kycVerified: true,
+            bankAccountName: true,
+            bankAccountLast4: true,
+            bankIfsc: true,
+            bankName: true,
           },
         },
       },
@@ -84,6 +95,12 @@ export class HostKycService {
       panNumber: profile?.panNumber ?? null,
       panImageUrl: profile?.panImageUrl ?? null,
       businessName: profile?.businessName ?? null,
+      bankAccountName: profile?.bankAccountName ?? null,
+      // Never return the full account number once stored.
+      bankAccountMasked: maskAccount(profile?.bankAccountLast4),
+      bankIfsc: profile?.bankIfsc ?? null,
+      bankName: profile?.bankName ?? null,
+      bankAccountSaved: Boolean(profile?.bankAccountLast4),
       /** A listing may only be submitted for review once both of these hold. */
       canSubmitListing: phoneVerified && documentsSubmitted,
     };
@@ -221,6 +238,62 @@ export class HostKycService {
       entityId: userId,
       // Only the last four digits are ever written to the audit trail.
       metadata: { aadhaarLast4: data.aadhaarLast4, panNumber: pan },
+    });
+
+    return this.status(userId);
+  }
+
+  /**
+   * Where the host's earnings are paid out. This is not the refund path:
+   * guest refunds always go back through the gateway to the card or UPI the
+   * booking was paid with, never to an account entered by hand.
+   */
+  async saveBankAccount(userId: string, dto: SaveBankAccountDto) {
+    const accountNumber = normalizeAccountNumber(dto.accountNumber);
+    if (!isValidAccountNumber(accountNumber)) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.VALIDATION_ERROR,
+        message: 'Enter a valid bank account number (9 to 18 digits).',
+      });
+    }
+
+    const ifsc = normalizeIfsc(dto.ifsc);
+    if (!isValidIfsc(ifsc)) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.VALIDATION_ERROR,
+        message: 'Enter a valid IFSC code, for example HDFC0001234.',
+      });
+    }
+
+    const holder = dto.accountHolderName.trim();
+    if (holder.length < 3) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.VALIDATION_ERROR,
+        message: "Enter the account holder's full name as it appears on the account.",
+      });
+    }
+
+    const data = {
+      bankAccountName: holder,
+      bankAccountNumber: accountNumber,
+      bankAccountLast4: accountLast4(accountNumber),
+      bankIfsc: ifsc,
+      bankName: dto.bankName?.trim() || undefined,
+    };
+
+    await this.prisma.ownerProfile.upsert({
+      where: { userId },
+      update: data,
+      create: { userId, ...data },
+    });
+
+    await this.audit.record({
+      actorId: userId,
+      action: 'HOST_BANK_ACCOUNT_SAVED',
+      entityType: 'User',
+      entityId: userId,
+      // The account number itself never reaches the audit trail.
+      metadata: { last4: data.bankAccountLast4, ifsc },
     });
 
     return this.status(userId);

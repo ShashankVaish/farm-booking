@@ -59,6 +59,15 @@ export class AdminPropertiesQueryDto extends AdminListQueryDto {
   status?: PropertyStatus;
 }
 
+export class AdminPaymentsQueryDto extends AdminListQueryDto {
+  /** Only rows created within this many hours. Omit for all history. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  hours?: number;
+}
+
 export class AdminBookingsQueryDto extends AdminListQueryDto {
   @IsOptional()
   @IsEnum(BookingStatus)
@@ -106,4 +115,49 @@ export class AdminRefundDto {
   @IsOptional()
   @Type(() => Number)
   amount?: number;
+}
+
+export class AdminCancelBookingDto {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  reason!: string;
+
+  /** Also mark the freed nights unavailable instead of reselling them. */
+  @IsOptional()
+  @IsBoolean()
+  blockDates?: boolean;
+}
+
+export class AdminPayoutsQueryDto {
+  /**
+   * Optional window end date (YYYY-MM-DD). Only applied together with `days`.
+   * With neither set the statement covers everything still owed.
+   */
+  @IsOptional()
+  @IsDateString()
+  date?: string;
+
+  /** Optional window length in days. Omit for the full outstanding ledger. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  days?: number;
+}
+
+export class UpdatePlatformSettingsDto {
+  /** Platform commission in basis points (500 = 5%). */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  platformFeeBps?: number;
+
+  /** Minutes an unpaid booking holds its dates before expiring. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(5)
+  bookingExpireMinutes?: number;
 }
