@@ -146,6 +146,17 @@ export class EnvironmentVariables {
    * that host, user and password are present before choosing SMTP, so a half
    * filled block degrades to logging rather than failing at send time.
    */
+  /**
+   * How many reverse proxies sit in front of the API. 0 when it is exposed
+   * directly, 1 behind a single Nginx. Anything above the real number lets a
+   * caller forge X-Forwarded-For and choose their own rate-limit bucket.
+   */
+  @IsOptional()
+  @Transform(({ value }) => (value === undefined || value === '' ? undefined : Number(value)))
+  @IsInt()
+  @Min(0)
+  TRUST_PROXY_HOPS?: number;
+
   @IsOptional()
   @IsString()
   MAIL_PROVIDER?: string;
