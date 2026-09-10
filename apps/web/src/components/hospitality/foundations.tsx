@@ -2,9 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MediaImage } from '@/components/media/media-image';
 import { StaySearch } from '@/components/hospitality/stay-search';
-import type { MediaAsset } from '@/lib/media/types';
 import { cn } from '@/lib/cn';
 import styles from './hospitality.module.css';
 
@@ -72,51 +70,6 @@ export function DatePickerFoundation() {
           </button>
         ))}
       </div>
-    </div>
-  );
-}
-
-export function ImageGalleryFoundation({
-  images,
-}: {
-  images: Array<{ asset?: MediaAsset | null; alt: string; tone?: 'default' | 'pool' | 'lawn' | 'night' }>;
-}) {
-  const [index, setIndex] = useState(0);
-  const current = images[index] ?? images[0];
-
-  if (!current) return null;
-
-  const sideImages = images.length > 1 ? images : [];
-
-  return (
-    <div
-      className={cn(styles.gallery, images.length === 1 && styles.single)}
-      tabIndex={0}
-      aria-label="Property photo gallery"
-      onKeyDown={(event) => {
-        if (event.key === 'ArrowRight') setIndex((value) => (value + 1) % images.length);
-        if (event.key === 'ArrowLeft') setIndex((value) => (value - 1 + images.length) % images.length);
-      }}
-    >
-      <div className={styles.galleryMain} aria-live="polite">
-        <MediaImage asset={current.asset} alt={current.alt} tone={current.tone} aspectRatio="16 / 10" />
-      </div>
-      {sideImages.length > 0 ? (
-        <div className={cn(styles.thumbs, images.length > 3 && styles.many)} role="list">
-          {images.map((image, imageIndex) => (
-            <button
-              key={`${image.alt}-${imageIndex}`}
-              type="button"
-              className={cn(styles.thumb, imageIndex === index && styles.thumbActive)}
-              onClick={() => setIndex(imageIndex)}
-              aria-label={`Show photo ${imageIndex + 1} of ${images.length}`}
-              aria-current={imageIndex === index}
-            >
-              <MediaImage asset={image.asset} alt="" tone={image.tone} aspectRatio="4 / 3" />
-            </button>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

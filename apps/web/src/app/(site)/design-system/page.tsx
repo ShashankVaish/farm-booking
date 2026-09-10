@@ -3,9 +3,9 @@ import {
   BookingCardFoundation,
   DatePickerFoundation,
   GuestSelector,
-  ImageGalleryFoundation,
   SearchBox,
 } from '@/components/hospitality/foundations';
+import { PropertyGallery } from '@/components/hospitality/property-gallery';
 import { PropertyGrid } from '@/components/hospitality/property-card';
 import { Avatar, Badge, Card, Divider } from '@/components/ui/content';
 import { Tabs } from '@/components/ui/disclosure';
@@ -155,9 +155,10 @@ export default function DesignSystemPage() {
       </section>
 
       <section className={styles.section}>
-        <h2 className="t-h2">Gallery foundation</h2>
+        <h2 className="t-h2">Property gallery</h2>
         <div className={styles.gallery}>
-          <ImageGalleryFoundation
+          <PropertyGallery
+            title="Gallery demo"
             images={[
               { alt: 'Lawn', tone: 'lawn' },
               { alt: 'Pool', tone: 'pool' },
