@@ -5,6 +5,7 @@ import {
   challengeKey,
   cooldownKey,
   sendsKey,
+  verifiedKey,
   type OtpChallengeRecord,
   type OtpStore,
 } from './otp-store';
@@ -114,11 +115,42 @@ export class RedisOtpStore implements OtpStore, OnModuleDestroy {
     return this.redis.zcard(key);
   }
 
+  async markVerified(
+    identifier: string,
+    purpose: OtpPurpose,
+    ttlSeconds: number,
+  ): Promise<void> {
+    // Redis owns the expiry here too, so a verification cannot outlive its
+    // window even if nothing ever comes back to spend it.
+    await this.redis.set(
+      verifiedKey(identifier, purpose),
+      '1',
+      'EX',
+      Math.max(1, Math.ceil(ttlSeconds)),
+    );
+  }
+
+  async consumeVerified(
+    identifier: string,
+    purpose: OtpPurpose,
+  ): Promise<boolean> {
+    // DEL reports how many keys it removed, so two concurrent signups on one
+    // verified email cannot both succeed.
+    const removed = await this.redis.del(verifiedKey(identifier, purpose));
+    return removed === 1;
+  }
+
+  async isVerified(identifier: string, purpose: OtpPurpose): Promise<boolean> {
+    const found = await this.redis.exists(verifiedKey(identifier, purpose));
+    return found === 1;
+  }
+
   async clear(phone: string, purpose: OtpPurpose): Promise<void> {
     await this.redis.del(
       challengeKey(phone, purpose),
       cooldownKey(phone, purpose),
       sendsKey(phone, purpose),
+      verifiedKey(phone, purpose),
     );
   }
 

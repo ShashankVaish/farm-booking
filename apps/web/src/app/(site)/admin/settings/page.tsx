@@ -170,6 +170,25 @@ export default function AdminSettingsPage() {
                 <dd>{data.paymentProvider}</dd>
                 <dt className="t-caption">Razorpay</dt>
                 <dd>{data.razorpayConfigured ? 'Key configured on server' : 'Not configured'}</dd>
+                <dt className="t-caption">SMS provider</dt>
+                <dd>
+                  {data.smsProvider}
+                  {data.smsConfigured ? '' : ' — codes are only logged, not sent'}
+                </dd>
+                {/*
+                  A mail transport that logs instead of sending looks identical
+                  to a working one from the outside, which is how OTP delivery
+                  stayed broken unnoticed. Say it plainly here.
+                */}
+                <dt className="t-caption">Email</dt>
+                <dd>
+                  {data.mailProvider}
+                  {data.mailConfigured
+                    ? data.mailFrom
+                      ? ` — sending as ${data.mailFrom}`
+                      : ''
+                    : ' — emails are only logged, not sent'}
+                </dd>
               </dl>
             </section>
           </>

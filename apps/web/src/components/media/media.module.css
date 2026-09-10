@@ -19,26 +19,56 @@
   display: flex;
   align-items: flex-end;
   padding: var(--space-4);
-  background: var(--color-surface);
+  background: linear-gradient(155deg, var(--color-surface), var(--color-sunken));
 }
 
+/* Tones stand in for a missing photo. They are muted washes, not brand
+   fills: a full-bleed coral panel behind every image-less listing made the
+   grid look like an error state. Each keeps text at or above 4.5:1. */
 .tonePool {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: linear-gradient(155deg, #16242e, var(--color-sunken));
+  color: var(--color-text-secondary);
 }
 
 .toneLawn {
-  background: var(--color-primary-hover);
-  color: var(--color-on-primary);
+  background: linear-gradient(155deg, #16261f, var(--color-sunken));
+  color: var(--color-text-secondary);
 }
 
 .toneNight {
-  background: var(--color-surface-elevated);
-  color: var(--color-text-primary);
+  background: linear-gradient(155deg, var(--color-surface-elevated), var(--color-sunken));
+  color: var(--color-text-secondary);
+}
+
+/* Declared after the tones so it wins over them: a missing file is a state,
+   not a mood, and it should never inherit a decorative wash. */
+.broken {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0 10px,
+      color-mix(in srgb, var(--color-border-subtle) 55%, transparent) 10px 11px
+    ),
+    linear-gradient(155deg, var(--color-surface), var(--color-sunken));
+  color: var(--color-text-muted);
 }
 
 .caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 100%;
   font-size: var(--fs-caption);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  /* Upload filenames are long and have no spaces to break on. */
+  overflow-wrap: anywhere;
+}
+
+.captionIcon {
+  flex: 0 0 auto;
+  opacity: 0.75;
 }

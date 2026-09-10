@@ -34,6 +34,7 @@ import {
   PlatformSettingsService,
   type EditableSettingKey,
 } from '../settings/platform-settings.service';
+import { MailService } from '../mail/mail.service';
 import { CouponsService } from '../coupons/coupons.service';
 import { CreateCouponDto } from '../coupons/dto/create-coupon.dto';
 import { UpdateCouponDto } from '../coupons/dto/update-coupon.dto';
@@ -85,6 +86,7 @@ export class AdminService {
     private readonly config: ConfigService,
     private readonly bookingsService: BookingsService,
     private readonly platformSettings: PlatformSettingsService,
+    private readonly mail: MailService,
   ) {}
 
   async overview() {
@@ -224,26 +226,38 @@ export class AdminService {
     return {
       platformFeeBps: feeBps,
       platformFeePercent: feeBps / 100,
-      bookingExpireMinutes: this.platformSettings.getNumber('BOOKING_EXPIRE_MINUTES'),
+      bookingExpireMinutes: this.platformSettings.getNumber(
+        'BOOKING_EXPIRE_MINUTES',
+      ),
       paymentProvider: 'RAZORPAY',
       razorpayConfigured: Boolean(razorpayKey),
-      smsProvider: (this.config.get<string>('SMS_PROVIDER') ?? 'console').toLowerCase(),
+      smsProvider: (
+        this.config.get<string>('SMS_PROVIDER') ?? 'console'
+      ).toLowerCase(),
       smsConfigured: this.smsConfigured(),
+      // Reported the same way as SMS: a mail transport that quietly logs
+      // instead of sending is exactly the failure that hid the OTP problem, so
+      // it has to be visible in the panel rather than only in the boot log.
+      mailProvider: this.mail.providerName,
+      mailConfigured: this.mail.providerName !== 'console',
+      mailFrom: this.config.get<string>('MAIL_FROM_ADDRESS') ?? null,
       environment: this.config.get<string>('NODE_ENV'),
     };
   }
 
   /** True when the selected SMS gateway has the credentials it needs. */
   private smsConfigured(): boolean {
-    const provider = (this.config.get<string>('SMS_PROVIDER') ?? 'console').toLowerCase();
+    const provider = (
+      this.config.get<string>('SMS_PROVIDER') ?? 'console'
+    ).toLowerCase();
     if (provider === 'renflair') {
       return Boolean(this.config.get<string>('RENFLAIR_API_KEY'));
     }
     if (provider === 'twilio') {
       return Boolean(
         this.config.get<string>('TWILIO_ACCOUNT_SID') &&
-          this.config.get<string>('TWILIO_AUTH_TOKEN') &&
-          this.config.get<string>('TWILIO_FROM_NUMBER'),
+        this.config.get<string>('TWILIO_AUTH_TOKEN') &&
+        this.config.get<string>('TWILIO_FROM_NUMBER'),
       );
     }
     // The console provider needs nothing, but it never actually sends.
@@ -362,7 +376,11 @@ export class AdminService {
           },
         },
         images: { orderBy: { sortOrder: 'asc' } },
-        amenities: { include: { amenity: { select: { id: true, name: true, slug: true } } } },
+        amenities: {
+          include: {
+            amenity: { select: { id: true, name: true, slug: true } },
+          },
+        },
         documents: true,
         _count: { select: { bookings: true, reviews: true } },
       },
@@ -441,7 +459,9 @@ export class AdminService {
       })),
       amenities: property.amenities
         .map((row) => row.amenity)
-        .filter((amenity): amenity is NonNullable<typeof amenity> => Boolean(amenity)),
+        .filter((amenity): amenity is NonNullable<typeof amenity> =>
+          Boolean(amenity),
+        ),
       documents: property.documents.map((document) => ({
         id: document.id,
         name: document.name,
@@ -475,12 +495,7 @@ export class AdminService {
   }
 
   rejectProperty(id: string, actorId: string, reason: string) {
-    return this.setPropertyStatus(
-      id,
-      PropertyStatus.REJECTED,
-      actorId,
-      reason,
-    );
+    return this.setPropertyStatus(id, PropertyStatus.REJECTED, actorId, reason);
   }
 
   requestPropertyChanges(id: string, actorId: string, reason: string) {
@@ -502,7 +517,13 @@ export class AdminService {
   }
 
   restoreProperty(id: string, actorId: string) {
-    return this.setPropertyStatus(id, PropertyStatus.APPROVED, actorId, undefined, true);
+    return this.setPropertyStatus(
+      id,
+      PropertyStatus.APPROVED,
+      actorId,
+      undefined,
+      true,
+    );
   }
 
   async setPropertyStatus(
@@ -605,9 +626,15 @@ export class AdminService {
       ...(query.q
         ? {
             OR: [
-              { customer: { email: { contains: query.q, mode: 'insensitive' } } },
-              { customer: { name: { contains: query.q, mode: 'insensitive' } } },
-              { property: { title: { contains: query.q, mode: 'insensitive' } } },
+              {
+                customer: { email: { contains: query.q, mode: 'insensitive' } },
+              },
+              {
+                customer: { name: { contains: query.q, mode: 'insensitive' } },
+              },
+              {
+                property: { title: { contains: query.q, mode: 'insensitive' } },
+              },
             ],
           }
         : {}),
@@ -1157,15 +1184,16 @@ export class AdminService {
     });
     const raw =
       result && typeof result === 'object' && 'payment' in result
-        ? (result as { payment: Parameters<typeof presentAdminPayment>[0] | null })
-            .payment
+        ? (
+            result as {
+              payment: Parameters<typeof presentAdminPayment>[0] | null;
+            }
+          ).payment
         : null;
     return {
       payment: raw ? presentAdminPayment(raw) : null,
       reconciled:
-        typeof result === 'object' &&
-        result !== null &&
-        'reconciled' in result
+        typeof result === 'object' && result !== null && 'reconciled' in result
           ? Boolean((result as { reconciled?: boolean }).reconciled)
           : Boolean(raw),
     };
@@ -1175,11 +1203,7 @@ export class AdminService {
     return this.paymentsService.expireAbandoned();
   }
 
-  async updateTicket(
-    id: string,
-    status: SupportTicketStatus,
-    actorId: string,
-  ) {
+  async updateTicket(id: string, status: SupportTicketStatus, actorId: string) {
     const ticket = await this.prisma.supportTicket.findUnique({
       where: { id },
     });
@@ -1327,7 +1351,8 @@ export class AdminService {
     if (!allowed[next]?.includes(current)) {
       throw new BadRequestException({
         errorCode: ErrorCodes.INVALID_STATUS_TRANSITION,
-        message: 'Property cannot change to that status from its current state.',
+        message:
+          'Property cannot change to that status from its current state.',
       });
     }
   }

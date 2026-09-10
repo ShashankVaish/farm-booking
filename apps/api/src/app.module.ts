@@ -17,6 +17,7 @@ import { CouponsModule } from './modules/coupons/coupons.module';
 import { HealthModule } from './modules/health/health.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { MailModule } from './modules/mail/mail.module';
 import { MediaModule } from './modules/media/media.module';
 import { OwnerModule } from './modules/owner/owner.module';
 import { PaymentsModule } from './modules/payments/payments.module';
@@ -88,6 +89,7 @@ import { PrismaModule } from './prisma/prisma.module';
     }),
     PrismaModule,
     SettingsModule,
+    MailModule,
     HealthModule,
     AuthModule,
     LocationsModule,

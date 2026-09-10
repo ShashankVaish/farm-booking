@@ -1,0 +1,393 @@
+/* ===========================================================================
+   Property detail page — header, section rhythm and content blocks.
+
+   Layout classes for the two-column grid still come from hospitality.module.css
+   so the booking card keeps its sticky behaviour; this file covers the parts
+   that were unstyled prose.
+   =========================================================================== */
+
+.page {
+  padding: var(--space-6) 0 var(--space-16);
+}
+
+/* --- Header --------------------------------------------------------------- */
+
+.header {
+  display: grid;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+@media (min-width: 768px) {
+  .header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-6);
+  }
+}
+
+.headerMain {
+  min-width: 0;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* A neutral sibling to the type chip. Coral stays on the type so the row has
+   one accent rather than four competing ones. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-primary-border);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-text);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+.title {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  letter-spacing: var(--ls-h1);
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.headerMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+}
+
+.place {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* --- Sections ------------------------------------------------------------- */
+
+.section + .section {
+  margin-top: var(--space-10);
+  padding-top: var(--space-10);
+  border-top: 1px solid var(--color-border);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  letter-spacing: var(--ls-h3);
+  font-weight: var(--font-weight-medium);
+}
+
+.lead {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.prose {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+  line-height: var(--lh-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* --- Key stats ------------------------------------------------------------ */
+
+/* Capacity is the first thing a guest checks, so it gets its own band above
+   the description rather than being buried as inline text. Two columns on a
+   phone keeps every card wide enough for the number and its unit on one line. */
+.highlights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+@media (min-width: 640px) {
+  .highlights {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.highlight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.highlightIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-text);
+}
+
+.highlightText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.highlightValue {
+  font-family: var(--font-display);
+  font-size: var(--fs-h4);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.highlightLabel {
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+/* --- Amenities ------------------------------------------------------------ */
+
+.amenities {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+@media (min-width: 520px) {
+  .amenities {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 1400px) {
+  .amenities {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* --- Good to know --------------------------------------------------------- */
+
+.facts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+@media (min-width: 480px) {
+  .facts {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 1100px) {
+  .facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.fact {
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.factLabel {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+.factValue {
+  margin: 0.2rem 0 0;
+  font-size: var(--fs-body-small);
+  overflow-wrap: anywhere;
+}
+
+/* --- Map ------------------------------------------------------------------ */
+
+.map {
+  width: 100%;
+  height: 20rem;
+  margin-top: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.mapNote {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+}
+
+/* --- Reviews -------------------------------------------------------------- */
+
+.reviews {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.review {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.reviewWho {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-body-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.reviewBody {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+  line-height: var(--lh-body);
+  overflow-wrap: anywhere;
+}
+
+.hostReply {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border-left: 2px solid var(--color-primary);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+}
+
+/* --- Not-bookable notice -------------------------------------------------- */
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 34%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-tint);
+  color: var(--color-warning);
+  font-size: var(--fs-body-small);
+}
+
+/* --- Booking slots -------------------------------------------------------- */
+
+.slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .slots {
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  }
+}
+
+.slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.slotIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-text);
+}
+
+.slotText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.slotLabel {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--fs-body-small);
+}
+
+.slotDetail {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-caption);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}

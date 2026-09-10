@@ -3,15 +3,23 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AmenityItem, PriceDisplay, Rating } from '@/components/hospitality/atoms';
-import { ImageGalleryFoundation } from '@/components/hospitality/foundations';
+import { PropertyGallery } from '@/components/hospitality/property-gallery';
 import { PropertyCard } from '@/components/hospitality/property-card';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Input, Select, Textarea } from '@/components/ui/forms';
+import { TimeField } from '@/components/ui/time-field';
+import { formatSlotRange } from '@/lib/time/clock';
 import { ErrorState, Spinner } from '@/components/ui/feedback';
 import { AvailabilityCalendar } from '@/components/host/availability-calendar';
 import { ApiError } from '@/lib/api/errors';
 import { hostApi, type AmenityRecord, type HostKycStatus } from '@/lib/host/host-api';
 import { validateListingLocation } from '@/lib/host/listing-location';
+import {
+  policyOptions,
+  selectedPolicy,
+  PET_OPTIONS,
+  SMOKING_OPTIONS,
+} from '@/lib/host/listing-policies';
 import { fromApiProperty, toPropertyPayload } from '@/lib/host/listing-payload';
 import { emptyListing, WIZARD_STEPS, type ListingDraft } from '@/lib/host/listing-types';
 import { uploadMedia, resolveMedia } from '@/lib/media/provider';
@@ -143,7 +151,9 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
   }
 
   async function submit() {
-    const all = [0, 1, 2, 4, 5, 10].flatMap((index) => Object.values(validateStep(index, draft)));
+    // Step 6 carries the booking-slot rule, so it has to be re-checked here:
+    // a host can reach Submit without ever opening it.
+    const all = [0, 1, 2, 4, 5, 6, 10].flatMap((index) => Object.values(validateStep(index, draft)));
     if (all.length > 0) {
       setError(all[0]);
       return;
@@ -433,14 +443,79 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
 
       {step === 6 ? (
         <div className={styles.panel}>
-          <div className={styles.twoCol}>
-            <Input id="checkin" label="Check-in time" type="time" value={draft.meta.checkIn} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, checkIn: e.target.value } })} />
-            <Input id="checkout" label="Check-out time" type="time" value={draft.meta.checkOut} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, checkOut: e.target.value } })} />
-          </div>
+          <fieldset className={styles.slotGroup}>
+            <legend className="t-h4">When can this place be booked?</legend>
+            <p className="t-body-small" style={{ margin: '0 0 var(--space-4)' }}>
+              Pick every sitting you let this place out for. Guests see these on your listing.
+            </p>
+
+            <SlotOption
+              id="slot-day"
+              label="Day party"
+              description="A daytime sitting that ends the same evening."
+              checked={draft.meta.daySlot}
+              onToggle={(daySlot) => setDraft({ ...draft, meta: { ...draft.meta, daySlot } })}
+              start={draft.meta.dayStart}
+              end={draft.meta.dayEnd}
+              onStart={(dayStart) => setDraft({ ...draft, meta: { ...draft.meta, dayStart } })}
+              onEnd={(dayEnd) => setDraft({ ...draft, meta: { ...draft.meta, dayEnd } })}
+            />
+
+            <SlotOption
+              id="slot-night"
+              label="Night party"
+              description="An evening sitting, usually running past midnight."
+              checked={draft.meta.nightSlot}
+              onToggle={(nightSlot) => setDraft({ ...draft, meta: { ...draft.meta, nightSlot } })}
+              start={draft.meta.nightStart}
+              end={draft.meta.nightEnd}
+              onStart={(nightStart) => setDraft({ ...draft, meta: { ...draft.meta, nightStart } })}
+              onEnd={(nightEnd) => setDraft({ ...draft, meta: { ...draft.meta, nightEnd } })}
+            />
+
+            <div className={styles.slotBlock}>
+              <Checkbox
+                id="slot-overnight"
+                label="Overnight stay"
+                checked={draft.meta.overnight}
+                onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, overnight: e.target.checked } })}
+              />
+              <p className={styles.slotHint}>Guests stay the night and check out the next day.</p>
+              {draft.meta.overnight ? (
+                <div className={styles.twoCol}>
+                  <TimeField
+                    id="checkin"
+                    label="Check-in time"
+                    value={draft.meta.checkIn}
+                    onChange={(checkIn) => setDraft({ ...draft, meta: { ...draft.meta, checkIn } })}
+                  />
+                  <TimeField
+                    id="checkout"
+                    label="Check-out time"
+                    value={draft.meta.checkOut}
+                    onChange={(checkOut) => setDraft({ ...draft, meta: { ...draft.meta, checkOut } })}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+          </fieldset>
           <Textarea id="cancel" label="Cancellation policy" rows={4} value={draft.cancellationPolicy} onChange={(e) => setDraft({ ...draft, cancellationPolicy: e.target.value })} />
           <Textarea id="party" label="Party rules" rows={4} value={draft.partyRules} onChange={(e) => setDraft({ ...draft, partyRules: e.target.value })} />
-          <Input id="smoking" label="Smoking" value={draft.meta.smoking} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, smoking: e.target.value } })} />
-          <Input id="pets" label="Pets" value={draft.meta.pets} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, pets: e.target.value } })} />
+          <PolicySelect
+            id="smoking"
+            label="Smoking"
+            options={SMOKING_OPTIONS}
+            value={draft.meta.smoking}
+            onChange={(smoking) => setDraft({ ...draft, meta: { ...draft.meta, smoking } })}
+          />
+          <PolicySelect
+            id="pets"
+            label="Pets"
+            options={PET_OPTIONS}
+            value={draft.meta.pets}
+            onChange={(pets) => setDraft({ ...draft, meta: { ...draft.meta, pets } })}
+          />
           <Input id="noise" label="Noise rules" value={draft.meta.noise} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, noise: e.target.value } })} />
           <Textarea id="house" label="House rules" rows={5} value={draft.houseRules} onChange={(e) => setDraft({ ...draft, houseRules: e.target.value })} />
           <Checkbox id="party-flag" label="This stay is party-friendly" checked={draft.isPartyFriendly} onChange={(e) => setDraft({ ...draft, isPartyFriendly: e.target.checked })} />
@@ -476,7 +551,8 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
               {draft.location.city}, {draft.location.state}
             </p>
             <Rating value={0} count={0} />
-            <ImageGalleryFoundation
+            <PropertyGallery
+              title={draft.title || 'Your listing'}
               images={
                 draft.images.length
                   ? draft.images.map((image) => ({ asset: { src: image.url, alt: image.alt }, alt: image.alt }))
@@ -576,10 +652,108 @@ function validateStep(step: number, draft: ListingDraft): Record<string, string>
     if (draft.meta.minStay < 1) return { minStay: 'Minimum stay must be at least 1 night.' };
     return {};
   }
+  if (step === 6) {
+    // A listing with every sitting switched off cannot be booked at all, which
+    // is never what a host means to publish.
+    if (!draft.meta.daySlot && !draft.meta.nightSlot && !draft.meta.overnight) {
+      return { slots: 'Choose at least one — day party, night party or overnight stay.' };
+    }
+    return {};
+  }
   if (step === 10 && draft.images.length < MIN_PHOTOS) {
     return { photos: `Add at least ${MIN_PHOTOS} photos before submitting.` };
   }
   return {};
+}
+
+/**
+ * A house policy chosen from a fixed list rather than typed.
+ *
+ * Any stored value that is not one of the options stays in the list and stays
+ * selected, so opening an old listing cannot quietly rewrite a policy its host
+ * never touched.
+ */
+function PolicySelect({
+  id,
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  options: readonly string[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const choices = policyOptions(options, value);
+  const selected = selectedPolicy(options, value);
+
+  return (
+    <Select
+      id={id}
+      label={label}
+      value={selected}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {choices.map((choice) => (
+        <option key={choice} value={choice}>
+          {choice}
+        </option>
+      ))}
+    </Select>
+  );
+}
+
+/**
+ * One bookable sitting: a switch, and the hours it runs once switched on.
+ *
+ * The times stay hidden until the slot is enabled — a host who does not run day
+ * parties should not have to scroll past two controls that mean nothing to them.
+ * The live summary underneath is what catches a night slot entered backwards,
+ * since "7:00 pm – 6:00 am · 11 hrs" reads wrong immediately if it says 1 hr.
+ */
+function SlotOption({
+  id,
+  label,
+  description,
+  checked,
+  onToggle,
+  start,
+  end,
+  onStart,
+  onEnd,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  checked: boolean;
+  onToggle: (value: boolean) => void;
+  start: string;
+  end: string;
+  onStart: (value: string) => void;
+  onEnd: (value: string) => void;
+}) {
+  return (
+    <div className={styles.slotBlock}>
+      <Checkbox
+        id={id}
+        label={label}
+        checked={checked}
+        onChange={(event) => onToggle(event.target.checked)}
+      />
+      <p className={styles.slotHint}>{description}</p>
+      {checked ? (
+        <>
+          <div className={styles.twoCol}>
+            <TimeField id={`${id}-start`} label="Starts" value={start} onChange={onStart} />
+            <TimeField id={`${id}-end`} label="Ends" value={end} onChange={onEnd} />
+          </div>
+          <p className={styles.slotSummary}>{formatSlotRange(start, end)}</p>
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 export { AvailabilityCalendar as AvailabilityEditor };

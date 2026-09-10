@@ -4,6 +4,7 @@ import {
   challengeKey,
   cooldownKey,
   sendsKey,
+  verifiedKey,
   type OtpChallengeRecord,
   type OtpStore,
 } from './otp-store';
@@ -23,8 +24,14 @@ export class MemoryOtpStore implements OtpStore {
   private readonly challenges = new Map<string, Expiring<OtpChallengeRecord>>();
   private readonly cooldowns = new Map<string, number>();
   private readonly sends = new Map<string, number[]>();
+  /** identifier key -> epoch ms the marker lapses. */
+  private readonly verified = new Map<string, number>();
 
-  private live<T>(map: Map<string, Expiring<T>>, key: string, now: number): T | null {
+  private live<T>(
+    map: Map<string, Expiring<T>>,
+    key: string,
+    now: number,
+  ): T | null {
     const entry = map.get(key);
     if (!entry) return null;
     if (entry.expiresAt <= now) {
@@ -51,7 +58,11 @@ export class MemoryOtpStore implements OtpStore {
     phone: string,
     purpose: OtpPurpose,
   ): Promise<OtpChallengeRecord | null> {
-    const found = this.live(this.challenges, challengeKey(phone, purpose), Date.now());
+    const found = this.live(
+      this.challenges,
+      challengeKey(phone, purpose),
+      Date.now(),
+    );
     return Promise.resolve(found ? { ...found } : null);
   }
 
@@ -64,7 +75,9 @@ export class MemoryOtpStore implements OtpStore {
   }
 
   consumeChallenge(phone: string, purpose: OtpPurpose): Promise<boolean> {
-    return Promise.resolve(this.challenges.delete(challengeKey(phone, purpose)));
+    return Promise.resolve(
+      this.challenges.delete(challengeKey(phone, purpose)),
+    );
   }
 
   isCoolingDown(phone: string, purpose: OtpPurpose): Promise<boolean> {
@@ -83,7 +96,10 @@ export class MemoryOtpStore implements OtpStore {
     purpose: OtpPurpose,
     seconds: number,
   ): Promise<void> {
-    this.cooldowns.set(cooldownKey(phone, purpose), Date.now() + seconds * 1000);
+    this.cooldowns.set(
+      cooldownKey(phone, purpose),
+      Date.now() + seconds * 1000,
+    );
     return Promise.resolve();
   }
 
@@ -114,10 +130,42 @@ export class MemoryOtpStore implements OtpStore {
     return Promise.resolve(kept.length);
   }
 
+  markVerified(
+    identifier: string,
+    purpose: OtpPurpose,
+    ttlSeconds: number,
+  ): Promise<void> {
+    this.verified.set(
+      verifiedKey(identifier, purpose),
+      Date.now() + ttlSeconds * 1000,
+    );
+    return Promise.resolve();
+  }
+
+  consumeVerified(identifier: string, purpose: OtpPurpose): Promise<boolean> {
+    const key = verifiedKey(identifier, purpose);
+    const until = this.verified.get(key);
+    this.verified.delete(key);
+    // An expired marker is deleted either way, but only a live one counts as
+    // consumed — otherwise a stale entry would still let a signup through.
+    return Promise.resolve(until !== undefined && until > Date.now());
+  }
+
+  isVerified(identifier: string, purpose: OtpPurpose): Promise<boolean> {
+    const until = this.verified.get(verifiedKey(identifier, purpose));
+    if (until === undefined) return Promise.resolve(false);
+    if (until <= Date.now()) {
+      this.verified.delete(verifiedKey(identifier, purpose));
+      return Promise.resolve(false);
+    }
+    return Promise.resolve(true);
+  }
+
   clear(phone: string, purpose: OtpPurpose): Promise<void> {
     this.challenges.delete(challengeKey(phone, purpose));
     this.cooldowns.delete(cooldownKey(phone, purpose));
     this.sends.delete(sendsKey(phone, purpose));
+    this.verified.delete(verifiedKey(phone, purpose));
     return Promise.resolve();
   }
 
@@ -126,5 +174,6 @@ export class MemoryOtpStore implements OtpStore {
     this.challenges.clear();
     this.cooldowns.clear();
     this.sends.clear();
+    this.verified.clear();
   }
 }

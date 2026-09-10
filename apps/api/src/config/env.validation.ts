@@ -140,6 +140,44 @@ export class EnvironmentVariables {
   @IsString()
   RENFLAIR_API_KEY?: string;
 
+  /**
+   * Email. All optional: with no MAIL_PROVIDER the console transport is used,
+   * which logs messages instead of sending them. The transport itself checks
+   * that host, user and password are present before choosing SMTP, so a half
+   * filled block degrades to logging rather than failing at send time.
+   */
+  @IsOptional()
+  @IsString()
+  MAIL_PROVIDER?: string;
+
+  @IsOptional()
+  @IsString()
+  SMTP_HOST?: string;
+
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === undefined || value === '' ? undefined : Number(value),
+  )
+  @IsInt()
+  @Min(1)
+  SMTP_PORT?: number;
+
+  @IsOptional()
+  @IsString()
+  SMTP_USER?: string;
+
+  @IsOptional()
+  @IsString()
+  SMTP_PASS?: string;
+
+  @IsOptional()
+  @IsString()
+  MAIL_FROM_NAME?: string;
+
+  @IsOptional()
+  @IsString()
+  MAIL_FROM_ADDRESS?: string;
+
   @IsOptional()
   @IsString()
   OTP_PEPPER?: string;
