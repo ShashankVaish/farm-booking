@@ -15,6 +15,10 @@ export function SiteFooter() {
           <Link href="/map">Map view</Link>
           <Link href="/host">List your property</Link>
           <Link href="/auth/login">Sign in</Link>
+          {/* Guests and hosts agree to different terms, so both are linked
+              rather than a single ambiguous "Terms". */}
+          <Link href="/terms/guest">Guest terms</Link>
+          <Link href="/terms/host">Host terms</Link>
         </nav>
         <p className="t-caption">Private farmhouses and villas across India. Prices in INR.</p>
       </div>

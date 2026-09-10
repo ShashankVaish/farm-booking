@@ -391,3 +391,8 @@
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
+
+.mapLink {
+  color: var(--color-primary-text);
+  white-space: nowrap;
+}

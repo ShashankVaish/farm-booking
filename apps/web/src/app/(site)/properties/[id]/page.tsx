@@ -9,6 +9,7 @@ import { coverImage, amenityName } from '@/lib/properties/map-property';
 import { photoAlt } from '@/lib/properties/photo-alt';
 import { decodeListingMeta, listingSlots } from '@/lib/host/listing-meta';
 import { formatSlotRange, formatTime12 } from '@/lib/time/clock';
+import { googleMapsEmbedUrl, googleMapsPlaceUrl, hasGoogleMapsKey } from '@/lib/maps/google-maps';
 import { PROPERTY_TYPE_LABEL, type ApiProperty } from '@/lib/properties/types';
 import { isUuid } from '@/lib/ids';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
@@ -196,11 +197,11 @@ export default async function PropertyPage({ params }: Props) {
   ].filter((value): value is string => Boolean(value));
   const lat = Number(property.latitude);
   const lng = Number(property.longitude);
-  const mapPad = 0.07;
-  const mapSrc =
-    Number.isFinite(lat) && Number.isFinite(lng)
-      ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - mapPad}%2C${lat - mapPad * 0.75}%2C${lng + mapPad}%2C${lat + mapPad * 0.75}&layer=mapnik`
-      : null;
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+  // Embed API rather than a JavaScript map: this section only has to show
+  // roughly where the place is, and an iframe costs no bundle on a server page.
+  const mapSrc = hasCoords ? googleMapsEmbedUrl({ latitude: lat, longitude: lng }) : null;
+  const mapLink = hasCoords ? googleMapsPlaceUrl(lat, lng) : null;
   const siteUrl = getSiteUrl();
 
   return (
@@ -356,17 +357,30 @@ export default async function PropertyPage({ params }: Props) {
             <p className={page.prose}>{locationName || 'India'}</p>
             {mapSrc ? (
               <iframe
-                title={`Approximate map of ${locationName || property.title}`}
+                title={`Map of ${locationName || property.title}`}
                 className={page.map}
                 src={mapSrc}
                 loading="lazy"
+                allowFullScreen
                 referrerPolicy="no-referrer-when-downgrade"
               />
             ) : (
-              <p className={page.prose}>Map coming soon for this stay.</p>
+              <p className={page.prose}>
+                {hasCoords && !hasGoogleMapsKey()
+                  ? 'The map is unavailable because no Google Maps key is configured.'
+                  : 'Map coming soon for this stay.'}
+              </p>
             )}
             <p className={page.mapNote}>
               Approximate area shown. The exact address stays private until a booking is confirmed.
+              {mapLink ? (
+                <>
+                  {' '}
+                  <a className={page.mapLink} href={mapLink} target="_blank" rel="noreferrer">
+                    Open in Google Maps
+                  </a>
+                </>
+              ) : null}
             </p>
           </section>
 

@@ -563,6 +563,18 @@ export function RegisterForm() {
           ) : null}
 
           {/*
+            The terms differ by role, so the link follows the account type being
+            created rather than pointing at a single combined document.
+          */}
+          <p className={styles.help}>
+            By creating an account you agree to the{' '}
+            <Link href={asHost ? '/terms/host' : '/terms/guest'}>
+              {asHost ? 'Host Terms & Conditions' : 'Guest Terms & Conditions'}
+            </Link>
+            .
+          </p>
+
+          {/*
             Signup deliberately does not say whether an address is already
             registered, so someone who has an account reaches this step and
             waits for a code that is not coming. They are emailed about it, but
