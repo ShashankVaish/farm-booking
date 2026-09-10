@@ -93,8 +93,12 @@
   --color-accent-soft: var(--color-primary-tint);
 
   /* --- Typography ----------------------------------------------------------
-     Playfair Display carries the wordmark, so it carries headings; Manrope
-     handles UI and body, where a high-contrast serif would tire the eye. */
+     Fraunces carries the wordmark, so it carries headings: a warm, soft serif
+     that reads boutique rather than formal. Inter handles UI and body, where a
+     serif would tire the eye and where its numerals matter — prices, dates and
+     guest counts sit in tables and next to each other, and Inter's tabular
+     figures line up. Both are loaded through next/font, so the families arrive
+     as CSS variables and these stacks are what everything else reads. */
   --font-sans: var(--font-sans-family), 'Segoe UI', system-ui, sans-serif;
   --font-display: var(--font-display-family), Georgia, 'Times New Roman', serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
