@@ -12,10 +12,19 @@ async function bootstrap(): Promise<void> {
   app.useLogger(app.get(Logger));
   configureApp(app);
 
+  /*
+    Close Prisma and Redis on SIGTERM rather than being killed mid-connection.
+    Docker sends SIGTERM on every `restart`, `stop` and redeploy, so without
+    this each one leaks a Postgres session and drops in-flight requests.
+  */
+  app.enableShutdownHooks();
+
   const config = app.get(ConfigService);
   const port = config.get<number>('PORT', 3001);
 
-  await app.listen(port);
+  // Bound explicitly to all interfaces: inside a container the default host can
+  // resolve to loopback, which makes the port unreachable from outside it.
+  await app.listen(port, '0.0.0.0');
 }
 
 void bootstrap();

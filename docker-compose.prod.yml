@@ -1,0 +1,93 @@
+# =============================================================================
+# Production stack for the Baagly API on a single Ubuntu server.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Differences from the development compose file that matter:
+#
+#   * Postgres and Redis are NOT published to the host. They are reachable only
+#     on the internal Docker network, so an open port on the server cannot be
+#     used to reach the database directly.
+#   * The API listens on 127.0.0.1 only. Nginx terminates TLS and proxies to it,
+#     so the container itself is never exposed to the internet.
+#   * Uploads live on a named volume, which survives rebuilds and redeploys.
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: baagly-postgres
+    restart: always
+    # Read from the file rather than interpolated with ${...}. Compose resolves
+    # ${...} against a `.env` in this directory, which in this repo holds the
+    # DEVELOPMENT credentials — so interpolating here silently pointed the API
+    # at the wrong username and password, and it hung waiting for a database
+    # that was rejecting it.
+    env_file:
+      - .env.production
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # $$ escapes the dollar so Compose passes it through; the variable is then
+      # expanded by the shell inside the container, where env_file has set it.
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - baagly
+
+  redis:
+    image: redis:7-alpine
+    container_name: baagly-redis
+    restart: always
+    # OTP codes are short-lived by definition, so nothing is persisted: a
+    # restart should lose in-flight codes rather than resurrect them.
+    command: >
+      redis-server
+      --save ""
+      --appendonly no
+      --maxmemory 256mb
+      --maxmemory-policy volatile-ttl
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - baagly
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: baagly-api
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      # DATABASE_URL and REDIS_URL are set in .env.production, pointing at the
+      # `postgres` and `redis` service names on this network. They are not built
+      # here from ${...}, for the reason noted on the postgres service above.
+      NODE_ENV: production
+      PORT: 3001
+    ports:
+      # Bound to loopback: only Nginx on this machine can reach it.
+      - '127.0.0.1:3001:3001'
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - baagly
+
+volumes:
+  postgres_data:
+  uploads_data:
+
+networks:
+  baagly:
+    driver: bridge
