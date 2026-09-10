@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { DARK_MAP_STYLE, loadGoogleMaps } from '@/lib/maps/google-maps';
+import { useEffect, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import styles from './host.module.css';
 
 type Props = {
@@ -10,102 +11,51 @@ type Props = {
   onMove: (latitude: number, longitude: number) => void;
 };
 
-/**
- * The pin a host drags to place their property, on Google Maps.
- *
- * The marker is the source of truth for the saved coordinates, so its drag
- * handler rounds to seven decimals: the API rejects more than that, which is
- * the same constraint that broke "use current location" when the browser
- * handed back fourteen.
- */
 export function HostMap({ latitude, longitude, onMove }: Props) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const markerRef = useRef<google.maps.Marker | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const container = document.getElementById('host-listing-map');
+    if (!container || mapRef.current) return;
 
-    loadGoogleMaps()
-      .then((maps) => {
-        if (cancelled || !containerRef.current || mapRef.current) return;
+    const map = L.map(container).setView([latitude, longitude], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+    }).addTo(map);
+    window.setTimeout(() => map.invalidateSize(), 80);
 
-        const map = new maps.Map(containerRef.current, {
-          center: { lat: latitude, lng: longitude },
-          zoom: 15,
-          styles: DARK_MAP_STYLE,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-        });
+    const icon = L.icon({
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+    });
 
-        const marker = new maps.Marker({
-          position: { lat: latitude, lng: longitude },
-          map,
-          draggable: true,
-          title: 'Drag to the property',
-        });
+    const marker = L.marker([latitude, longitude], { draggable: true, icon }).addTo(map);
+    marker.on('dragend', () => {
+      const pos = marker.getLatLng();
+      onMoveRef.current(Number(pos.lat.toFixed(7)), Number(pos.lng.toFixed(7)));
+    });
 
-        marker.addListener('dragend', () => {
-          const position = marker.getPosition();
-          if (!position) return;
-          onMoveRef.current(
-            Number(position.lat().toFixed(7)),
-            Number(position.lng().toFixed(7)),
-          );
-        });
-
-        // Clicking the map is faster than dragging when the pin starts far away.
-        map.addListener('click', (event: google.maps.MapMouseEvent) => {
-          if (!event.latLng) return;
-          marker.setPosition(event.latLng);
-          onMoveRef.current(
-            Number(event.latLng.lat().toFixed(7)),
-            Number(event.latLng.lng().toFixed(7)),
-          );
-        });
-
-        mapRef.current = map;
-        markerRef.current = marker;
-      })
-      .catch((cause: Error) => {
-        if (!cancelled) setError(cause.message);
-      });
+    mapRef.current = map;
+    markerRef.current = marker;
 
     return () => {
-      cancelled = true;
-      markerRef.current = null;
+      map.remove();
       mapRef.current = null;
+      markerRef.current = null;
     };
-    // Runs once: later coordinate changes are applied by the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const position = { lat: latitude, lng: longitude };
-    markerRef.current?.setPosition(position);
-    mapRef.current?.panTo(position);
+    markerRef.current?.setLatLng([latitude, longitude]);
+    mapRef.current?.panTo([latitude, longitude]);
   }, [latitude, longitude]);
 
-  if (error) {
-    return (
-      <div className={styles.mapCanvas} role="status">
-        <p className={styles.mapError}>
-          {error} You can still search for the address above, or use your current location.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      ref={containerRef}
-      className={styles.mapCanvas}
-      role="application"
-      aria-label="Drag the pin to the property"
-    />
-  );
+  return <div id="host-listing-map" className={styles.mapCanvas} role="application" aria-label="Drag the pin to the property" />;
 }

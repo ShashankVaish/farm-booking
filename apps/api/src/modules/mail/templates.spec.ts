@@ -91,7 +91,11 @@ describe('shortRef', () => {
 });
 
 describe('signupOtpEmail', () => {
-  const rendered = signupOtpEmail({ code: '482913', ttlMinutes: 10, brandName: 'Baagly' });
+  const rendered = signupOtpEmail({
+    code: '482913',
+    ttlMinutes: 10,
+    brandName: 'Baagly',
+  });
 
   it('puts the code in the subject so it is readable from the inbox list', () => {
     expect(rendered.subject).toBe('482913 is your Baagly verification code');
@@ -105,7 +109,8 @@ describe('signupOtpEmail', () => {
   it('states the expiry and pluralises it', () => {
     expect(rendered.text).toContain('expires in 10 minutes');
     expect(
-      signupOtpEmail({ code: '111111', ttlMinutes: 1, brandName: 'Baagly' }).text,
+      signupOtpEmail({ code: '111111', ttlMinutes: 1, brandName: 'Baagly' })
+        .text,
     ).toContain('expires in 1 minute');
   });
 
@@ -139,7 +144,9 @@ describe('bookingConfirmedEmail', () => {
   });
 
   it('escapes a property title containing markup', () => {
-    const hostile = bookingConfirmedEmail(stay({ propertyTitle: '<img src=x onerror=1>' }));
+    const hostile = bookingConfirmedEmail(
+      stay({ propertyTitle: '<img src=x onerror=1>' }),
+    );
     expect(hostile.html).not.toContain('<img src=x');
     expect(hostile.html).toContain('&lt;img src=x');
   });
@@ -151,7 +158,10 @@ describe('bookingConfirmedEmail', () => {
 });
 
 describe('hostBookingConfirmedEmail', () => {
-  const rendered = hostBookingConfirmedEmail({ ...stay(), hostName: 'Vikram Shah' });
+  const rendered = hostBookingConfirmedEmail({
+    ...stay(),
+    hostName: 'Vikram Shah',
+  });
 
   it('greets the host, not the guest', () => {
     expect(rendered.text).toContain('Hi Vikram,');
@@ -196,23 +206,27 @@ describe('booking confirmation address block', () => {
   const located = {
     ...stay(),
     address: 'Plot 14, Sector 3, Greater Noida, Uttar Pradesh, 201310',
-    mapUrl: 'https://www.google.com/maps/search/?api=1&query=28.6259346%2C77.4369007',
-    directionsUrl: 'https://www.google.com/maps/dir/?api=1&destination=28.6259346%2C77.4369007',
+    mapUrl:
+      'https://www.openstreetmap.org/?mlat=28.6259346&mlon=77.4369007#map=16/28.6259346/77.4369007',
+    directionsUrl:
+      'https://www.openstreetmap.org/directions?to=28.6259346%2C77.4369007',
   };
 
   it('gives the guest the full address once the stay is paid for', () => {
     const rendered = bookingConfirmedEmail(located);
-    expect(rendered.text).toContain('Plot 14, Sector 3, Greater Noida, Uttar Pradesh, 201310');
+    expect(rendered.text).toContain(
+      'Plot 14, Sector 3, Greater Noida, Uttar Pradesh, 201310',
+    );
     expect(rendered.html).toContain('Plot 14, Sector 3');
   });
 
   it('links to Google Maps and to directions in both bodies', () => {
     const rendered = bookingConfirmedEmail(located);
     for (const body of [rendered.html, rendered.text]) {
-      expect(body).toContain('google.com/maps/search/');
-      expect(body).toContain('google.com/maps/dir/');
+      expect(body).toContain('openstreetmap.org/?mlat=');
+      expect(body).toContain('openstreetmap.org/directions');
     }
-    expect(rendered.html).toContain('View on Google Maps');
+    expect(rendered.html).toContain('View on the map');
     expect(rendered.html).toContain('Get directions');
   });
 
@@ -224,12 +238,18 @@ describe('booking confirmation address block', () => {
   });
 
   it('still renders a map link when the street address is unknown', () => {
-    const rendered = bookingConfirmedEmail({ ...stay(), mapUrl: located.mapUrl });
-    expect(rendered.html).toContain('View on Google Maps');
+    const rendered = bookingConfirmedEmail({
+      ...stay(),
+      mapUrl: located.mapUrl,
+    });
+    expect(rendered.html).toContain('View on the map');
   });
 
   it('escapes an address containing markup', () => {
-    const rendered = bookingConfirmedEmail({ ...located, address: '<b>Plot 14</b>' });
+    const rendered = bookingConfirmedEmail({
+      ...located,
+      address: '<b>Plot 14</b>',
+    });
     expect(rendered.html).not.toContain('<b>Plot 14</b>');
     expect(rendered.html).toContain('&lt;b&gt;Plot 14');
   });
@@ -240,12 +260,15 @@ describe('booking confirmation address block', () => {
     const pending = paymentPendingEmail({ ...located, holdMinutes: 30 });
     expect(pending.text).not.toContain('Plot 14');
     expect(pending.html).not.toContain('Plot 14');
-    expect(pending.html).not.toContain('google.com/maps');
+    expect(pending.html).not.toContain('openstreetmap.org');
   });
 
   it('keeps it out of the host copy too', () => {
     // The host knows their own address; repeating it is noise.
-    const host = hostBookingConfirmedEmail({ ...located, hostName: 'Vikram Shah' });
+    const host = hostBookingConfirmedEmail({
+      ...located,
+      hostName: 'Vikram Shah',
+    });
     expect(host.html).not.toContain('Plot 14');
   });
 });

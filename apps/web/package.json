@@ -12,6 +12,7 @@
     "audit:responsive": "node scripts/responsive-audit.mjs"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
     "next": "15.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0"
@@ -20,7 +21,7 @@
     "@eslint/eslintrc": "^3",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
-    "@types/google.maps": "^3.66.2",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

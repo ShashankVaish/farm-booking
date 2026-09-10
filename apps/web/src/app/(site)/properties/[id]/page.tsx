@@ -9,7 +9,6 @@ import { coverImage, amenityName } from '@/lib/properties/map-property';
 import { photoAlt } from '@/lib/properties/photo-alt';
 import { decodeListingMeta, listingSlots } from '@/lib/host/listing-meta';
 import { formatSlotRange, formatTime12 } from '@/lib/time/clock';
-import { googleMapsEmbedUrl, googleMapsPlaceUrl, hasGoogleMapsKey } from '@/lib/maps/google-maps';
 import { PROPERTY_TYPE_LABEL, type ApiProperty } from '@/lib/properties/types';
 import { isUuid } from '@/lib/ids';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
@@ -198,10 +197,18 @@ export default async function PropertyPage({ params }: Props) {
   const lat = Number(property.latitude);
   const lng = Number(property.longitude);
   const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
-  // Embed API rather than a JavaScript map: this section only has to show
-  // roughly where the place is, and an iframe costs no bundle on a server page.
-  const mapSrc = hasCoords ? googleMapsEmbedUrl({ latitude: lat, longitude: lng }) : null;
-  const mapLink = hasCoords ? googleMapsPlaceUrl(lat, lng) : null;
+  /*
+    OpenStreetMap embed rather than a JavaScript map: this section only has to
+    show roughly where the place is, an iframe costs no bundle on a server page,
+    and OSM needs no API key, no billing account and carries no watermark.
+  */
+  const mapPad = 0.07;
+  const mapSrc = hasCoords
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - mapPad}%2C${lat - mapPad * 0.75}%2C${lng + mapPad}%2C${lat + mapPad * 0.75}&layer=mapnik&marker=${lat}%2C${lng}`
+    : null;
+  const mapLink = hasCoords
+    ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`
+    : null;
   const siteUrl = getSiteUrl();
 
   return (
@@ -365,11 +372,7 @@ export default async function PropertyPage({ params }: Props) {
                 referrerPolicy="no-referrer-when-downgrade"
               />
             ) : (
-              <p className={page.prose}>
-                {hasCoords && !hasGoogleMapsKey()
-                  ? 'The map is unavailable because no Google Maps key is configured.'
-                  : 'Map coming soon for this stay.'}
-              </p>
+              <p className={page.prose}>Map coming soon for this stay.</p>
             )}
             <p className={page.mapNote}>
               Approximate area shown. The exact address stays private until a booking is confirmed.
@@ -377,7 +380,7 @@ export default async function PropertyPage({ params }: Props) {
                 <>
                   {' '}
                   <a className={page.mapLink} href={mapLink} target="_blank" rel="noreferrer">
-                    Open in Google Maps
+                    Open the larger map
                   </a>
                 </>
               ) : null}

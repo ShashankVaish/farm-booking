@@ -250,7 +250,7 @@ function addressBlock(data: BookingEmailData): string {
   const links: string[] = [];
   if (data.mapUrl) {
     links.push(
-      `<a href="${escapeHtml(data.mapUrl)}" style="color:${BRAND.coral};font-weight:600;text-decoration:underline;">View on Google Maps</a>`,
+      `<a href="${escapeHtml(data.mapUrl)}" style="color:${BRAND.coral};font-weight:600;text-decoration:underline;">View on the map</a>`,
     );
   }
   if (data.directionsUrl) {
@@ -297,7 +297,8 @@ export function bookingConfirmedEmail(data: BookingEmailData): RenderedEmail {
     addressLines.push('', 'Address:', `  ${(data.address ?? '').trim()}`);
   }
   if (data.mapUrl) addressLines.push(`  View on Google Maps: ${data.mapUrl}`);
-  if (data.directionsUrl) addressLines.push(`  Get directions: ${data.directionsUrl}`);
+  if (data.directionsUrl)
+    addressLines.push(`  Get directions: ${data.directionsUrl}`);
 
   return {
     subject: `Confirmed — ${data.propertyTitle}, ${formatStayDate(data.checkIn)}`,
