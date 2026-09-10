@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AmenityItem, PriceDisplay, Rating } from '@/components/hospitality/atoms';
-import { ImageGalleryFoundation } from '@/components/hospitality/foundations';
+import { PropertyGallery } from '@/components/hospitality/property-gallery';
 import { PropertyCard } from '@/components/hospitality/property-card';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Input, Select, Textarea } from '@/components/ui/forms';
@@ -476,7 +476,8 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
               {draft.location.city}, {draft.location.state}
             </p>
             <Rating value={0} count={0} />
-            <ImageGalleryFoundation
+            <PropertyGallery
+              title={draft.title || 'Your listing'}
               images={
                 draft.images.length
                   ? draft.images.map((image) => ({ asset: { src: image.url, alt: image.alt }, alt: image.alt }))

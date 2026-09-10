@@ -1,0 +1,307 @@
+/* ===========================================================================
+   Property gallery — carousel + thumbnail strip.
+
+   The stage has a fixed aspect ratio and every image is cropped into it. That
+   is deliberate: hosts upload straight from a phone, so portrait, landscape
+   and square photos all arrive in one listing. Any layout that lets the image
+   dictate its own height makes the whole page taller for a portrait upload.
+   =========================================================================== */
+
+.gallery {
+  position: relative;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-sunken);
+  overflow: hidden;
+}
+
+/* --- Stage ---------------------------------------------------------------- */
+
+.stage {
+  position: relative;
+  /* Taller on a phone so the subject is still readable at narrow widths. */
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+@media (min-width: 768px) {
+  .stage {
+    aspect-ratio: 16 / 9;
+  }
+}
+
+@media (min-width: 1280px) {
+  .stage {
+    aspect-ratio: 2 / 1;
+  }
+}
+
+.track {
+  display: flex;
+  height: 100%;
+  transition: transform var(--duration-slow) var(--easing-standard);
+  will-change: transform;
+}
+
+.slide {
+  position: relative;
+  flex: 0 0 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+/* MediaImage renders a fill image inside its own frame. The frame is told to
+   fill the slide (aspectRatio="auto") so the stage decides the height, and
+   object-fit crops whatever shape the host uploaded. */
+.fill {
+  width: 100%;
+  height: 100%;
+}
+
+.slide :global(img) {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    transition: none;
+  }
+}
+
+/* --- Controls ------------------------------------------------------------- */
+
+.nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch);
+  height: var(--touch);
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: var(--radius-full);
+  background: var(--color-overlay);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition:
+    opacity var(--duration-base) var(--easing-standard),
+    background-color var(--duration-fast) var(--easing-standard);
+}
+
+.prev {
+  left: var(--space-3);
+}
+
+.next {
+  right: var(--space-3);
+}
+
+/* Revealed on hover for pointers, always visible for touch and keyboard. */
+.gallery:hover .nav,
+.nav:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .nav {
+    opacity: 1;
+  }
+}
+
+.nav:hover {
+  background: rgb(8 6 9 / 0.9);
+}
+
+.nav:disabled {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+.counter {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 2;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  background: var(--color-overlay);
+  color: #fff;
+  font-size: var(--fs-caption);
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(6px);
+}
+
+.expand {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: var(--radius-full);
+  background: var(--color-overlay);
+  color: #fff;
+  font-size: var(--fs-caption);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+
+.expand:hover {
+  background: rgb(8 6 9 / 0.9);
+}
+
+/* --- Thumbnails ----------------------------------------------------------- */
+
+.thumbs {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
+.thumb {
+  position: relative;
+  /* Fixed box: a tall upload can never stretch the strip. */
+  flex: 0 0 auto;
+  width: 4.5rem;
+  height: 3.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: var(--color-sunken);
+  overflow: hidden;
+  cursor: pointer;
+  scroll-snap-align: start;
+  opacity: 0.55;
+  transition:
+    opacity var(--duration-fast) var(--easing-standard),
+    box-shadow var(--duration-fast) var(--easing-standard);
+}
+
+@media (min-width: 768px) {
+  .thumb {
+    width: 5.5rem;
+    height: 3.75rem;
+  }
+}
+
+.thumb:hover {
+  opacity: 0.85;
+}
+
+.thumbActive {
+  opacity: 1;
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.thumb :global(img) {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+/* --- Lightbox ------------------------------------------------------------- */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: rgb(4 3 5 / 0.96);
+  animation: galleryFade var(--duration-base) var(--easing-standard);
+}
+
+@keyframes galleryFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lightbox {
+    animation: none;
+  }
+}
+
+.lightboxBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+}
+
+.lightboxClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--touch);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.lightboxClose:hover {
+  border-color: var(--color-primary);
+}
+
+.lightboxStage {
+  position: relative;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+
+/* Contain rather than cover here: the full frame is the point of opening it. */
+.lightboxStage :global(img) {
+  max-height: 100%;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.lightboxImage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.lightboxImage :global(img) {
+  object-fit: contain;
+}
+
+.lightboxThumbs {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+}

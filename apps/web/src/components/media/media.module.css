@@ -19,22 +19,25 @@
   display: flex;
   align-items: flex-end;
   padding: var(--space-4);
-  background: var(--color-surface);
+  background: linear-gradient(155deg, var(--color-surface), var(--color-sunken));
 }
 
+/* Tones stand in for a missing photo. They are muted washes, not brand
+   fills: a full-bleed coral panel behind every image-less listing made the
+   grid look like an error state. Each keeps text at or above 4.5:1. */
 .tonePool {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: linear-gradient(155deg, #16242e, var(--color-sunken));
+  color: var(--color-text-secondary);
 }
 
 .toneLawn {
-  background: var(--color-primary-hover);
-  color: var(--color-on-primary);
+  background: linear-gradient(155deg, #16261f, var(--color-sunken));
+  color: var(--color-text-secondary);
 }
 
 .toneNight {
-  background: var(--color-surface-elevated);
-  color: var(--color-text-primary);
+  background: linear-gradient(155deg, var(--color-surface-elevated), var(--color-sunken));
+  color: var(--color-text-secondary);
 }
 
 .caption {
