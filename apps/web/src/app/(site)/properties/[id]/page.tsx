@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState } from '@/components/ui/feedback';
 import { getProperty, getPropertyReviews } from '@/lib/properties/api';
 import { coverImage, amenityName } from '@/lib/properties/map-property';
+import { photoAlt } from '@/lib/properties/photo-alt';
 import { decodeListingMeta } from '@/lib/host/listing-meta';
 import { PROPERTY_TYPE_LABEL, type ApiProperty } from '@/lib/properties/types';
 import { isUuid } from '@/lib/ids';
@@ -49,6 +50,56 @@ function PinIcon() {
   );
 }
 
+function GuestsIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="10" cy="7" r="2.9" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M3.8 16.6c0-3 2.8-4.7 6.2-4.7s6.2 1.7 6.2 4.7" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BedroomIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M2.6 15V6M2.6 15h14.8v-2.6a2.6 2.6 0 0 0-2.6-2.6H2.6" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="6.4" cy="7.6" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+function BathIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M2.8 10h14.4v1.6a4 4 0 0 1-4 4H6.8a4 4 0 0 1-4-4Z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M5.4 10V5.6a1.9 1.9 0 0 1 3.8 0" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BedIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="2.8" y="7.4" width="14.4" height="6" rx="1.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M2.8 13.4v2M17.2 13.4v2M10 7.4v6" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function Highlight({ icon, value, label }: { icon: React.ReactNode; value: number | string; label: string }) {
+  return (
+    <div className={page.highlight}>
+      <span className={page.highlightIcon} aria-hidden="true">
+        {icon}
+      </span>
+      <span className={page.highlightText}>
+        <span className={page.highlightValue}>{value}</span>
+        <span className={page.highlightLabel}>{label}</span>
+      </span>
+    </div>
+  );
+}
+
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className={page.fact}>
@@ -82,10 +133,10 @@ export default async function PropertyPage({ params }: Props) {
   const isBookable = !isSample && isApproved;
   const images = [...(property.images ?? [])]
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    .map((image) => ({
-      asset: { src: image.url, alt: image.altText || property.title },
-      alt: image.altText || property.title,
-    }));
+    .map((image, position) => {
+      const alt = photoAlt(image.altText, property.title, position + 1);
+      return { asset: { src: image.url, alt }, alt };
+    });
   const gallery =
     images.length > 0
       ? images
@@ -106,6 +157,11 @@ export default async function PropertyPage({ params }: Props) {
   const { meta, rules: houseRules } = decodeListingMeta(property.propertyRules);
   const locationName = [property.location, property.city, property.state].filter(Boolean).join(', ');
   const amenities = amenityLabels(property);
+  const badges = [
+    property.isCoupleFriendly ? 'Couple friendly' : null,
+    property.isPartyFriendly ? 'Party friendly' : null,
+    property.isAdultOnly ? '18+ only' : null,
+  ].filter((value): value is string => Boolean(value));
   const lat = Number(property.latitude);
   const lng = Number(property.longitude);
   const mapPad = 0.07;
@@ -125,8 +181,15 @@ export default async function PropertyPage({ params }: Props) {
       />
 
       <header className={page.header}>
-        <div style={{ minWidth: 0 }}>
-          <span className={page.eyebrow}>{PROPERTY_TYPE_LABEL[property.propertyType] ?? 'Stay'}</span>
+        <div className={page.headerMain}>
+          <div className={page.tags}>
+            <span className={page.eyebrow}>{PROPERTY_TYPE_LABEL[property.propertyType] ?? 'Stay'}</span>
+            {badges.map((badge) => (
+              <span key={badge} className={page.badge}>
+                {badge}
+              </span>
+            ))}
+          </div>
           <h1 className={page.title}>{property.title}</h1>
           <div className={page.headerMeta}>
             <span className={page.place}>
@@ -159,21 +222,13 @@ export default async function PropertyPage({ params }: Props) {
       <div className={styles.detailGrid} style={{ marginTop: 'var(--space-8)', paddingBottom: '5.5rem' }}>
         <div className={styles.propertyCopy}>
           <section className={page.section}>
-            <p className={page.lead}>{property.description}</p>
-            <div className={page.stats}>
-              <span className={page.stat}>
-                <span className={page.statValue}>{property.guestCapacity}</span> guests
-              </span>
-              <span className={page.stat}>
-                <span className={page.statValue}>{property.bedrooms}</span> bedrooms
-              </span>
-              <span className={page.stat}>
-                <span className={page.statValue}>{property.bathrooms}</span> bathrooms
-              </span>
-              <span className={page.stat}>
-                <span className={page.statValue}>{meta.beds}</span> beds
-              </span>
+            <div className={page.highlights}>
+              <Highlight icon={<GuestsIcon />} value={property.guestCapacity} label="guests" />
+              <Highlight icon={<BedroomIcon />} value={property.bedrooms} label={property.bedrooms === 1 ? 'bedroom' : 'bedrooms'} />
+              <Highlight icon={<BedIcon />} value={meta.beds} label={meta.beds === 1 ? 'bed' : 'beds'} />
+              <Highlight icon={<BathIcon />} value={property.bathrooms} label={property.bathrooms === 1 ? 'bathroom' : 'bathrooms'} />
             </div>
+            <p className={page.lead}>{property.description}</p>
           </section>
 
           {amenities.length > 0 ? (

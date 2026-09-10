@@ -24,7 +24,24 @@ function message(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
 }
 
-export function VerificationStep({ onStatus }: { onStatus?: (status: HostKycStatus) => void }) {
+/*
+  Identity belongs to the host account, not to a property. A host with three
+  farmhouses has one Aadhaar, one PAN and one payout account — OwnerProfile is
+  keyed by userId — so the listing wizard must not read as though it is
+  collecting them again for every new listing.
+
+  In the 'listing' context a host who is already cleared gets a short
+  confirmation instead of the forms. The 'account' context, used by host
+  settings, always shows the full editable panels because that is where this
+  information is meant to be managed.
+*/
+export function VerificationStep({
+  onStatus,
+  context = 'listing',
+}: {
+  onStatus?: (status: HostKycStatus) => void;
+  context?: 'listing' | 'account';
+}) {
   const [status, setStatus] = useState<HostKycStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -49,6 +66,7 @@ export function VerificationStep({ onStatus }: { onStatus?: (status: HostKycStat
   const [bankName, setBankName] = useState('');
   const [bankBusy, setBankBusy] = useState(false);
   const [bankError, setBankError] = useState<string | null>(null);
+  const [editingBank, setEditingBank] = useState(false);
 
   const onStatusRef = useRef(onStatus);
   onStatusRef.current = onStatus;
@@ -194,6 +212,7 @@ export function VerificationStep({ onStatus }: { onStatus?: (status: HostKycStat
           bankName: bankName.trim() || undefined,
         }),
       );
+      setEditingBank(false);
       setAccountNumber('');
     } catch (err) {
       setBankError(message(err, 'Your bank details could not be saved.'));
@@ -206,14 +225,59 @@ export function VerificationStep({ onStatus }: { onStatus?: (status: HostKycStat
 
   const phoneVerified = Boolean(status?.phoneVerified);
   const docsDone = status?.kycStatus === 'SUBMITTED' || status?.kycStatus === 'VERIFIED';
+  const bankSaved = Boolean(status?.bankAccountSaved);
+  const allDone = phoneVerified && docsDone && bankSaved;
+
+  // Nothing here changes from one property to the next, so a host who has
+  // already been through it should not be shown the forms a second time.
+  if (context === 'listing' && allDone) {
+    return (
+      <div className={styles.panel}>
+        <div className={styles.verifyHead}>
+          <h2 className="t-h3">Identity already verified</h2>
+          <span className={styles.verifyDone}>
+            {status?.kycStatus === 'VERIFIED' ? 'Verified' : 'Under review'}
+          </span>
+        </div>
+        <p className="t-body-small" style={{ marginTop: 'var(--space-2)', maxWidth: '44rem' }}>
+          Your Aadhaar, PAN and payout account belong to your account rather than to any one
+          property, so they already cover this listing and every other one you publish. There is
+          nothing to re-enter here.
+        </p>
+        <dl className={styles.factGrid}>
+          <div className={styles.fact}>
+            <dt className="t-caption">Mobile</dt>
+            <dd>{status?.phone ? `+91 ${status.phone}` : 'Verified'}</dd>
+          </div>
+          <div className={styles.fact}>
+            <dt className="t-caption">Aadhaar</dt>
+            <dd>{status?.aadhaarMasked || '—'}</dd>
+          </div>
+          <div className={styles.fact}>
+            <dt className="t-caption">PAN</dt>
+            <dd>{status?.panNumber || '—'}</dd>
+          </div>
+          <div className={styles.fact}>
+            <dt className="t-caption">Payout account</dt>
+            <dd>{status?.bankAccountMasked || '—'}</dd>
+          </div>
+        </dl>
+        <div className={styles.actions}>
+          <Button variant="secondary" href="/host/settings">
+            Manage in account settings
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.panel}>
       <h2 className="t-h3">Verify your identity</h2>
       <p className="t-body-small" style={{ marginTop: 'var(--space-2)', maxWidth: '44rem' }}>
-        Guests book stays from hosts we have checked. Verify your mobile number and add your
-        Aadhaar and PAN before sending a listing for review. Your documents are visible only to
-        our review team.
+        Guests book stays from hosts we have checked. This is a one-time check on your account —
+        once it clears it covers every property you list, so you will not be asked again. Your
+        documents are visible only to our review team.
       </p>
 
       {/* Step 1 — mobile ------------------------------------------------- */}
@@ -378,23 +442,33 @@ export function VerificationStep({ onStatus }: { onStatus?: (status: HostKycStat
           separately and always return to the card or UPI the guest paid with.
         </p>
 
-        {status?.bankAccountSaved ? (
+        {bankSaved ? (
           <dl className={styles.factGrid}>
             <div className={styles.fact}>
               <dt className="t-caption">Account</dt>
-              <dd>{status.bankAccountMasked}</dd>
+              <dd>{status?.bankAccountMasked}</dd>
             </div>
             <div className={styles.fact}>
               <dt className="t-caption">IFSC</dt>
-              <dd>{status.bankIfsc ?? '—'}</dd>
+              <dd>{status?.bankIfsc ?? '—'}</dd>
             </div>
             <div className={styles.fact}>
               <dt className="t-caption">Holder</dt>
-              <dd>{status.bankAccountName ?? '—'}</dd>
+              <dd>{status?.bankAccountName ?? '—'}</dd>
             </div>
           </dl>
         ) : null}
 
+        {/* A saved account showed its summary and an empty form together, which
+            read as though the details had not been stored after all. */}
+        {bankSaved && !editingBank ? (
+          <div className={styles.actions}>
+            <Button variant="ghost" onClick={() => setEditingBank(true)}>
+              Change payout account
+            </Button>
+          </div>
+        ) : (
+        <>
         <div className={styles.twoCol} style={{ marginTop: 'var(--space-4)' }}>
           <Input
             id="bank-holder"
@@ -431,9 +505,16 @@ export function VerificationStep({ onStatus }: { onStatus?: (status: HostKycStat
         ) : null}
         <div className={styles.actions}>
           <Button variant="secondary" onClick={() => void saveBank()} disabled={bankBusy}>
-            {bankBusy ? 'Saving…' : status?.bankAccountSaved ? 'Update account' : 'Save account'}
+            {bankBusy ? 'Saving…' : bankSaved ? 'Update account' : 'Save account'}
           </Button>
+          {bankSaved ? (
+            <Button variant="ghost" onClick={() => setEditingBank(false)} disabled={bankBusy}>
+              Cancel
+            </Button>
+          ) : null}
         </div>
+        </>
+        )}
       </section>
     </div>
   );

@@ -40,8 +40,35 @@
   color: var(--color-text-secondary);
 }
 
+/* Declared after the tones so it wins over them: a missing file is a state,
+   not a mood, and it should never inherit a decorative wash. */
+.broken {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0 10px,
+      color-mix(in srgb, var(--color-border-subtle) 55%, transparent) 10px 11px
+    ),
+    linear-gradient(155deg, var(--color-surface), var(--color-sunken));
+  color: var(--color-text-muted);
+}
+
 .caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 100%;
   font-size: var(--fs-caption);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  /* Upload filenames are long and have no spaces to break on. */
+  overflow-wrap: anywhere;
+}
+
+.captionIcon {
+  flex: 0 0 auto;
+  opacity: 0.75;
 }

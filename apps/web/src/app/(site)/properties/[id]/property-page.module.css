@@ -26,6 +26,32 @@
   }
 }
 
+.headerMain {
+  min-width: 0;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* A neutral sibling to the type chip. Coral stays on the type so the row has
+   one accent rather than four competing ones. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -111,28 +137,64 @@
 
 /* --- Key stats ------------------------------------------------------------ */
 
-.stats {
+/* Capacity is the first thing a guest checks, so it gets its own band above
+   the description rather than being buried as inline text. Two columns on a
+   phone keeps every card wide enough for the number and its unit on one line. */
+.highlights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+@media (min-width: 640px) {
+  .highlights {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.highlight {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
-}
-
-.stat {
-  display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
-  color: var(--color-text-secondary);
-  font-size: var(--fs-body-small);
 }
 
-.statValue {
+.highlightIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-text);
+}
+
+.highlightText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.highlightValue {
+  font-family: var(--font-display);
+  font-size: var(--fs-h4);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
-  font-weight: var(--font-weight-semibold);
+}
+
+.highlightLabel {
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
 }
 
 /* --- Amenities ------------------------------------------------------------ */

@@ -1,10 +1,16 @@
 /* ===========================================================================
-   Property gallery — carousel + thumbnail strip.
+   Property gallery — slideshow + thumbnail strip.
 
-   The stage has a fixed aspect ratio and every image is cropped into it. That
-   is deliberate: hosts upload straight from a phone, so portrait, landscape
-   and square photos all arrive in one listing. Any layout that lets the image
-   dictate its own height makes the whole page taller for a portrait upload.
+   Two rules keep this from breaking the page:
+
+   1. The stage crops every photo into a fixed frame. Hosts upload straight
+      from a phone, so portrait, landscape and square photos all arrive in one
+      listing; any layout that lets an image dictate its own height makes the
+      whole page taller for a portrait upload.
+   2. That frame is capped in px as well as by ratio. A pure `aspect-ratio` on
+      a full-width container is honest but unusable: on a 1440px viewport a 2:1
+      stage computed to 650px of hero, which pushed everything else below the
+      fold and looked like an empty box rather than a photo frame.
    =========================================================================== */
 
 .gallery {
@@ -13,6 +19,7 @@
   border-radius: var(--radius-lg);
   background: var(--color-sunken);
   overflow: hidden;
+  box-shadow: var(--shadow-md);
 }
 
 /* --- Stage ---------------------------------------------------------------- */
@@ -21,19 +28,25 @@
   position: relative;
   /* Taller on a phone so the subject is still readable at narrow widths. */
   aspect-ratio: 4 / 3;
+  max-height: 60vh;
   overflow: hidden;
   touch-action: pan-y;
+  background: var(--color-sunken);
 }
 
+/* The px cap wins over the ratio on a wide container, so it is also bounded by
+   viewport height: a hero that fills a short laptop screen hides everything
+   under it. Around 2.5:1 in practice, which still frames a photo properly. */
 @media (min-width: 768px) {
   .stage {
     aspect-ratio: 16 / 9;
+    max-height: min(28rem, 62vh);
   }
 }
 
 @media (min-width: 1280px) {
   .stage {
-    aspect-ratio: 2 / 1;
+    max-height: min(32rem, 66vh);
   }
 }
 
@@ -65,35 +78,46 @@
   object-fit: cover;
 }
 
+/* Controls sit on top of photographs, which can be light anywhere. This keeps
+   their contrast predictable without dimming the middle of the image. */
+.scrim {
+  position: absolute;
+  inset: auto 0 0;
+  height: 45%;
+  pointer-events: none;
+  background: linear-gradient(to top, rgb(4 3 5 / 0.78), transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .track {
     transition: none;
   }
 }
 
-/* --- Controls ------------------------------------------------------------- */
+/* --- Arrows --------------------------------------------------------------- */
 
 .nav {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 2;
+  z-index: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: var(--touch);
   height: var(--touch);
   padding: 0;
-  border: 1px solid rgb(255 255 255 / 0.18);
+  border: 1px solid rgb(255 255 255 / 0.2);
   border-radius: var(--radius-full);
-  background: var(--color-overlay);
+  background: rgb(8 6 9 / 0.62);
   color: #fff;
   cursor: pointer;
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(8px);
   opacity: 0;
   transition:
     opacity var(--duration-base) var(--easing-standard),
-    background-color var(--duration-fast) var(--easing-standard);
+    background-color var(--duration-fast) var(--easing-standard),
+    transform var(--duration-fast) var(--easing-standard);
 }
 
 .prev {
@@ -106,6 +130,7 @@
 
 /* Revealed on hover for pointers, always visible for touch and keyboard. */
 .gallery:hover .nav,
+.lightbox .nav,
 .nav:focus-visible {
   opacity: 1;
 }
@@ -118,48 +143,181 @@
 
 .nav:hover {
   background: rgb(8 6 9 / 0.9);
+  transform: translateY(-50%) scale(1.06);
 }
 
-.nav:disabled {
-  opacity: 0 !important;
+.nav:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav:hover {
+    transform: translateY(-50%);
+  }
+}
+
+/* --- Bottom bar ----------------------------------------------------------- */
+
+.stageBar {
+  position: absolute;
+  inset: auto var(--space-3) var(--space-3);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
   pointer-events: none;
 }
 
-.counter {
-  position: absolute;
-  right: var(--space-3);
-  bottom: var(--space-3);
-  z-index: 2;
-  padding: 0.2rem 0.6rem;
-  border-radius: var(--radius-full);
-  background: var(--color-overlay);
-  color: #fff;
-  font-size: var(--fs-caption);
-  font-variant-numeric: tabular-nums;
-  backdrop-filter: blur(6px);
+.chips,
+.progressGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  pointer-events: auto;
 }
 
-.expand {
-  position: absolute;
-  left: var(--space-3);
-  bottom: var(--space-3);
-  z-index: 2;
+.chip {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 2rem;
+  min-height: 2.25rem;
   padding: 0 var(--space-3);
-  border: 1px solid rgb(255 255 255 / 0.18);
+  border: 1px solid rgb(255 255 255 / 0.2);
   border-radius: var(--radius-full);
-  background: var(--color-overlay);
+  background: rgb(8 6 9 / 0.62);
   color: #fff;
   font-size: var(--fs-caption);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--ls-label);
+  white-space: nowrap;
   cursor: pointer;
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(8px);
+  transition: background-color var(--duration-fast) var(--easing-standard);
 }
 
-.expand:hover {
+.chip:hover {
   background: rgb(8 6 9 / 0.9);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.chipIcon {
+  width: 2.25rem;
+  padding: 0;
+  justify-content: center;
+}
+
+.counter {
+  margin: 0;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
+  background: rgb(8 6 9 / 0.62);
+  color: #fff;
+  font-size: var(--fs-caption);
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(8px);
+}
+
+/* --- Dots ----------------------------------------------------------------- */
+
+.dots {
+  display: none;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--radius-full);
+  background: rgb(8 6 9 / 0.62);
+  backdrop-filter: blur(8px);
+}
+
+@media (min-width: 600px) {
+  .dots {
+    display: flex;
+  }
+}
+
+/* The visual dot is small, so the button keeps a full-size hit area around it. */
+.dot {
+  position: relative;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dot::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 0.4rem;
+  height: 0.4rem;
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius-full);
+  background: rgb(255 255 255 / 0.45);
+  transition:
+    width var(--duration-fast) var(--easing-standard),
+    background-color var(--duration-fast) var(--easing-standard);
+}
+
+.dot:hover::after {
+  background: rgb(255 255 255 / 0.8);
+}
+
+.dotActive::after {
+  width: 1rem;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+}
+
+.dot:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 0;
+  border-radius: var(--radius-full);
+}
+
+/* --- Slideshow progress --------------------------------------------------- */
+
+.progress {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 3;
+  height: 2px;
+  background: rgb(255 255 255 / 0.16);
+}
+
+.progressFill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--color-primary);
+  animation-name: galleryProgress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes galleryProgress {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+/* The slideshow does not autoplay under reduced motion, so this bar should not
+   exist there — but guard it anyway in case it is started by hand. */
+@media (prefers-reduced-motion: reduce) {
+  .progressFill {
+    animation: none;
+    width: 100%;
+  }
 }
 
 /* --- Thumbnails ----------------------------------------------------------- */
@@ -167,7 +325,7 @@
 .thumbs {
   display: flex;
   gap: var(--space-2);
-  padding: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: thin;
@@ -188,7 +346,7 @@
   overflow: hidden;
   cursor: pointer;
   scroll-snap-align: start;
-  opacity: 0.55;
+  opacity: 0.5;
   transition:
     opacity var(--duration-fast) var(--easing-standard),
     box-shadow var(--duration-fast) var(--easing-standard);
@@ -203,6 +361,12 @@
 
 .thumb:hover {
   opacity: 0.85;
+}
+
+.thumb:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  opacity: 1;
 }
 
 .thumbActive {
@@ -252,6 +416,7 @@
   gap: var(--space-3);
   color: var(--color-text-secondary);
   font-size: var(--fs-body-small);
+  font-variant-numeric: tabular-nums;
 }
 
 .lightboxClose {
@@ -272,20 +437,16 @@
   border-color: var(--color-primary);
 }
 
+.lightboxClose:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 .lightboxStage {
   position: relative;
   min-height: 0;
   display: grid;
   place-items: center;
-}
-
-/* Contain rather than cover here: the full frame is the point of opening it. */
-.lightboxStage :global(img) {
-  max-height: 100%;
-  max-width: 100%;
-  width: auto;
-  height: auto;
-  object-fit: contain;
 }
 
 .lightboxImage {
@@ -294,6 +455,8 @@
   height: 100%;
 }
 
+/* Contain rather than cover here: seeing the full frame is the point of
+   opening it, so a portrait photo letterboxes instead of being cropped. */
 .lightboxImage :global(img) {
   object-fit: contain;
 }
@@ -301,6 +464,7 @@
 .lightboxThumbs {
   display: flex;
   justify-content: center;
+  flex-wrap: nowrap;
   gap: var(--space-2);
   overflow-x: auto;
   padding-bottom: var(--space-1);
