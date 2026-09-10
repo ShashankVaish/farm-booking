@@ -196,11 +196,19 @@ export default async function PropertyPage({ params }: Props) {
   ].filter((value): value is string => Boolean(value));
   const lat = Number(property.latitude);
   const lng = Number(property.longitude);
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+  /*
+    OpenStreetMap embed rather than a JavaScript map: this section only has to
+    show roughly where the place is, an iframe costs no bundle on a server page,
+    and OSM needs no API key, no billing account and carries no watermark.
+  */
   const mapPad = 0.07;
-  const mapSrc =
-    Number.isFinite(lat) && Number.isFinite(lng)
-      ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - mapPad}%2C${lat - mapPad * 0.75}%2C${lng + mapPad}%2C${lat + mapPad * 0.75}&layer=mapnik`
-      : null;
+  const mapSrc = hasCoords
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - mapPad}%2C${lat - mapPad * 0.75}%2C${lng + mapPad}%2C${lat + mapPad * 0.75}&layer=mapnik&marker=${lat}%2C${lng}`
+    : null;
+  const mapLink = hasCoords
+    ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`
+    : null;
   const siteUrl = getSiteUrl();
 
   return (
@@ -356,10 +364,11 @@ export default async function PropertyPage({ params }: Props) {
             <p className={page.prose}>{locationName || 'India'}</p>
             {mapSrc ? (
               <iframe
-                title={`Approximate map of ${locationName || property.title}`}
+                title={`Map of ${locationName || property.title}`}
                 className={page.map}
                 src={mapSrc}
                 loading="lazy"
+                allowFullScreen
                 referrerPolicy="no-referrer-when-downgrade"
               />
             ) : (
@@ -367,6 +376,14 @@ export default async function PropertyPage({ params }: Props) {
             )}
             <p className={page.mapNote}>
               Approximate area shown. The exact address stays private until a booking is confirmed.
+              {mapLink ? (
+                <>
+                  {' '}
+                  <a className={page.mapLink} href={mapLink} target="_blank" rel="noreferrer">
+                    Open the larger map
+                  </a>
+                </>
+              ) : null}
             </p>
           </section>
 

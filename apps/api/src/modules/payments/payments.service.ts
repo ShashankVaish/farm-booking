@@ -15,6 +15,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { AuditActions, AuditService } from '../../common/audit.service';
+import {
+  formatPropertyAddress,
+  mapDirectionsUrl,
+  mapPlaceUrl,
+} from '../../common/maps';
 import { ErrorCodes } from '../../common/constants/error-codes';
 import { UserRoles } from '../../common/constants/roles';
 import { money, moneyToPaise, paiseToMoney } from '../../common/money';
@@ -111,16 +116,25 @@ export class PaymentsService {
       guestCount: number;
       totalAmount: Prisma.Decimal | number | string;
       customer: { name: string };
-      property: { title: string; city: string; state: string };
+      property: {
+        title: string;
+        city: string;
+        state: string;
+        address?: string | null;
+        location?: string | null;
+        pincode?: string | null;
+        country?: string | null;
+        latitude?: unknown;
+        longitude?: unknown;
+      };
     };
   }): BookingEmailData {
     const { booking } = payment;
+    const { property } = booking;
     return {
       guestName: booking.customer.name,
-      propertyTitle: booking.property.title,
-      location: [booking.property.city, booking.property.state]
-        .filter(Boolean)
-        .join(', '),
+      propertyTitle: property.title,
+      location: [property.city, property.state].filter(Boolean).join(', '),
       checkIn: booking.checkInDate,
       checkOut: booking.checkOutDate,
       guests: booking.guestCount,
@@ -128,6 +142,11 @@ export class PaymentsService {
       bookingId: payment.bookingId,
       brandName: this.mail.brandName(),
       bookingUrl: `${this.mail.webUrl()}/bookings/${payment.bookingId}`,
+      // The stay is paid for, so the exact address is now the guest's to have.
+      // Only the confirmation template renders these.
+      address: formatPropertyAddress(property),
+      mapUrl: mapPlaceUrl(property.latitude, property.longitude),
+      directionsUrl: mapDirectionsUrl(property.latitude, property.longitude),
     };
   }
 

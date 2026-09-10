@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { AmenityItem, PriceDisplay, Rating } from '@/components/hospitality/atoms';
 import { PropertyGallery } from '@/components/hospitality/property-gallery';
 import { PropertyCard } from '@/components/hospitality/property-card';
@@ -589,6 +590,11 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
             Reviewers will check photos, location, and house rules. Owners cannot approve their own property or change guest booking statuses from this portal.
           </p>
           <p className="t-body-small">Current status: {draft.status || 'DRAFT'}</p>
+          <p className="t-body-small">
+            Submitting a listing means you accept the{' '}
+            <Link href="/terms/host">Host Terms &amp; Conditions</Link>, including the accuracy,
+            safety and cancellation obligations they set out.
+          </p>
           {kyc && !kyc.canSubmitListing ? (
             <p className="t-body-small" role="status" style={{ color: 'var(--color-warning)' }}>
               {!kyc.phoneVerified
