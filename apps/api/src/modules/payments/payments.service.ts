@@ -27,6 +27,12 @@ import {
 } from '../notifications/notifications.service';
 import { PricingService } from '../pricing/pricing.service';
 import { PlatformSettingsService } from '../settings/platform-settings.service';
+import { MailService } from '../mail/mail.service';
+import {
+  bookingConfirmedEmail,
+  hostBookingConfirmedEmail,
+  type BookingEmailData,
+} from '../mail/templates';
 import {
   PAYMENT_PROVIDER,
   type FetchPaymentResult,
@@ -64,8 +70,16 @@ type RazorpayWebhook = {
   };
 };
 
+// The customer is pulled in so a confirmation email can name the guest to
+// the host. Selecting just the name keeps the password hash out of the row.
 const paymentBookingInclude = {
-  booking: { include: { nights: true, property: true } },
+  booking: {
+    include: {
+      nights: true,
+      property: true,
+      customer: { select: { id: true, name: true, email: true } },
+    },
+  },
 } as const;
 
 @Injectable()
@@ -79,7 +93,43 @@ export class PaymentsService {
     private readonly config: ConfigService,
     private readonly audit: AuditService,
     private readonly settings: PlatformSettingsService,
+    private readonly mail: MailService,
   ) {}
+
+  /**
+   * The shared shape behind both confirmation emails.
+   *
+   * `guestName` and `hostName` are filled in by the caller from the recipient
+   * that `notify` resolved, so neither template can end up greeting the wrong
+   * person; everything else describes the stay and is the same in both.
+   */
+  private stayEmailData(payment: {
+    bookingId: string;
+    booking: {
+      checkInDate: Date;
+      checkOutDate: Date;
+      guestCount: number;
+      totalAmount: Prisma.Decimal | number | string;
+      customer: { name: string };
+      property: { title: string; city: string; state: string };
+    };
+  }): BookingEmailData {
+    const { booking } = payment;
+    return {
+      guestName: booking.customer.name,
+      propertyTitle: booking.property.title,
+      location: [booking.property.city, booking.property.state]
+        .filter(Boolean)
+        .join(', '),
+      checkIn: booking.checkInDate,
+      checkOut: booking.checkOutDate,
+      guests: booking.guestCount,
+      total: Number(booking.totalAmount),
+      bookingId: payment.bookingId,
+      brandName: this.mail.brandName(),
+      bookingUrl: `${this.mail.webUrl()}/bookings/${payment.bookingId}`,
+    };
+  }
 
   async createOrder(user: RequestUser, dto: CreatePaymentOrderDto) {
     await this.recoverOpenBooking(dto.bookingId);
@@ -635,6 +685,7 @@ export class PaymentsService {
         metadata: { bookingId: payment.bookingId },
         dedupeKey: `PAYMENT_SUCCESS:${payment.bookingId}`,
       });
+      const stay = this.stayEmailData(payment);
       await this.notifications.notify({
         userId: payment.booking.customerId,
         type: NotificationTypes.BOOKING_CONFIRMED,
@@ -642,6 +693,7 @@ export class PaymentsService {
         body: `Your stay at ${payment.booking.property.title} is confirmed.`,
         metadata: { bookingId: payment.bookingId },
         dedupeKey: `BOOKING_CONFIRMED:${payment.bookingId}:${payment.booking.customerId}`,
+        email: (to) => bookingConfirmedEmail({ ...stay, guestName: to.name }),
       });
       await this.notifications.notify({
         userId: payment.booking.property.ownerId,
@@ -650,6 +702,14 @@ export class PaymentsService {
         body: `A booking for ${payment.booking.property.title} is confirmed.`,
         metadata: { bookingId: payment.bookingId },
         dedupeKey: `BOOKING_CONFIRMED:${payment.bookingId}:${payment.booking.property.ownerId}`,
+        // The host's copy names the guest and links to the calendar rather than
+        // to a booking page they cannot act on.
+        email: (to) =>
+          hostBookingConfirmedEmail({
+            ...stay,
+            hostName: to.name,
+            bookingUrl: `${this.mail.webUrl()}/host/calendar`,
+          }),
       });
     }
 

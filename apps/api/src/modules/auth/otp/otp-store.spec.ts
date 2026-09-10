@@ -20,6 +20,8 @@ function contract(name: string, getStore: () => OtpStore) {
     beforeEach(async () => {
       await getStore().clear(phone, 'LOGIN');
       await getStore().clear(phone, 'REGISTER');
+      await getStore().clear(phone, 'VERIFY_EMAIL');
+      await getStore().clear(phone, 'VERIFY_PHONE');
     });
 
     it('stores and reads back a challenge', async () => {
@@ -44,11 +46,17 @@ function contract(name: string, getStore: () => OtpStore) {
       await store.putChallenge(
         phone,
         'LOGIN',
-        { codeHash: 'login-hash', attemptCount: 0, expiresAt: Date.now() + 60_000 },
+        {
+          codeHash: 'login-hash',
+          attemptCount: 0,
+          expiresAt: Date.now() + 60_000,
+        },
         60,
       );
       expect(await store.getChallenge(phone, 'REGISTER')).toBeNull();
-      expect((await store.getChallenge(phone, 'LOGIN'))?.codeHash).toBe('login-hash');
+      expect((await store.getChallenge(phone, 'LOGIN'))?.codeHash).toBe(
+        'login-hash',
+      );
     });
 
     it('replaces an earlier challenge so only the newest code is live', async () => {
@@ -167,6 +175,50 @@ function contract(name: string, getStore: () => OtpStore) {
       expect(await store.getChallenge(phone, 'LOGIN')).toBeNull();
       expect(await store.isCoolingDown(phone, 'LOGIN')).toBe(false);
       expect(await store.countSends(phone, 'LOGIN', 3600)).toBe(0);
+    });
+
+    // --- Verified markers, used by signup email confirmation ----------------
+
+    it('reports an identifier as verified once marked', async () => {
+      const store = getStore();
+      expect(await store.isVerified(phone, 'VERIFY_EMAIL')).toBe(false);
+      await store.markVerified(phone, 'VERIFY_EMAIL', 60);
+      expect(await store.isVerified(phone, 'VERIFY_EMAIL')).toBe(true);
+    });
+
+    it('lets exactly one caller consume a marker', async () => {
+      const store = getStore();
+      await store.markVerified(phone, 'VERIFY_EMAIL', 60);
+
+      const [first, second] = await Promise.all([
+        store.consumeVerified(phone, 'VERIFY_EMAIL'),
+        store.consumeVerified(phone, 'VERIFY_EMAIL'),
+      ]);
+
+      // One emailed code buys one account, even if two signups race.
+      expect([first, second].filter(Boolean)).toHaveLength(1);
+      expect(await store.isVerified(phone, 'VERIFY_EMAIL')).toBe(false);
+    });
+
+    it('reports false when consuming a marker that was never set', async () => {
+      const store = getStore();
+      expect(await store.consumeVerified(phone, 'VERIFY_EMAIL')).toBe(false);
+    });
+
+    it('expires a marker once its TTL lapses', async () => {
+      const store = getStore();
+      await store.markVerified(phone, 'VERIFY_EMAIL', 1);
+      expect(await store.isVerified(phone, 'VERIFY_EMAIL')).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 1400));
+      expect(await store.isVerified(phone, 'VERIFY_EMAIL')).toBe(false);
+      expect(await store.consumeVerified(phone, 'VERIFY_EMAIL')).toBe(false);
+    });
+
+    it('keeps markers separate per purpose', async () => {
+      const store = getStore();
+      await store.markVerified(phone, 'VERIFY_EMAIL', 60);
+      // An email confirmation must not satisfy a phone check.
+      expect(await store.isVerified(phone, 'VERIFY_PHONE')).toBe(false);
     });
   });
 }

@@ -7,6 +7,7 @@ import { AdminBootstrapService } from './admin-bootstrap.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
+import { EmailOtpService } from './email-otp.service';
 import { OtpService } from './otp.service';
 import { PasswordService } from './password.service';
 import { ConsoleSmsProvider } from './providers/console-sms.provider';
@@ -36,6 +37,7 @@ import { RedisOtpStore } from './otp/redis-otp.store';
   controllers: [AuthController],
   providers: [
     AuthService,
+    EmailOtpService,
     AdminBootstrapService,
     PasswordService,
     TokenService,

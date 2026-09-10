@@ -1,6 +1,7 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UserRoles } from '../../common/constants/roles';
+import { EmailOtpService } from './email-otp.service';
 import { AuthService } from './auth.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
@@ -48,15 +49,26 @@ describe('AuthService', () => {
     get: jest.fn().mockReturnValue(false),
   } as unknown as ConfigService;
 
+  // Registration is gated on a confirmed email. The default here is a
+  // verified address so the existing cases still describe the happy path; the
+  // gate itself is covered by its own test below.
+  const emailOtp = {
+    isVerified: jest.fn().mockResolvedValue(true),
+    consumeVerification: jest.fn().mockResolvedValue(true),
+  };
+
   const service = new AuthService(
     prisma as never,
     passwords as unknown as PasswordService,
     tokens as unknown as TokenService,
     config,
+    emailOtp as unknown as EmailOtpService,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
+    emailOtp.isVerified.mockResolvedValue(true);
+    emailOtp.consumeVerification.mockResolvedValue(true);
     tokens.signAccessToken.mockResolvedValue('access-token');
     tokens.createRefreshToken.mockReturnValue('refresh-token');
     tokens.hashRefreshToken.mockReturnValue('hashed-refresh');
@@ -89,6 +101,47 @@ describe('AuthService', () => {
     expect(result.tokens.accessToken).toBe('access-token');
     expect(prisma.user.create).toHaveBeenCalled();
     expect(prisma.ownerProfile.create).not.toHaveBeenCalled();
+    // The email check is keyed on the normalised address, not what was typed.
+    expect(emailOtp.isVerified).toHaveBeenCalledWith('ada@example.com');
+    expect(emailOtp.consumeVerification).toHaveBeenCalledWith(
+      'ada@example.com',
+    );
+  });
+
+  it('refuses to register an email that has not been confirmed by code', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    emailOtp.isVerified.mockResolvedValue(false);
+
+    await expect(
+      service.register(
+        { email: 'ada@example.com', password: 'Secret123', name: 'Ada' },
+        {},
+      ),
+    ).rejects.toMatchObject({
+      response: { errorCode: 'EMAIL_NOT_VERIFIED' },
+    });
+
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    // Checked before hashing: bcrypt is the expensive part of this request and
+    // an unverified caller should not be able to spend it.
+    expect(passwords.hash).not.toHaveBeenCalled();
+  });
+
+  it('spends the verification only after the account exists', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    passwords.hash.mockResolvedValue('hashed-password');
+    prisma.user.create.mockRejectedValue(new Error('database is down'));
+
+    await expect(
+      service.register(
+        { email: 'ada@example.com', password: 'Secret123', name: 'Ada' },
+        {},
+      ),
+    ).rejects.toThrow('database is down');
+
+    // Otherwise a transient failure would burn the code and force the user to
+    // start the whole signup over.
+    expect(emailOtp.consumeVerification).not.toHaveBeenCalled();
   });
 
   it('creates an owner profile when registering as owner', async () => {

@@ -488,3 +488,25 @@
     animation: none;
   }
 }
+
+/* Secondary actions under the submit button — resend, change email. Wraps at
+   narrow widths rather than shrinking the touch targets. */
+.inlineActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: calc(var(--space-2) * -1);
+}
+
+/* Quiet guidance under a form step — the way out when signup cannot say why
+   the code has not arrived. */
+.help {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-body-small);
+}
+
+.help a {
+  color: var(--color-primary-text);
+}

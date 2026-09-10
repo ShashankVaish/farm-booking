@@ -29,7 +29,10 @@ export interface OtpStore {
     ttlSeconds: number,
   ): Promise<void>;
 
-  getChallenge(phone: string, purpose: OtpPurpose): Promise<OtpChallengeRecord | null>;
+  getChallenge(
+    phone: string,
+    purpose: OtpPurpose,
+  ): Promise<OtpChallengeRecord | null>;
 
   /** Returns the attempt count after incrementing. */
   incrementAttempts(phone: string, purpose: OtpPurpose): Promise<number>;
@@ -44,7 +47,11 @@ export interface OtpStore {
   /** True while the resend cooldown for this phone and purpose is active. */
   isCoolingDown(phone: string, purpose: OtpPurpose): Promise<boolean>;
 
-  startCooldown(phone: string, purpose: OtpPurpose, seconds: number): Promise<void>;
+  startCooldown(
+    phone: string,
+    purpose: OtpPurpose,
+    seconds: number,
+  ): Promise<void>;
 
   /**
    * Records a send and returns how many have happened in the trailing window.
@@ -64,6 +71,30 @@ export interface OtpStore {
     now?: number,
   ): Promise<number>;
 
+  /**
+   * Records that an identifier passed its check, for a window longer than the
+   * code itself.
+   *
+   * Signup needs this: the email OTP is verified on one request and the account
+   * is created on a later one, so something has to remember in between. It is a
+   * short-lived server-side marker rather than a token handed to the client,
+   * which means a caller cannot mint their own.
+   */
+  markVerified(
+    identifier: string,
+    purpose: OtpPurpose,
+    ttlSeconds: number,
+  ): Promise<void>;
+
+  /**
+   * Consumes the marker, returning true only for the caller that removed it.
+   * One verification buys exactly one account, so a replayed signup fails.
+   */
+  consumeVerified(identifier: string, purpose: OtpPurpose): Promise<boolean>;
+
+  /** Whether a marker is live, without spending it. */
+  isVerified(identifier: string, purpose: OtpPurpose): Promise<boolean>;
+
   /** Test and maintenance helper; clears everything for one phone. */
   clear(phone: string, purpose: OtpPurpose): Promise<void>;
 }
@@ -81,4 +112,8 @@ export function cooldownKey(phone: string, purpose: OtpPurpose): string {
 
 export function sendsKey(phone: string, purpose: OtpPurpose): string {
   return `otp:sends:${purpose}:${phone}`;
+}
+
+export function verifiedKey(identifier: string, purpose: OtpPurpose): string {
+  return `otp:verified:${purpose}:${identifier}`;
 }

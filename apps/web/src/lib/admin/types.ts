@@ -265,6 +265,10 @@ export type AdminSettings = {
   razorpayConfigured: boolean;
   smsProvider: string;
   smsConfigured: boolean;
+  mailProvider: string;
+  /** False when the API fell back to logging emails instead of sending them. */
+  mailConfigured: boolean;
+  mailFrom: string | null;
   environment?: string;
 };
 

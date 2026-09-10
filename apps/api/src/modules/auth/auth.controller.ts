@@ -19,9 +19,11 @@ import { AuthService, GoogleAuthError } from './auth.service';
 import { REFRESH_TOKEN_COOKIE } from './auth.types';
 import type { RequestUser } from './auth.types';
 import { LoginDto } from './dto/login.dto';
+import { RequestEmailOtpDto, VerifyEmailOtpDto } from './dto/email-otp.dto';
 import { RequestOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
+import { EmailOtpService } from './email-otp.service';
 import { OtpService } from './otp.service';
 
 @Controller('auth')
@@ -31,6 +33,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly otp: OtpService,
+    private readonly emailOtp: EmailOtpService,
     private readonly config: ConfigService,
   ) {}
 
@@ -38,21 +41,38 @@ export class AuthController {
   @SkipThrottle({ default: true })
   @Throttle({ auth: { limit: 20, ttl: 60000 } })
   @Get('google')
-  googleStart(@Query('next') next: string | undefined, @Res() response: Response) {
+  googleStart(
+    @Query('next') next: string | undefined,
+    @Res() response: Response,
+  ) {
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     const redirectUri = this.config.get<string>('GOOGLE_OAUTH_REDIRECT_URI');
     if (!clientId || !redirectUri) {
       this.logger.error(
         'GET /auth/google was called but GOOGLE_CLIENT_ID or GOOGLE_OAUTH_REDIRECT_URI is missing.',
       );
-      response.redirect(`${this.webAppUrl()}/auth/login?error=google_not_configured`);
+      response.redirect(
+        `${this.webAppUrl()}/auth/login?error=google_not_configured`,
+      );
       return;
     }
     const state = randomUUID();
     const safeNext = this.safeNext(next);
     const secure = this.config.get<boolean>('COOKIE_SECURE', false);
-    response.cookie('googleOAuthState', state, { httpOnly: true, sameSite: 'lax', secure, maxAge: 10 * 60 * 1000, path: '/api/auth' });
-    response.cookie('googleOAuthNext', safeNext, { httpOnly: true, sameSite: 'lax', secure, maxAge: 10 * 60 * 1000, path: '/api/auth' });
+    response.cookie('googleOAuthState', state, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure,
+      maxAge: 10 * 60 * 1000,
+      path: '/api/auth',
+    });
+    response.cookie('googleOAuthNext', safeNext, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure,
+      maxAge: 10 * 60 * 1000,
+      path: '/api/auth',
+    });
     const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     url.searchParams.set('client_id', clientId);
     url.searchParams.set('redirect_uri', redirectUri);
@@ -87,12 +107,18 @@ export class AuthController {
     // Google reports consent-screen problems (access_denied, and crucially
     // redirect_uri_mismatch) as a query parameter rather than an HTTP error.
     if (googleError) {
-      this.logger.error(`Google returned an authorization error: ${googleError}`);
-      response.redirect(`${webAppUrl}/auth/login?error=${encodeURIComponent(googleError)}`);
+      this.logger.error(
+        `Google returned an authorization error: ${googleError}`,
+      );
+      response.redirect(
+        `${webAppUrl}/auth/login?error=${encodeURIComponent(googleError)}`,
+      );
       return;
     }
     if (!code) {
-      this.logger.error('Google callback arrived without an authorization code.');
+      this.logger.error(
+        'Google callback arrived without an authorization code.',
+      );
       response.redirect(`${webAppUrl}/auth/login?error=google_no_code`);
       return;
     }
@@ -104,7 +130,9 @@ export class AuthController {
       return;
     }
     if (state !== cookies.googleOAuthState) {
-      this.logger.error('Google callback state did not match the stored state.');
+      this.logger.error(
+        'Google callback state did not match the stored state.',
+      );
       response.redirect(`${webAppUrl}/auth/login?error=google_state`);
       return;
     }
@@ -115,7 +143,9 @@ export class AuthController {
         ipAddress: request.ip,
       });
       this.setRefreshCookie(response, result.tokens.refreshToken);
-      response.redirect(`${webAppUrl}/auth/google/callback#accessToken=${encodeURIComponent(result.tokens.accessToken)}&next=${encodeURIComponent(next)}`);
+      response.redirect(
+        `${webAppUrl}/auth/google/callback#accessToken=${encodeURIComponent(result.tokens.accessToken)}&next=${encodeURIComponent(next)}`,
+      );
     } catch (error) {
       const reason =
         error instanceof GoogleAuthError ? error.reason : 'google_login';
@@ -133,7 +163,9 @@ export class AuthController {
   }
 
   private safeNext(value: string | undefined): string {
-    return value?.startsWith('/') && !value.startsWith('//') ? value : '/dashboard';
+    return value?.startsWith('/') && !value.startsWith('//')
+      ? value
+      : '/dashboard';
   }
 
   @Public()
@@ -227,6 +259,27 @@ export class AuthController {
       user: result.user,
       accessToken: result.tokens.accessToken,
     };
+  }
+
+  /*
+    Email confirmation for password signup. Kept on its own path rather than
+    folded into otp/request, so a code sent to an inbox can never be presented
+    at the phone endpoints — those issue a session, and these do not.
+  */
+  @Public()
+  @SkipThrottle({ default: true })
+  @Throttle({ auth: { limit: 8, ttl: 60000 } })
+  @Post('email-otp/request')
+  requestEmailOtp(@Body() dto: RequestEmailOtpDto) {
+    return this.emailOtp.request(dto);
+  }
+
+  @Public()
+  @SkipThrottle({ default: true })
+  @Throttle({ auth: { limit: 12, ttl: 60000 } })
+  @Post('email-otp/verify')
+  verifyEmailOtp(@Body() dto: VerifyEmailOtpDto) {
+    return this.emailOtp.verify(dto);
   }
 
   @Get('me')

@@ -7,7 +7,8 @@ import { EmptyState, ErrorState } from '@/components/ui/feedback';
 import { getProperty, getPropertyReviews } from '@/lib/properties/api';
 import { coverImage, amenityName } from '@/lib/properties/map-property';
 import { photoAlt } from '@/lib/properties/photo-alt';
-import { decodeListingMeta } from '@/lib/host/listing-meta';
+import { decodeListingMeta, listingSlots } from '@/lib/host/listing-meta';
+import { formatSlotRange, formatTime12 } from '@/lib/time/clock';
 import { PROPERTY_TYPE_LABEL, type ApiProperty } from '@/lib/properties/types';
 import { isUuid } from '@/lib/ids';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
@@ -86,6 +87,35 @@ function BedIcon() {
   );
 }
 
+function SunIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="10" cy="10" r="3.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path
+        d="M10 2v2.1M10 15.9V18M18 10h-2.1M4.1 10H2M15.7 4.3l-1.5 1.5M5.8 14.2l-1.5 1.5M15.7 15.7l-1.5-1.5M5.8 5.8 4.3 4.3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+      <path
+        d="M16.2 12.4A6.8 6.8 0 0 1 7.6 3.8a6.8 6.8 0 1 0 8.6 8.6Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function Highlight({ icon, value, label }: { icon: React.ReactNode; value: number | string; label: string }) {
   return (
     <div className={page.highlight}>
@@ -157,6 +187,8 @@ export default async function PropertyPage({ params }: Props) {
   const { meta, rules: houseRules } = decodeListingMeta(property.propertyRules);
   const locationName = [property.location, property.city, property.state].filter(Boolean).join(', ');
   const amenities = amenityLabels(property);
+  // Day party, night party or overnight — whichever sittings the host offers.
+  const slots = listingSlots(meta, { range: formatSlotRange, time: formatTime12 });
   const badges = [
     property.isCoupleFriendly ? 'Couple friendly' : null,
     property.isPartyFriendly ? 'Party friendly' : null,
@@ -239,6 +271,25 @@ export default async function PropertyPage({ params }: Props) {
                   <AmenityItem key={name} label={name} />
                 ))}
               </div>
+            </section>
+          ) : null}
+
+          {slots.length > 0 ? (
+            <section className={page.section}>
+              <h2 className={page.sectionTitle}>How you can book it</h2>
+              <ul className={page.slots}>
+                {slots.map((slot) => (
+                  <li key={slot.key} className={page.slot}>
+                    <span className={page.slotIcon} aria-hidden="true">
+                      {slot.key === 'night' ? <MoonIcon /> : slot.key === 'day' ? <SunIcon /> : <BedIcon />}
+                    </span>
+                    <span className={page.slotText}>
+                      <span className={page.slotLabel}>{slot.label}</span>
+                      <span className={page.slotDetail}>{slot.detail}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </section>
           ) : null}
 

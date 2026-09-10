@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -12,6 +13,7 @@ import { randomBytes, randomUUID } from 'crypto';
 import type { AuthTokens, JwtPayload, RequestUser } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { EmailOtpService } from './email-otp.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 
@@ -52,6 +54,7 @@ export class AuthService {
     private readonly passwords: PasswordService,
     private readonly tokens: TokenService,
     private readonly config: ConfigService,
+    private readonly emailOtp: EmailOtpService,
   ) {}
 
   async register(
@@ -66,6 +69,22 @@ export class AuthService {
       throw new ConflictException({
         errorCode: ErrorCodes.EMAIL_ALREADY_REGISTERED,
         message: 'An account with this email already exists.',
+      });
+    }
+
+    /*
+      The address must have been confirmed by code first. Checked before the
+      password is hashed, since bcrypt is the expensive part of this request and
+      an unverified caller should not be able to spend it.
+
+      The marker is only read here and consumed once the account exists — a
+      failure later in this method would otherwise burn the verification and
+      force the user to start over.
+    */
+    if (!(await this.emailOtp.isVerified(email))) {
+      throw new ForbiddenException({
+        errorCode: ErrorCodes.EMAIL_NOT_VERIFIED,
+        message: 'Confirm your email address before creating an account.',
       });
     }
 
@@ -108,6 +127,10 @@ export class AuthService {
 
       return created;
     });
+
+    // Spend the verification now that the account exists, so one emailed code
+    // cannot be replayed into a second signup.
+    await this.emailOtp.consumeVerification(email);
 
     const tokens = await this.issueSession(user, context);
     return { user, tokens };
@@ -256,13 +279,24 @@ export class AuthService {
         data: {
           email,
           name: profile.name?.trim() || email.split('@')[0],
-          passwordHash: await this.passwords.hash(randomBytes(32).toString('hex')),
+          passwordHash: await this.passwords.hash(
+            randomBytes(32).toString('hex'),
+          ),
           role: UserRoles.CUSTOMER,
         },
-        select: { id: true, email: true, role: true, name: true, isActive: true },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          name: true,
+          isActive: true,
+        },
       });
     } else {
-      await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      });
     }
 
     const publicUser: RequestUser = {
@@ -272,7 +306,10 @@ export class AuthService {
       name: user.name,
     };
     this.logger.log(`Google sign-in succeeded for ${email}.`);
-    return { user: publicUser, tokens: await this.issueSession(publicUser, context) };
+    return {
+      user: publicUser,
+      tokens: await this.issueSession(publicUser, context),
+    };
   }
 
   /**
@@ -305,7 +342,9 @@ export class AuthService {
       return null;
     }
     if (!claims.iss || !GOOGLE_ISSUERS.includes(claims.iss)) {
-      this.logger.error(`Google id_token issuer ${String(claims.iss)} is not Google.`);
+      this.logger.error(
+        `Google id_token issuer ${String(claims.iss)} is not Google.`,
+      );
       return null;
     }
     if (typeof claims.exp === 'number' && claims.exp * 1000 <= Date.now()) {
