@@ -15,6 +15,24 @@ const PROPERTY_COLOR = '#ff5a60';
 /** A cool tone for "you", so the two marker kinds are told apart by hue. */
 const VIEWER_COLOR = '#8fb8e8';
 
+/*
+  Markers are drawn as inline SVG rather than `google.maps.SymbolPath.CIRCLE`.
+
+  Under the async loader the namespace is populated library by library, so
+  whether a given enum exists depends on which ones have been imported. A data
+  URI has no such dependency, and it lets the dot carry the exact brand colour
+  and a dark ring that keeps it legible over both roads and parkland.
+*/
+function dotIcon(color: string, radius: number): google.maps.Icon {
+  const size = (radius + 2) * 2;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${radius}" fill="${color}" stroke="#0d0c10" stroke-width="2"/></svg>`;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new google.maps.Size(size, size),
+    anchor: new google.maps.Point(size / 2, size / 2),
+  };
+}
+
 export function NearbyMapCanvas({ center, properties }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -84,14 +102,7 @@ export function NearbyMapCanvas({ center, properties }: Props) {
       position: { lat: center.latitude, lng: center.longitude },
       map,
       title: 'Your location',
-      icon: {
-        path: maps.SymbolPath.CIRCLE,
-        scale: 7,
-        fillColor: VIEWER_COLOR,
-        fillOpacity: 1,
-        strokeColor: '#0d0c10',
-        strokeWeight: 2,
-      },
+      icon: dotIcon(VIEWER_COLOR, 7),
     });
     overlaysRef.current.push(you);
 
@@ -104,14 +115,7 @@ export function NearbyMapCanvas({ center, properties }: Props) {
         position: { lat: latitude, lng: longitude },
         map,
         title: property.title,
-        icon: {
-          path: maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: PROPERTY_COLOR,
-          fillOpacity: 1,
-          strokeColor: '#0d0c10',
-          strokeWeight: 2,
-        },
+        icon: dotIcon(PROPERTY_COLOR, 8),
       });
       marker.addListener('click', () => {
         // Set as text, not HTML: a property title is user-supplied and would

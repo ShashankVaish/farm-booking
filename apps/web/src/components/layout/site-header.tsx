@@ -102,6 +102,17 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
   }
 
   return (
+    /*
+      The mobile menu is a SIBLING of <header>, not a child.
+
+      `.header` sets `backdrop-filter`, and any element with a backdrop-filter
+      becomes the containing block for its fixed-position descendants. Nested
+      inside, the menu's `position: fixed; inset: var(--header-height) 0 0 0`
+      resolved against the header box — a strip one header tall — so it had
+      effectively no height, painted no background, and its links spilled over
+      the page behind it.
+    */
+    <>
     <header className={styles.header}>
       <div className={`container ${styles.headerInner}`}>
         <div className={styles.headerStart}>
@@ -175,22 +186,24 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
         </div>
       </div>
 
-      {menuOpen && variant === 'default' ? (
-        <nav id="mobile-menu" className={styles.menu} aria-label="Mobile">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={styles.menuLink}
-              aria-current={pathname.startsWith(item.href) ? 'page' : undefined}
-              onClick={() => setMenuOpen(false)}
-            >
-              {item.label}
-            </Link>
-          ))}
-          <Button href="/explore">Find a Stay</Button>
-        </nav>
-      ) : null}
     </header>
+
+    {menuOpen && variant === 'default' ? (
+      <nav id="mobile-menu" className={styles.menu} aria-label="Mobile">
+        {NAV.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={styles.menuLink}
+            aria-current={pathname.startsWith(item.href) ? 'page' : undefined}
+            onClick={() => setMenuOpen(false)}
+          >
+            {item.label}
+          </Link>
+        ))}
+        <Button href="/explore">Find a Stay</Button>
+      </nav>
+    ) : null}
+    </>
   );
 }

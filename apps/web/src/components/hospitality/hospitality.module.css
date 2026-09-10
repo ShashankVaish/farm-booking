@@ -97,6 +97,14 @@
   line-height: 1.25;
 }
 
+/* The card title was a 17px-tall tap target — under the 24px minimum. The
+   image above it is already a large link to the same place, so this only has
+   to clear the floor rather than reach 44. */
+.title a {
+  display: inline-block;
+  padding-block: var(--space-2);
+}
+
 .meta {
   display: flex;
   flex-wrap: wrap;
@@ -663,4 +671,13 @@
   margin: 0.2rem 0 0;
   font-size: var(--fs-body-small);
   overflow-wrap: anywhere;
+}
+
+/* "View all" measured 47x21 — a real tap target on the busiest pages, so it
+   gets a full-height hit area rather than just clearing the 24px floor. */
+.sectionLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  white-space: nowrap;
 }

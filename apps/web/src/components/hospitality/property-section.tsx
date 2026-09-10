@@ -22,7 +22,7 @@ export function PropertySection({
           <h2 className="t-h2">{title}</h2>
         </div>
         {href ? (
-          <Link href={href} className="t-body-small">
+          <Link href={href} className={`t-body-small ${styles.sectionLink}`}>
             View all
           </Link>
         ) : null}

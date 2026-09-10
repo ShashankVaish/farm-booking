@@ -8,7 +8,8 @@
     "start": "next start --port 3000",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "audit:responsive": "node scripts/responsive-audit.mjs"
   },
   "dependencies": {
     "next": "15.5.4",
@@ -26,6 +27,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "jsdom": "^26.1.0",
+    "playwright": "^1.63.0",
     "typescript": "^5",
     "vitest": "^3.2.4"
   }
