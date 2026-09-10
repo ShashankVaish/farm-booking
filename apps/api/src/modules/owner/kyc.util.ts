@@ -77,3 +77,34 @@ export function hashAadhaar(value: string, pepper: string): string {
 export function maskAadhaar(last4: string | null | undefined): string {
   return last4 ? `XXXX XXXX ${last4}` : '';
 }
+
+/**
+ * IFSC codes are 11 characters: a 4-letter bank code, a reserved '0', then a
+ * 6-character branch code.
+ */
+const IFSC_PATTERN = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+
+export function normalizeIfsc(value: string): string {
+  return value.replace(/\s/g, '').toUpperCase();
+}
+
+export function isValidIfsc(value: string): boolean {
+  return IFSC_PATTERN.test(normalizeIfsc(value));
+}
+
+export function normalizeAccountNumber(value: string): string {
+  return value.replace(/[\s-]/g, '');
+}
+
+/** Indian bank account numbers run roughly 9-18 digits. */
+export function isValidAccountNumber(value: string): boolean {
+  return /^\d{9,18}$/.test(normalizeAccountNumber(value));
+}
+
+export function accountLast4(value: string): string {
+  return normalizeAccountNumber(value).slice(-4);
+}
+
+export function maskAccount(last4: string | null | undefined): string {
+  return last4 ? `••••••${last4}` : '';
+}

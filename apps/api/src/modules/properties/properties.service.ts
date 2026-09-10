@@ -17,6 +17,8 @@ import { assertValidCoordinates } from '../locations/geo';
 import {
   CreatePropertyDto,
   ListPropertiesQueryDto,
+  MAX_LISTING_PHOTOS,
+  MIN_LISTING_PHOTOS,
   UpdatePropertyDto,
 } from './dto/property.dto';
 import {
@@ -69,6 +71,8 @@ export class PropertiesService {
         propertyRules: dto.propertyRules,
         cancellationPolicy: dto.cancellationPolicy,
         isPartyFriendly: dto.isPartyFriendly ?? false,
+        isAdultOnly: dto.isAdultOnly ?? false,
+        isCoupleFriendly: dto.isCoupleFriendly ?? false,
         status: PropertyStatus.DRAFT,
         amenities: dto.amenityIds
           ? {
@@ -176,6 +180,16 @@ export class PropertiesService {
     }
   }
 
+  /** Guests judge a stay by its photos, so a listing needs a real set of them. */
+  private assertPhotoCount(count: number): void {
+    if (count < MIN_LISTING_PHOTOS || count > MAX_LISTING_PHOTOS) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.VALIDATION_ERROR,
+        message: `Add between ${MIN_LISTING_PHOTOS} and ${MAX_LISTING_PHOTOS} photos before submitting this listing.`,
+      });
+    }
+  }
+
   async update(id: string, user: RequestUser, dto: UpdatePropertyDto) {
     const property = await this.requireManaged(id, user);
 
@@ -186,6 +200,12 @@ export class PropertiesService {
         user.role !== UserRoles.ADMIN
       ) {
         await this.assertHostVerified(property.ownerId);
+        // Count the photos this request will leave behind, not the stored set,
+        // so submitting and re-photographing in one call is judged correctly.
+        const photoCount =
+          dto.images?.length ??
+          (await this.prisma.propertyImage.count({ where: { propertyId: id } }));
+        this.assertPhotoCount(photoCount);
       }
     }
 

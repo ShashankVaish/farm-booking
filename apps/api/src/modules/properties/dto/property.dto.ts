@@ -45,6 +45,9 @@ export class PropertyImageInputDto {
   isCover?: boolean;
 }
 
+export const MIN_LISTING_PHOTOS = 4;
+export const MAX_LISTING_PHOTOS = 8;
+
 export class CreatePropertyDto {
   @IsString()
   @MinLength(3)
@@ -152,13 +155,21 @@ export class CreatePropertyDto {
   isPartyFriendly?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isAdultOnly?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isCoupleFriendly?: boolean;
+
+  @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
   amenityIds?: string[];
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(30)
+  @ArrayMaxSize(MAX_LISTING_PHOTOS)
   images?: PropertyImageInputDto[];
 }
 
@@ -283,6 +294,14 @@ export class UpdatePropertyDto {
   isPartyFriendly?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isAdultOnly?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isCoupleFriendly?: boolean;
+
+  @IsOptional()
   @IsEnum(PropertyStatus)
   status?: PropertyStatus;
 
@@ -293,7 +312,7 @@ export class UpdatePropertyDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(30)
+  @ArrayMaxSize(MAX_LISTING_PHOTOS)
   images?: PropertyImageInputDto[];
 }
 

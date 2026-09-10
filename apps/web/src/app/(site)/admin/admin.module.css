@@ -1,7 +1,14 @@
 .frame {
   display: grid;
-  gap: var(--space-8);
-  padding: var(--space-6) 0 var(--space-16);
+  gap: var(--space-5);
+  padding: var(--space-5) 0 var(--space-16);
+}
+
+@media (min-width: 1024px) {
+  .frame {
+    gap: var(--space-8);
+    padding-top: var(--space-6);
+  }
 }
 
 @media (min-width: 1024px) {
@@ -11,16 +18,83 @@
   }
 }
 
-.nav {
+/*
+ * Below 1024px the 15-section nav collapses behind a button that names the
+ * current section. A horizontal scroll strip hid most destinations and gave
+ * no sense of where you were.
+ */
+.navToggle {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--fs-body-small);
+  cursor: pointer;
+}
+
+.navToggleLabel {
+  display: flex;
+  align-items: baseline;
   gap: var(--space-2);
-  overflow-x: auto;
-  padding-bottom: var(--space-2);
+  min-width: 0;
+}
+
+.navToggleSection {
+  font-weight: var(--font-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navToggleHint {
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+.nav[data-open='false'] {
+  display: none;
+}
+
+.nav {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+@media (min-width: 640px) {
+  .nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 1024px) {
+  .navToggle {
+    display: none;
+  }
+
+  .nav[data-open='false'],
   .nav {
+    display: flex;
     flex-direction: column;
+    gap: var(--space-2);
+    grid-template-columns: none;
+    margin-top: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
     overflow: visible;
     position: sticky;
     top: var(--space-6);

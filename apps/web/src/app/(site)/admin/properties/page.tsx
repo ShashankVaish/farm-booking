@@ -141,21 +141,21 @@ export default function AdminPropertiesPage() {
             <tbody>
               {data?.items.map((property) => (
                 <tr key={property.id}>
-                  <td>
+                  <td data-label="Listing">
                     <Link href={`/admin/properties/${property.id}`}>{property.title}</Link>
                     <div className="t-caption">
                       {property.city}, {property.state}
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Owner">
                     {property.owner?.name}
                     <div className="t-caption">{property.owner?.email}</div>
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <span className={adminUi.badge}>{statusLabel(property.status)}</span>
                   </td>
-                  <td>{formatDateTime(property.createdAt)}</td>
-                  <td>
+                  <td data-label="Submitted">{formatDateTime(property.createdAt)}</td>
+                  <td data-label="Actions">
                     <div className={adminUi.actions}>
                       <Button size="sm" variant="ghost" href={`/admin/properties/${property.id}`}>
                         Review

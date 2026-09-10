@@ -1,4 +1,7 @@
+'use client';
+
 import Image from 'next/image';
+import { useState } from 'react';
 import { resolveMedia } from '@/lib/media/provider';
 import type { MediaAsset } from '@/lib/media/types';
 import { cn } from '@/lib/cn';
@@ -29,12 +32,16 @@ export function MediaImage({
   fallbackLabel = 'Image unavailable',
   tone = 'default',
 }: MediaImageProps) {
+  // An upload can go missing from disk while its row still exists. Without this
+  // the browser renders a broken-image box and next/image logs a 400.
+  const [failed, setFailed] = useState(false);
+
   const resolved = asset ? resolveMedia(asset) : null;
-  const isRemoteOrFile = Boolean(resolved?.src);
+  const showImage = Boolean(resolved?.src) && !failed;
 
   return (
     <div className={cn(styles.frame, className)} style={{ aspectRatio }}>
-      {isRemoteOrFile && resolved ? (
+      {showImage && resolved ? (
         <Image
           src={resolved.src}
           alt={alt || resolved.alt}
@@ -44,6 +51,7 @@ export function MediaImage({
           unoptimized={resolved.src.startsWith('http')}
           className={styles.image}
           style={{ objectPosition }}
+          onError={() => setFailed(true)}
         />
       ) : (
         <div

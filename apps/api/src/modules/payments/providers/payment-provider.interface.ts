@@ -40,6 +40,8 @@ export interface CreateRefundInput {
   providerPaymentId: string;
   amountPaise: number;
   notes?: string;
+  /** 'optimum' asks the gateway for the fastest settlement it can offer. */
+  speed?: 'normal' | 'optimum';
 }
 
 export interface CreateRefundResult {

@@ -15,9 +15,13 @@ import type { RequestUser } from '../auth/auth.types';
 import { CreateCouponDto } from '../coupons/dto/create-coupon.dto';
 import { UpdateCouponDto } from '../coupons/dto/update-coupon.dto';
 import { AdminService } from './admin.service';
+import { PayoutsService } from './payouts.service';
 import {
   AdminBookingsQueryDto,
+  AdminPayoutsQueryDto,
+  AdminCancelBookingDto,
   AdminListQueryDto,
+  AdminPaymentsQueryDto,
   AdminPropertiesQueryDto,
   AdminRefundDto,
   AdminReportsQueryDto,
@@ -25,13 +29,17 @@ import {
   ModerateReviewDto,
   PropertyModerationDto,
   SetUserActiveDto,
+  UpdatePlatformSettingsDto,
   UpdateSupportTicketDto,
 } from './dto/admin.dto';
 
 @Controller('admin')
 @Roles(UserRoles.ADMIN)
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly payouts: PayoutsService,
+  ) {}
 
   @Get('overview')
   overview() {
@@ -46,6 +54,14 @@ export class AdminController {
   @Get('settings')
   settings() {
     return this.admin.settings();
+  }
+
+  @Patch('settings')
+  updateSettings(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: UpdatePlatformSettingsDto,
+  ) {
+    return this.admin.updateSettings(dto, user.id);
   }
 
   @Get('users')
@@ -125,8 +141,13 @@ export class AdminController {
   }
 
   @Get('payments')
-  payments(@Query() query: AdminListQueryDto) {
+  payments(@Query() query: AdminPaymentsQueryDto) {
     return this.admin.payments(query);
+  }
+
+  @Delete('payments/:id')
+  deletePayment(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.admin.deletePayment(id, user.id);
   }
 
   @Post('payments/:id/reconcile')
@@ -139,9 +160,26 @@ export class AdminController {
     return this.admin.expireAbandonedPayments();
   }
 
+  @Get('payouts')
+  payoutStatement(@Query() query: AdminPayoutsQueryDto) {
+    return this.payouts.statement(query);
+  }
+
   @Get('refunds')
   refunds(@Query() query: AdminListQueryDto) {
     return this.admin.refunds(query);
+  }
+
+  @Post('bookings/:id/cancel')
+  cancelBooking(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: AdminCancelBookingDto,
+  ) {
+    return this.admin.cancelBooking(id, user.id, {
+      reason: dto.reason,
+      blockDates: dto.blockDates,
+    });
   }
 
   @Post('bookings/:id/refund')

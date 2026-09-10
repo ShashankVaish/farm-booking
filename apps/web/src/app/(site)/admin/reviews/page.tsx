@@ -68,11 +68,11 @@ export default function AdminReviewsPage() {
             <tbody>
               {data?.items.map((review) => (
                 <tr key={review.id}>
-                  <td>{review.property?.title}</td>
-                  <td>{review.customer?.name}</td>
-                  <td>{review.rating}</td>
-                  <td>{review.comment}</td>
-                  <td>
+                  <td data-label="Property">{review.property?.title}</td>
+                  <td data-label="Guest">{review.customer?.name}</td>
+                  <td data-label="Rating">{review.rating}</td>
+                  <td data-label="Comment">{review.comment}</td>
+                  <td data-label="Visibility">
                     <span className={adminUi.badge}>{review.isPublished ? 'Published' : 'Hidden'}</span>
                     <div className="t-caption">{formatDateTime(review.createdAt)}</div>
                   </td>

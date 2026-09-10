@@ -83,8 +83,8 @@ export default function AdminReportsPage() {
                 <tbody>
                   {data.bookings.map((row) => (
                     <tr key={row.status}>
-                      <td>{statusLabel(row.status)}</td>
-                      <td>{row.count}</td>
+                      <td data-label="Status">{statusLabel(row.status)}</td>
+                      <td data-label="Count">{row.count}</td>
                     </tr>
                   ))}
                 </tbody>

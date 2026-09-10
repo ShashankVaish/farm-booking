@@ -74,16 +74,16 @@ export default function AdminSupportPage() {
             <tbody>
               {data?.items.map((ticket) => (
                 <tr key={ticket.id}>
-                  <td>
+                  <td data-label="Subject">
                     {ticket.subject}
                     <div className="t-caption">{ticket.message}</div>
                   </td>
-                  <td>
+                  <td data-label="User">
                     {ticket.user?.name}
                     <div className="t-caption">{ticket.user?.email}</div>
                   </td>
-                  <td>{statusLabel(ticket.priority)}</td>
-                  <td>
+                  <td data-label="Priority">{statusLabel(ticket.priority)}</td>
+                  <td data-label="Status">
                     <Select
                       id={`ticket-${ticket.id}`}
                       label="Status"
@@ -97,7 +97,7 @@ export default function AdminSupportPage() {
                       ))}
                     </Select>
                   </td>
-                  <td>{formatDateTime(ticket.createdAt)}</td>
+                  <td data-label="Opened">{formatDateTime(ticket.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

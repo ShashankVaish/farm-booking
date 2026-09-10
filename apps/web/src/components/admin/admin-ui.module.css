@@ -112,3 +112,88 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+
+/* ---------------------------------------------------------------------------
+   Mobile: stack each row into a labelled card.
+
+   A 5-column table inside a 430px viewport is only usable by horizontal
+   scrolling, which hides the columns that matter. Below 768px every row
+   becomes its own card and each cell is prefixed with its column name, taken
+   from the `data-label` attribute set on the cell.
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 767px) {
+  .scroll {
+    overflow-x: visible;
+  }
+
+  .table {
+    min-width: 0;
+    display: block;
+    border-collapse: separate;
+  }
+
+  .table thead {
+    /* Column names move into each cell, so the header row is redundant.
+       Kept in the accessibility tree rather than display:none'd away. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+
+  .table tr {
+    margin-bottom: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .table tbody tr:hover td {
+    background: transparent;
+  }
+
+  .table td {
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--color-border);
+    overflow-wrap: anywhere;
+  }
+
+  .table tr td:last-child {
+    border-bottom: 0;
+  }
+
+  .table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.15rem;
+    color: var(--color-text-muted);
+    font-size: var(--fs-caption);
+    letter-spacing: var(--ls-label);
+    text-transform: uppercase;
+  }
+
+  /* A cell with no label (spacer or actions) should not leave a gap. */
+  .table td:not([data-label])::before {
+    display: none;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .pager {
+    justify-content: space-between;
+  }
+}

@@ -33,26 +33,8 @@ import {
 } from './dto/booking.dto';
 import { assertBookingTransition, canCustomerCancel } from './booking-status';
 import { AuditActions, AuditService } from '../../common/audit.service';
+import { bookingDetailInclude } from './booking-include';
 
-const bookingDetailInclude = {
-  property: {
-    select: {
-      id: true,
-      title: true,
-      ownerId: true,
-      city: true,
-      state: true,
-      location: true,
-      address: true,
-      cancellationPolicy: true,
-      guestCapacity: true,
-      images: { take: 1, orderBy: { sortOrder: 'asc' as const } },
-    },
-  },
-  payments: { orderBy: { createdAt: 'desc' as const } },
-  coupon: { select: { code: true } },
-  review: { select: { id: true, rating: true } },
-} as const;
 
 @Injectable()
 export class BookingsService {

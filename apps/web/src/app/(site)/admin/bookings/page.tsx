@@ -70,22 +70,22 @@ export default function AdminBookingsPage() {
             <tbody>
               {data?.items.map((booking) => (
                 <tr key={booking.id}>
-                  <td>
+                  <td data-label="Property">
                     <Link href={`/admin/bookings/${booking.id}`}>{booking.property.title}</Link>
                   </td>
-                  <td>
+                  <td data-label="Customer">
                     {booking.customer.name}
                     <div className="t-caption">{booking.customer.email}</div>
                   </td>
-                  <td>
+                  <td data-label="Owner">
                     {booking.owner.name}
                     <div className="t-caption">{booking.owner.email}</div>
                   </td>
-                  <td>
+                  <td data-label="Dates">
                     {formatDay(booking.dates.checkIn)} → {formatDay(booking.dates.checkOut)}
                   </td>
-                  <td>{formatInr(booking.amount.total)}</td>
-                  <td>
+                  <td data-label="Amount">{formatInr(booking.amount.total)}</td>
+                  <td data-label="Payment">
                     {booking.payment ? (
                       <>
                         <span className={adminUi.badge}>{statusLabel(booking.payment.status)}</span>
@@ -95,7 +95,7 @@ export default function AdminBookingsPage() {
                       '—'
                     )}
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <span className={adminUi.badge}>{statusLabel(booking.status)}</span>
                     {booking.cancellation ? <div className="t-caption">Cancelled</div> : null}
                     {booking.refunds.length ? <div className="t-caption">{booking.refunds.length} refund(s)</div> : null}

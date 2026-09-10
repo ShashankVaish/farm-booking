@@ -10,6 +10,7 @@ import type { RequestUser } from '../auth/auth.types';
 import { UpdateOwnerProfileDto } from './dto/owner.dto';
 import {
   RequestHostPhoneOtpDto,
+  SaveBankAccountDto,
   SubmitHostKycDto,
   VerifyHostPhoneOtpDto,
 } from './dto/kyc.dto';
@@ -89,6 +90,15 @@ export class OwnerController {
   @Post('kyc')
   submitKyc(@CurrentUser() user: RequestUser, @Body() dto: SubmitHostKycDto) {
     return this.kyc.submit(user.id, dto);
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('bank-account')
+  saveBankAccount(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: SaveBankAccountDto,
+  ) {
+    return this.kyc.saveBankAccount(user.id, dto);
   }
 
   @Get('profile')

@@ -19,6 +19,30 @@ services:
     networks:
       - farmhouse
 
+  redis:
+    image: redis:7-alpine
+    container_name: farmhouse-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    # OTP codes are short-lived by definition, so nothing is persisted to disk:
+    # a restart should lose in-flight codes rather than resurrect them. Eviction
+    # drops whichever key is closest to expiring, which is the right victim when
+    # every key here carries a TTL.
+    command: >
+      redis-server
+      --save ""
+      --appendonly no
+      --maxmemory 256mb
+      --maxmemory-policy volatile-ttl
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - farmhouse
+
   api:
     build:
       context: ./apps/api
@@ -27,6 +51,8 @@ services:
     restart: unless-stopped
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "${PORT:-3001}:3001"
@@ -46,6 +72,7 @@ services:
       AUTH_THROTTLE_TTL_MS: ${AUTH_THROTTLE_TTL_MS:-60000}
       AUTH_THROTTLE_LIMIT: ${AUTH_THROTTLE_LIMIT:-10}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      REDIS_URL: redis://redis:6379
     volumes:
       - ./apps/api/src:/app/src
     networks:

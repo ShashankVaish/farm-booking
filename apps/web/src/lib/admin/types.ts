@@ -163,6 +163,8 @@ export type AdminBooking = {
     status: string;
     reason: string | null;
     gatewayRefundId: string | null;
+    /** What the gateway reported — the only clue when a refund fails. */
+    gatewayStatus: string | null;
     createdAt: string;
   }>;
   createdAt: string;
@@ -177,6 +179,7 @@ export type AdminRefund = {
   reason: string | null;
   status: string;
   gatewayRefundId: string | null;
+  gatewayStatus: string | null;
   createdAt: string;
   booking?: { id: string; status: string; totalAmount: string | number };
   payment?: {
@@ -260,7 +263,77 @@ export type AdminSettings = {
   bookingExpireMinutes: number;
   paymentProvider: string;
   razorpayConfigured: boolean;
+  smsProvider: string;
+  smsConfigured: boolean;
   environment?: string;
 };
 
 export type AdminList<T> = Paginated<T>;
+
+export type PayoutStay = {
+  bookingId: string;
+  property: string;
+  city: string;
+  guest: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  /** True once the guest has checked out, i.e. the money is earned. */
+  settled: boolean;
+  gross: string;
+  platformFee: string;
+  refunded: string;
+  net: string;
+};
+
+export type PayoutHost = {
+  owner: { id: string; name: string; email: string; phone: string | null; phoneVerified: boolean };
+  bank: {
+    accountHolderName: string | null;
+    /** Masked to the last four digits. */
+    accountMasked: string | null;
+    ifsc: string | null;
+    bankName: string | null;
+    onFile: boolean;
+  };
+  kycStatus: 'NOT_SUBMITTED' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED';
+  panNumber: string | null;
+  stays: PayoutStay[];
+  stayCount: number;
+  gross: string;
+  platformFee: string;
+  refunded: string;
+  /** Earned and due now. */
+  payableNow: string;
+  payableNowStays: number;
+  /** Paid by the guest, but the stay has not happened yet. */
+  upcoming: string;
+  upcomingStays: number;
+  netPayable: string;
+  payable: boolean;
+  blockedReason: string | null;
+  currency: string;
+};
+
+export type AdminPayoutStatement = {
+  /** Null when the statement covers everything owed rather than a window. */
+  from: string | null;
+  to: string | null;
+  days: number | null;
+  windowed: boolean;
+  asOf: string;
+  currency: string;
+  totals: {
+    hosts: number;
+    stays: number;
+    gross: string;
+    platformFee: string;
+    refunded: string;
+    netPayable: string;
+    payableNow: string;
+    upcoming: string;
+    readyToPay: string;
+    onHold: string;
+  };
+  hosts: PayoutHost[];
+};

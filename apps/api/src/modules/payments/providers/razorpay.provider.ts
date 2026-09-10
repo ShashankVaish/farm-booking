@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { ErrorCodes } from '../../../common/constants/error-codes';
@@ -20,6 +20,7 @@ const PROVIDER_TIMEOUT_MS = 15_000;
 @Injectable()
 export class RazorpayProvider implements PaymentProvider {
   readonly name = 'RAZORPAY';
+  private readonly logger = new Logger(RazorpayProvider.name);
 
   constructor(private readonly config: ConfigService) {}
 
@@ -89,6 +90,19 @@ export class RazorpayProvider implements PaymentProvider {
 
   async createRefund(input: CreateRefundInput): Promise<CreateRefundResult> {
     const { keyId, keySecret } = this.requireKeys();
+
+    // Razorpay rejects `notes` values that are not strings, and an empty
+    // object is fine — but a null/undefined entry makes the whole request
+    // "invalid". Only send a note when there is something to say.
+    const payload: Record<string, unknown> = {
+      amount: input.amountPaise,
+      speed: input.speed ?? 'normal',
+    };
+    const note = input.notes?.trim();
+    if (note) {
+      payload.notes = { reason: note.slice(0, 250) };
+    }
+
     const response = await this.request(
       `https://api.razorpay.com/v1/payments/${input.providerPaymentId}/refund`,
       {
@@ -97,20 +111,25 @@ export class RazorpayProvider implements PaymentProvider {
           Authorization: this.basicAuth(keyId, keySecret),
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          amount: input.amountPaise,
-          notes: { reason: input.notes ?? '' },
-        }),
+        body: JSON.stringify(payload),
       },
     );
 
     const body = (await response.json()) as {
       id?: string;
       status?: string;
-      error?: { description?: string };
+      error?: { code?: string; description?: string; reason?: string; field?: string };
     };
 
     if (!response.ok) {
+      // Without this the only trace of a failed refund is the word "failed"
+      // in providerStatus, which is not enough to diagnose anything.
+      this.logger.error(
+        `Razorpay refund rejected (HTTP ${response.status}) for ${input.providerPaymentId}: ` +
+          `code=${body.error?.code ?? '?'} field=${body.error?.field ?? '?'} ` +
+          `reason=${body.error?.reason ?? '?'} desc=${body.error?.description ?? '?'} ` +
+          `| sent amount=${input.amountPaise} speed=${payload.speed as string}`,
+      );
       return {
         providerRefundId: null,
         providerStatus: body.error?.description ?? 'failed',

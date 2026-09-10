@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  AvailabilityStatus,
   BookingStatus,
   PaymentStatus,
   Prisma,
@@ -27,6 +28,12 @@ import { occupancyRate } from '../owner/owner-metrics';
 import { PaymentsService } from '../payments/payments.service';
 import { PricingService } from '../pricing/pricing.service';
 import { ReviewsService } from '../reviews/reviews.service';
+import { BookingsService } from '../bookings/bookings.service';
+import {
+  EDITABLE_SETTINGS,
+  PlatformSettingsService,
+  type EditableSettingKey,
+} from '../settings/platform-settings.service';
 import { CouponsService } from '../coupons/coupons.service';
 import { CreateCouponDto } from '../coupons/dto/create-coupon.dto';
 import { UpdateCouponDto } from '../coupons/dto/update-coupon.dto';
@@ -34,6 +41,7 @@ import { presentAdminPayment } from './admin-presenters';
 import {
   AdminBookingsQueryDto,
   AdminListQueryDto,
+  AdminPaymentsQueryDto,
   AdminPropertiesQueryDto,
   AdminReportsQueryDto,
   AdminUsersQueryDto,
@@ -75,6 +83,8 @@ export class AdminService {
     private readonly audit: AuditService,
     private readonly pricing: PricingService,
     private readonly config: ConfigService,
+    private readonly bookingsService: BookingsService,
+    private readonly platformSettings: PlatformSettingsService,
   ) {}
 
   async overview() {
@@ -214,14 +224,30 @@ export class AdminService {
     return {
       platformFeeBps: feeBps,
       platformFeePercent: feeBps / 100,
-      bookingExpireMinutes: this.config.get<number>(
-        'BOOKING_EXPIRE_MINUTES',
-        30,
-      ),
+      bookingExpireMinutes: this.platformSettings.getNumber('BOOKING_EXPIRE_MINUTES'),
       paymentProvider: 'RAZORPAY',
       razorpayConfigured: Boolean(razorpayKey),
+      smsProvider: (this.config.get<string>('SMS_PROVIDER') ?? 'console').toLowerCase(),
+      smsConfigured: this.smsConfigured(),
       environment: this.config.get<string>('NODE_ENV'),
     };
+  }
+
+  /** True when the selected SMS gateway has the credentials it needs. */
+  private smsConfigured(): boolean {
+    const provider = (this.config.get<string>('SMS_PROVIDER') ?? 'console').toLowerCase();
+    if (provider === 'renflair') {
+      return Boolean(this.config.get<string>('RENFLAIR_API_KEY'));
+    }
+    if (provider === 'twilio') {
+      return Boolean(
+        this.config.get<string>('TWILIO_ACCOUNT_SID') &&
+          this.config.get<string>('TWILIO_AUTH_TOKEN') &&
+          this.config.get<string>('TWILIO_FROM_NUMBER'),
+      );
+    }
+    // The console provider needs nothing, but it never actually sends.
+    return true;
   }
 
   async users(query: AdminUsersQueryDto) {
@@ -646,6 +672,7 @@ export class AdminService {
             status: true,
             reason: true,
             providerRefundId: true,
+            providerStatus: true,
             createdAt: true,
           },
         },
@@ -660,18 +687,24 @@ export class AdminService {
     return this.presentBooking(booking);
   }
 
-  async payments(query: AdminListQueryDto) {
+  async payments(query: AdminPaymentsQueryDto) {
     const { page, limit } = this.page(query);
-    const where: Prisma.PaymentWhereInput = query.q
-      ? {
-          OR: [
-            { id: { contains: query.q, mode: 'insensitive' } },
-            { providerPaymentId: { contains: query.q, mode: 'insensitive' } },
-            { providerOrderId: { contains: query.q, mode: 'insensitive' } },
-            { bookingId: { contains: query.q, mode: 'insensitive' } },
-          ],
-        }
-      : {};
+    const since = query.hours
+      ? new Date(Date.now() - query.hours * 60 * 60 * 1000)
+      : undefined;
+    const where: Prisma.PaymentWhereInput = {
+      ...(since ? { createdAt: { gte: since } } : {}),
+      ...(query.q
+        ? {
+            OR: [
+              { id: { contains: query.q, mode: 'insensitive' } },
+              { providerPaymentId: { contains: query.q, mode: 'insensitive' } },
+              { providerOrderId: { contains: query.q, mode: 'insensitive' } },
+              { bookingId: { contains: query.q, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
     const [items, total] = await this.prisma.$transaction([
       this.prisma.payment.findMany({
         where,
@@ -686,6 +719,92 @@ export class AdminService {
       this.prisma.payment.count({ where }),
     ]);
     return paginated(items.map(presentAdminPayment), total, page, limit);
+  }
+
+  /**
+   * Settings an admin may change from the panel. Everything else in the
+   * settings payload is environment-derived and read-only.
+   */
+  async updateSettings(
+    dto: { platformFeeBps?: number; bookingExpireMinutes?: number },
+    actorId: string,
+  ) {
+    const updates: Array<[EditableSettingKey, number]> = [];
+    if (dto.platformFeeBps !== undefined) {
+      updates.push(['PLATFORM_FEE_BPS', dto.platformFeeBps]);
+    }
+    if (dto.bookingExpireMinutes !== undefined) {
+      updates.push(['BOOKING_EXPIRE_MINUTES', dto.bookingExpireMinutes]);
+    }
+    if (updates.length === 0) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.VALIDATION_ERROR,
+        message: 'Nothing to update.',
+      });
+    }
+    for (const [key, value] of updates) {
+      await this.platformSettings.update(key, value, actorId);
+    }
+    return this.settings();
+  }
+
+  /**
+   * Removes a payment row that never moved money.
+   *
+   * Captured, refunding and refunded payments are the record of real money and
+   * are never deletable — losing one would break reconciliation against the
+   * gateway and leave a booking that cannot be audited. Only abandoned attempts
+   * (created, failed, cancelled, expired) can be cleared, and each removal is
+   * written to the audit log first.
+   */
+  async deletePayment(id: string, actorId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id },
+      include: { refunds: { select: { id: true } } },
+    });
+    if (!payment) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.NOT_FOUND,
+        message: 'Payment not found.',
+      });
+    }
+
+    const deletable: PaymentStatus[] = [
+      PaymentStatus.CREATED,
+      PaymentStatus.FAILED,
+      PaymentStatus.CANCELLED,
+      PaymentStatus.EXPIRED,
+    ];
+    if (!deletable.includes(payment.status)) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.FORBIDDEN,
+        message:
+          'Only failed, cancelled, expired or unstarted payments can be removed. A captured or refunded payment is a financial record and must be kept.',
+      });
+    }
+    if (payment.refunds.length > 0) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.FORBIDDEN,
+        message: 'This payment has refunds attached and cannot be removed.',
+      });
+    }
+
+    await this.audit.record({
+      actorId,
+      action: 'PAYMENT_DELETED',
+      entityType: 'Payment',
+      entityId: id,
+      metadata: {
+        bookingId: payment.bookingId,
+        status: payment.status,
+        amount: money(payment.amount).toFixed(2),
+        providerOrderId: payment.providerOrderId,
+        providerPaymentId: payment.providerPaymentId,
+      },
+    });
+    await this.prisma.payment.delete({ where: { id } });
+
+    return { deleted: true, id };
   }
 
   async tickets(query: AdminListQueryDto) {
@@ -870,6 +989,7 @@ export class AdminService {
           reason: true,
           status: true,
           providerRefundId: true,
+          providerStatus: true,
           createdAt: true,
           booking: { select: { id: true, status: true, totalAmount: true } },
           payment: {
@@ -897,6 +1017,8 @@ export class AdminService {
         reason: refund.reason,
         status: refund.status,
         gatewayRefundId: refund.providerRefundId,
+        // What the gateway said. Without this a failed refund is a dead end.
+        gatewayStatus: refund.providerStatus,
         createdAt: refund.createdAt,
         booking: refund.booking,
         payment: {
@@ -911,6 +1033,97 @@ export class AdminService {
       page,
       limit,
     );
+  }
+
+  /**
+   * Cancels a booking on the guest's behalf and refunds in one action.
+   *
+   * The refund goes back through the gateway to whatever the guest actually
+   * paid with — card, UPI or netbanking. A gateway refund cannot be redirected
+   * to an arbitrary bank account, and `optimum` speed asks Razorpay to settle
+   * as fast as the instrument allows rather than the usual 5-7 working days.
+   *
+   * Cancelling frees the nights automatically. `blockDates` additionally marks
+   * them unavailable, for when the stay is off the market rather than resold.
+   */
+  async cancelBooking(
+    bookingId: string,
+    actorId: string,
+    options: { reason: string; blockDates?: boolean },
+  ) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        id: true,
+        propertyId: true,
+        status: true,
+        nights: { select: { date: true } },
+      },
+    });
+    if (!booking) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.BOOKING_NOT_FOUND,
+        message: 'Booking not found.',
+      });
+    }
+
+    // Captured before cancelling, which deletes the night rows.
+    const nights = booking.nights.map((night) => night.date);
+
+    const result = await this.bookingsService.cancel(
+      bookingId,
+      { id: actorId, role: UserRole.ADMIN, email: '', name: 'Admin' },
+      { reason: options.reason },
+      (id, reason) =>
+        this.paymentsService.requestRefundForBooking(
+          id,
+          reason,
+          undefined,
+          undefined,
+          'optimum',
+        ),
+      (id) => this.paymentsService.cancelOpenPayments(id),
+    );
+
+    let blocked = 0;
+    if (options.blockDates && nights.length > 0) {
+      const future = nights.filter((date) => date >= toUtcDateOnly(new Date()));
+      for (const date of future) {
+        await this.prisma.availability.upsert({
+          where: { propertyId_date: { propertyId: booking.propertyId, date } },
+          update: {
+            status: AvailabilityStatus.BLOCKED,
+            notes: `Blocked on cancellation: ${options.reason}`,
+          },
+          create: {
+            propertyId: booking.propertyId,
+            date,
+            status: AvailabilityStatus.BLOCKED,
+            notes: `Blocked on cancellation: ${options.reason}`,
+          },
+        });
+      }
+      blocked = future.length;
+    }
+
+    await this.audit.record({
+      actorId,
+      action: AuditActions.BOOKING_CANCELLED,
+      entityType: 'Booking',
+      entityId: bookingId,
+      metadata: {
+        reason: options.reason,
+        by: 'ADMIN',
+        blockedDates: blocked,
+        previousStatus: booking.status,
+      },
+    });
+
+    return {
+      booking: result.booking,
+      refund: result.refund,
+      blockedDates: blocked,
+    };
   }
 
   async requestRefund(
@@ -1024,6 +1237,7 @@ export class AdminService {
       status: string;
       reason: string | null;
       providerRefundId?: string | null;
+      providerStatus?: string | null;
       createdAt: Date;
     }>;
   }) {
@@ -1066,6 +1280,7 @@ export class AdminService {
         status: refund.status,
         reason: refund.reason,
         gatewayRefundId: refund.providerRefundId ?? null,
+        gatewayStatus: refund.providerStatus ?? null,
         createdAt: refund.createdAt,
       })),
       createdAt: booking.createdAt,

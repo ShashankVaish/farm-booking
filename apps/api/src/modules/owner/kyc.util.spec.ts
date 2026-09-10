@@ -6,6 +6,11 @@ import {
   maskAadhaar,
   normalizeAadhaar,
   normalizePan,
+  accountLast4,
+  isValidAccountNumber,
+  isValidIfsc,
+  maskAccount,
+  normalizeIfsc,
 } from './kyc.util';
 
 describe('aadhaar validation', () => {
@@ -56,5 +61,27 @@ describe('pan validation', () => {
     expect(isValidPan('ABCD1234F')).toBe(false);
     expect(isValidPan('ABCDE12345')).toBe(false);
     expect(isValidPan('12345ABCDE')).toBe(false);
+  });
+});
+
+describe('bank details validation', () => {
+  it('accepts a well formed IFSC and normalises case', () => {
+    expect(isValidIfsc('HDFC0001234')).toBe(true);
+    expect(isValidIfsc('hdfc0001234')).toBe(true);
+    expect(normalizeIfsc('hdfc0001234')).toBe('HDFC0001234');
+  });
+
+  it('rejects malformed IFSC codes', () => {
+    expect(isValidIfsc('HDFC1001234')).toBe(false); // 5th char must be 0
+    expect(isValidIfsc('HDF0001234')).toBe(false); // too short
+    expect(isValidIfsc('HDFC00012345')).toBe(false); // too long
+  });
+
+  it('accepts account numbers of realistic length and masks them', () => {
+    expect(isValidAccountNumber('123456789')).toBe(true);
+    expect(isValidAccountNumber('1234 5678 9012 3456')).toBe(true);
+    expect(isValidAccountNumber('12345678')).toBe(false);
+    expect(accountLast4('1234 5678 9012')).toBe('9012');
+    expect(maskAccount('9012')).toBe('••••••9012');
   });
 });

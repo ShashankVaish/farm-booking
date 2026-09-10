@@ -43,6 +43,13 @@ export function VerificationStep({ onStatus }: { onStatus?: (status: HostKycStat
   const [docBusy, setDocBusy] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
 
+  const [holder, setHolder] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [ifsc, setIfsc] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankBusy, setBankBusy] = useState(false);
+  const [bankError, setBankError] = useState<string | null>(null);
+
   const onStatusRef = useRef(onStatus);
   onStatusRef.current = onStatus;
 
@@ -52,6 +59,9 @@ export function VerificationStep({ onStatus }: { onStatus?: (status: HostKycStat
     setPan((current) => current || next.panNumber || '');
     setAadhaarImage((current) => current || next.aadhaarImageUrl || '');
     setPanImage((current) => current || next.panImageUrl || '');
+    setHolder((current) => current || next.bankAccountName || '');
+    setIfsc((current) => current || next.bankIfsc || '');
+    setBankName((current) => current || next.bankName || '');
     onStatusRef.current?.(next);
   }
 
@@ -157,6 +167,38 @@ export function VerificationStep({ onStatus }: { onStatus?: (status: HostKycStat
       setDocError(message(err, 'Your documents could not be submitted.'));
     } finally {
       setDocBusy(false);
+    }
+  }
+
+  async function saveBank() {
+    if (holder.trim().length < 3) {
+      setBankError("Enter the account holder's full name.");
+      return;
+    }
+    if (!/^\d{9,18}$/.test(accountNumber.replace(/[\s-]/g, ''))) {
+      setBankError('Enter a valid account number (9 to 18 digits).');
+      return;
+    }
+    if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(ifsc.trim())) {
+      setBankError('Enter a valid IFSC, for example HDFC0001234.');
+      return;
+    }
+    setBankBusy(true);
+    setBankError(null);
+    try {
+      applyStatus(
+        await hostApi.saveBankAccount({
+          accountHolderName: holder.trim(),
+          accountNumber: accountNumber.replace(/[\s-]/g, ''),
+          ifsc: ifsc.trim().toUpperCase(),
+          bankName: bankName.trim() || undefined,
+        }),
+      );
+      setAccountNumber('');
+    } catch (err) {
+      setBankError(message(err, 'Your bank details could not be saved.'));
+    } finally {
+      setBankBusy(false);
     }
   }
 
@@ -321,6 +363,77 @@ export function VerificationStep({ onStatus }: { onStatus?: (status: HostKycStat
             </div>
           </>
         )}
+      </section>
+
+      {/* Step 3 — payout account ----------------------------------------- */}
+      <section className={styles.verifyBlock}>
+        <div className={styles.verifyHead}>
+          <h3 className="t-h4">3. Payout account</h3>
+          <span className={status?.bankAccountSaved ? styles.verifyDone : styles.verifyPending}>
+            {status?.bankAccountSaved ? 'Saved' : 'Not added'}
+          </span>
+        </div>
+        <p className="t-body-small">
+          Where we send your earnings after each completed stay. Guest refunds are handled
+          separately and always return to the card or UPI the guest paid with.
+        </p>
+
+        {status?.bankAccountSaved ? (
+          <dl className={styles.factGrid}>
+            <div className={styles.fact}>
+              <dt className="t-caption">Account</dt>
+              <dd>{status.bankAccountMasked}</dd>
+            </div>
+            <div className={styles.fact}>
+              <dt className="t-caption">IFSC</dt>
+              <dd>{status.bankIfsc ?? '—'}</dd>
+            </div>
+            <div className={styles.fact}>
+              <dt className="t-caption">Holder</dt>
+              <dd>{status.bankAccountName ?? '—'}</dd>
+            </div>
+          </dl>
+        ) : null}
+
+        <div className={styles.twoCol} style={{ marginTop: 'var(--space-4)' }}>
+          <Input
+            id="bank-holder"
+            label="Account holder name"
+            value={holder}
+            onChange={(e) => setHolder(e.target.value)}
+            hint="Exactly as it appears on the bank account."
+          />
+          <Input
+            id="bank-account"
+            label="Account number"
+            inputMode="numeric"
+            value={accountNumber}
+            onChange={(e) => setAccountNumber(e.target.value)}
+          />
+          <Input
+            id="bank-ifsc"
+            label="IFSC"
+            placeholder="HDFC0001234"
+            value={ifsc}
+            onChange={(e) => setIfsc(e.target.value.toUpperCase())}
+          />
+          <Input
+            id="bank-name"
+            label="Bank name (optional)"
+            value={bankName}
+            onChange={(e) => setBankName(e.target.value)}
+          />
+        </div>
+        {bankError ? (
+          <p className="t-body-small" role="alert" style={{ color: 'var(--color-error)' }}>
+            {bankError}
+          </p>
+        ) : null}
+        <div className={styles.actions}>
+          <Button variant="secondary" onClick={() => void saveBank()} disabled={bankBusy}>
+            {bankBusy ? 'Saving…' : status?.bankAccountSaved ? 'Update account' : 'Save account'}
+          </Button>
+        </div>
       </section>
     </div>
   );

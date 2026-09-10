@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { PlatformSettingsService } from '../settings/platform-settings.service';
 import {
   calculatePriceBreakdown,
   type CouponDiscountInput,
@@ -9,7 +9,7 @@ import {
 
 @Injectable()
 export class PricingService {
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly settings: PlatformSettingsService) {}
 
   quote(params: {
     property: PropertyPricingInput;
@@ -20,11 +20,11 @@ export class PricingService {
   }): PriceBreakdown {
     return calculatePriceBreakdown({
       ...params,
-      platformFeeBps: this.config.get<number>('PLATFORM_FEE_BPS', 500),
+      platformFeeBps: this.platformFeeBps(),
     });
   }
 
   platformFeeBps(): number {
-    return this.config.get<number>('PLATFORM_FEE_BPS', 500);
+    return this.settings.getNumber('PLATFORM_FEE_BPS');
   }
 }

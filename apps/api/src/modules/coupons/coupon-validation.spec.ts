@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { validateCouponRules } from './coupon-validation';
 
 describe('coupon validation', () => {
@@ -5,7 +6,8 @@ describe('coupon validation', () => {
     isActive: true,
     startsAt: new Date('2026-01-01'),
     endsAt: new Date('2026-12-31'),
-    minBookingAmount: '1000.00',
+    // The column is Decimal, so the fixture has to be one too.
+    minBookingAmount: new Prisma.Decimal('1000.00'),
     maxRedemptions: 10,
     redemptionCount: 2,
     maxRedemptionsPerUser: null,

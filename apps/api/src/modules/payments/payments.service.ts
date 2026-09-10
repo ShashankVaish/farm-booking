@@ -26,6 +26,7 @@ import {
   NotificationsService,
 } from '../notifications/notifications.service';
 import { PricingService } from '../pricing/pricing.service';
+import { PlatformSettingsService } from '../settings/platform-settings.service';
 import {
   PAYMENT_PROVIDER,
   type FetchPaymentResult,
@@ -33,6 +34,7 @@ import {
 } from './providers/payment-provider.interface';
 import { CreatePaymentOrderDto, VerifyPaymentDto } from './dto/payment.dto';
 import { assertBookingTransition } from '../bookings/booking-status';
+import { bookingDetailInclude } from '../bookings/booking-include';
 import {
   CAPTURABLE_PAYMENT_STATUSES,
   OPEN_PAYMENT_STATUSES,
@@ -76,6 +78,7 @@ export class PaymentsService {
     private readonly pricing: PricingService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly settings: PlatformSettingsService,
   ) {}
 
   async createOrder(user: RequestUser, dto: CreatePaymentOrderDto) {
@@ -131,8 +134,13 @@ export class PaymentsService {
 
     const payment = await this.prisma.$transaction(
       async (tx) => {
+        // Row lock so two checkout attempts cannot create two gateway orders
+        // for the same booking. Booking.id is a TEXT column (Prisma `String
+        // @default(uuid())`), so the parameter must NOT be cast to ::uuid —
+        // Postgres has no `text = uuid` operator and the whole call fails
+        // with 42883.
         await tx.$queryRaw(
-          Prisma.sql`SELECT id FROM "Booking" WHERE id = ${booking.id}::uuid FOR UPDATE`,
+          Prisma.sql`SELECT id FROM "Booking" WHERE id = ${booking.id} FOR UPDATE`,
         );
 
         const open = await tx.payment.findFirst({
@@ -350,6 +358,7 @@ export class PaymentsService {
     reason?: string,
     amountOverride?: number,
     paymentId?: string,
+    speed: 'normal' | 'optimum' = 'normal',
   ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
@@ -442,6 +451,7 @@ export class PaymentsService {
       providerPaymentId: payment.providerPaymentId,
       amountPaise: requestedPaise,
       notes: reason,
+      speed,
     });
 
     if (!providerResult.providerRefundId) {
@@ -1049,9 +1059,11 @@ export class PaymentsService {
       });
     }
     await this.recoverOpenBooking(bookingId);
+    // Must match the shape of GET /bookings/:id — the checkout page replaces
+    // its state with this response.
     return this.prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { payments: { orderBy: { createdAt: 'desc' } } },
+      include: bookingDetailInclude,
     });
   }
 
@@ -1066,7 +1078,7 @@ export class PaymentsService {
   }
 
   private expireMinutes(): number {
-    return this.config.get<number>('BOOKING_EXPIRE_MINUTES', 30);
+    return this.settings.getNumber('BOOKING_EXPIRE_MINUTES');
   }
 
   private orderPayload(payment: {
