@@ -1,0 +1,43 @@
+# =============================================================================
+# Caddy alternative to the Nginx config in ../nginx/.
+#
+# Use this ONLY if Caddy is already serving ports 80 and 443 on the server and
+# you would rather keep it than switch to Nginx. Running both is what caused the
+# certbot failure: Caddy holds the ports, so Nginx never sees the request and
+# the ACME challenge is answered by the wrong server.
+#
+# Install:
+#   sudo cp deploy/caddy/Caddyfile /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# Caddy requests and renews the certificate on its own — there is no certbot
+# step, and nothing to schedule.
+# =============================================================================
+
+api.baagly.com {
+	# Photos can be several megabytes and a listing allows up to eight, so the
+	# default request cap has to be raised or uploads fail with a confusing 413.
+	request_body {
+		max_size 12MB
+	}
+
+	reverse_proxy 127.0.0.1:3001 {
+		# The API sets `trust proxy` to one hop and reads the client address from
+		# these. Caddy sets X-Forwarded-For and X-Forwarded-Proto by default;
+		# Host is passed through as well so redirects keep the right domain.
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+
+	# Uploads are streamed from the API's static handler; give slow mobile
+	# connections room rather than cutting them off mid-transfer.
+	timeouts {
+		read_body 120s
+	}
+
+	encode gzip
+
+	log {
+		output file /var/log/caddy/api.baagly.com.log
+	}
+}
