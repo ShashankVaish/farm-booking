@@ -54,3 +54,21 @@ export function isPublicPaymentView(view: object) {
   const allowed = new Set<string>(ADMIN_PAYMENT_PUBLIC_FIELDS);
   return Object.keys(view).every((key) => allowed.has(key)) && !hasSensitivePaymentFields(view);
 }
+
+/**
+ * Razorpay reports several distinct problems as the same opaque string, and the
+ * most common one in practice is that the account balance is lower than the
+ * refund. Refunds are paid out of the Razorpay balance rather than clawed back
+ * from the original payment, so a large refund can fail on a funded-but-thin
+ * account — and in test mode the dummy balance runs out quickly.
+ */
+export function refundFailureHint(gatewayStatus?: string | null): string | null {
+  if (!gatewayStatus) return null;
+  if (/balance/i.test(gatewayStatus)) {
+    return 'Top up the Razorpay account balance, then retry the refund.';
+  }
+  if (/invalid request sent/i.test(gatewayStatus)) {
+    return 'Usually means the Razorpay balance is below the refund amount. Refunds are paid from your Razorpay balance, not taken back from the original payment. Top up and retry.';
+  }
+  return null;
+}

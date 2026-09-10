@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { RegisterForm } from '@/app/(auth)/auth/auth-forms';
-import { Spinner } from '@/components/ui/feedback';
+import { AuthFormSkeleton } from '@/app/(auth)/auth/auth-chrome';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 
 export const metadata = buildPageMetadata({
@@ -11,7 +11,7 @@ export const metadata = buildPageMetadata({
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<Spinner label="Loading registration" />}>
+    <Suspense fallback={<AuthFormSkeleton fields={4} />}>
       <RegisterForm />
     </Suspense>
   );

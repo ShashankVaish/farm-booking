@@ -24,13 +24,18 @@ describe('AuthService', () => {
     $transaction: jest.fn(),
   };
 
+  // `compare` is declared first so `compareOrDummy` can delegate to it without
+  // the object referring to itself while it is still being inferred.
+  const compare = jest.fn();
   const passwords = {
     hash: jest.fn(),
-    compare: jest.fn(),
-    compareOrDummy: jest.fn(async (plain: string, hash?: string | null) => {
-      if (!hash) return false;
-      return passwords.compare(plain, hash);
-    }),
+    compare,
+    compareOrDummy: jest.fn(
+      async (plain: string, hash?: string | null): Promise<boolean> => {
+        if (!hash) return false;
+        return compare(plain, hash) as boolean;
+      },
+    ),
   };
 
   const tokens = {

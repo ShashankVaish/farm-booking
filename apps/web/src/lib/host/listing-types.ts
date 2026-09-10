@@ -26,6 +26,8 @@ export type ListingDraft = {
   partyRules: string;
   cancellationPolicy: string;
   isPartyFriendly: boolean;
+  isAdultOnly: boolean;
+  isCoupleFriendly: boolean;
   amenityIds: string[];
   images: ListingImageDraft[];
   location: LocationDraft;
@@ -46,6 +48,8 @@ export const emptyListing = (): ListingDraft => ({
   partyRules: '',
   cancellationPolicy: 'Free cancellation up to 7 days before check-in. 50% refund thereafter.',
   isPartyFriendly: false,
+  isAdultOnly: false,
+  isCoupleFriendly: false,
   amenityIds: [],
   images: [],
   location: {

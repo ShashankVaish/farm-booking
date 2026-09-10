@@ -9,6 +9,7 @@ import type {
   AdminNotification,
   AdminOverview,
   AdminPaymentView,
+  AdminPayoutStatement,
   AdminProperty,
   AdminPropertyDetail,
   AdminRefund,
@@ -21,6 +22,7 @@ import type {
 
 export type AdminListQuery = {
   page?: number;
+  hours?: number;
   limit?: number;
   q?: string;
   status?: string;
@@ -40,6 +42,8 @@ export const adminApi = {
   overview: () => apiClient.get<AdminOverview>('/api/admin/overview'),
   reports: (query: AdminListQuery = {}) => apiClient.get<AdminReports>(listPath('reports', query)),
   settings: () => apiClient.get<AdminSettings>('/api/admin/settings'),
+  updateSettings: (body: { platformFeeBps?: number; bookingExpireMinutes?: number }) =>
+    apiClient.patch<AdminSettings>('/api/admin/settings', body),
   users: (query: AdminListQuery = {}) => apiClient.get<AdminList<AdminUser>>(listPath('users', query)),
   owners: (query: AdminListQuery = {}) => apiClient.get<AdminList<AdminUser>>(listPath('owners', query)),
   setUserActive: (id: string, isActive: boolean) =>
@@ -58,15 +62,25 @@ export const adminApi = {
   bookings: (query: AdminListQuery = {}) =>
     apiClient.get<AdminList<AdminBooking>>(listPath('bookings', query)),
   booking: (id: string) => apiClient.get<AdminBooking>(`/api/admin/bookings/${id}`),
+  cancelBooking: (bookingId: string, reason: string, blockDates: boolean) =>
+    apiClient.post<{
+      booking: { id: string; status: string };
+      refund: unknown;
+      blockedDates: number;
+    }>(`/api/admin/bookings/${bookingId}/cancel`, { reason, blockDates }),
   requestRefund: (bookingId: string, reason: string, amount?: number) =>
     apiClient.post(`/api/admin/bookings/${bookingId}/refund`, { reason, amount }),
-  payments: (query: AdminListQuery = {}) =>
+  payments: (query: AdminListQuery & { hours?: number } = {}) =>
     apiClient.get<AdminList<AdminPaymentView>>(listPath('payments', query)),
+  deletePayment: (id: string) =>
+    apiClient.delete<{ deleted: boolean; id: string }>(`/api/admin/payments/${id}`),
   reconcilePayment: (id: string) =>
     apiClient.post<{ payment: AdminPaymentView | null; reconciled: boolean }>(
       `/api/admin/payments/${id}/reconcile`,
     ),
   expireAbandonedPayments: () => apiClient.post('/api/admin/payments/expire-abandoned'),
+  payouts: (params: { date?: string; days?: number } = {}) =>
+    apiClient.get<AdminPayoutStatement>(`/api/admin/payouts${toQueryString(params)}`),
   refunds: (query: AdminListQuery = {}) =>
     apiClient.get<AdminList<AdminRefund>>(listPath('refunds', query)),
   coupons: (query: AdminListQuery = {}) =>

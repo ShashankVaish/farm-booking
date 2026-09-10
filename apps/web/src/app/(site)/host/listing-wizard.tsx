@@ -30,8 +30,8 @@ const EXTRA_AMENITIES = [
   { slug: 'party-allowed', label: 'Party allowed' },
 ];
 
-const MAX_PHOTOS = 20;
-const MIN_PHOTOS = 1;
+const MAX_PHOTOS = 8;
+const MIN_PHOTOS = 4;
 
 function draftAsProperty(draft: ListingDraft): ApiProperty {
   return {
@@ -58,6 +58,8 @@ function draftAsProperty(draft: ListingDraft): ApiProperty {
     propertyRules: draft.houseRules,
     cancellationPolicy: draft.cancellationPolicy,
     isPartyFriendly: draft.isPartyFriendly,
+    isAdultOnly: draft.isAdultOnly,
+    isCoupleFriendly: draft.isCoupleFriendly,
     images: draft.images.map((image, index) => ({
       url: image.url,
       altText: image.alt,
@@ -349,7 +351,15 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
             }}
           >
             <p className="t-body">Drag photos here or choose files</p>
-            <p className="t-caption">JPEG, PNG, or WebP · up to 8 MB · {MIN_PHOTOS}–{MAX_PHOTOS} images</p>
+            <p className="t-caption">
+              JPEG, PNG, or WebP · up to 8 MB · {MIN_PHOTOS}–{MAX_PHOTOS} photos required
+            </p>
+            <p className="t-caption">
+              {draft.images.length} of {MAX_PHOTOS} added
+              {draft.images.length < MIN_PHOTOS
+                ? ` · ${MIN_PHOTOS - draft.images.length} more needed`
+                : ' · minimum met'}
+            </p>
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
@@ -434,6 +444,21 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
           <Input id="noise" label="Noise rules" value={draft.meta.noise} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, noise: e.target.value } })} />
           <Textarea id="house" label="House rules" rows={5} value={draft.houseRules} onChange={(e) => setDraft({ ...draft, houseRules: e.target.value })} />
           <Checkbox id="party-flag" label="This stay is party-friendly" checked={draft.isPartyFriendly} onChange={(e) => setDraft({ ...draft, isPartyFriendly: e.target.checked })} />
+          <Checkbox
+            id="adult-only"
+            label="Guests must be 18 or older"
+            checked={draft.isAdultOnly}
+            onChange={(e) => setDraft({ ...draft, isAdultOnly: e.target.checked })}
+          />
+          <Checkbox
+            id="couple-friendly"
+            label="Couple friendly — unmarried couples are welcome"
+            checked={draft.isCoupleFriendly}
+            onChange={(e) => setDraft({ ...draft, isCoupleFriendly: e.target.checked })}
+          />
+          <p className="t-caption">
+            Guests filter on these, so only tick what you will actually honour at check-in.
+          </p>
         </div>
       ) : null}
 
@@ -540,7 +565,10 @@ function validateStep(step: number, draft: ListingDraft): Record<string, string>
     return errors;
   }
   if (step === 4) {
-    if (draft.images.length > MAX_PHOTOS) return { photos: `Maximum ${MAX_PHOTOS} photos.` };
+    if (draft.images.length > MAX_PHOTOS) return { photos: `Add no more than ${MAX_PHOTOS} photos.` };
+    if (draft.images.length < MIN_PHOTOS) {
+      return { photos: `Add at least ${MIN_PHOTOS} photos — guests judge a stay by them.` };
+    }
     return {};
   }
   if (step === 5) {
@@ -549,7 +577,7 @@ function validateStep(step: number, draft: ListingDraft): Record<string, string>
     return {};
   }
   if (step === 10 && draft.images.length < MIN_PHOTOS) {
-    return { photos: 'Add at least one photo before submitting.' };
+    return { photos: `Add at least ${MIN_PHOTOS} photos before submitting.` };
   }
   return {};
 }

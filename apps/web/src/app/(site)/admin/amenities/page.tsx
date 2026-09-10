@@ -88,7 +88,7 @@ export default function AdminAmenitiesPage() {
               <tbody>
                 {data?.map((amenity) => (
                   <tr key={amenity.id}>
-                    <td>
+                    <td data-label="Name">
                       {editing?.id === amenity.id ? (
                         <Input
                           id={`edit-${amenity.id}`}
@@ -100,7 +100,7 @@ export default function AdminAmenitiesPage() {
                         amenity.name
                       )}
                     </td>
-                    <td className={adminUi.mono}>{amenity.slug}</td>
+                    <td className={adminUi.mono} data-label="Slug">{amenity.slug}</td>
                     <td>
                       <div className={adminUi.actions}>
                         {editing?.id === amenity.id ? (

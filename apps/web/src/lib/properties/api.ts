@@ -53,10 +53,22 @@ export function getAvailability(propertyId: string, from: string, to: string): P
   );
 }
 
+/**
+ * Search that degrades to an empty result instead of failing the page.
+ *
+ * The failure is logged rather than swallowed: an empty list is
+ * indistinguishable from "the catalogue is genuinely empty", so without this a
+ * misconfigured API URL or a down backend renders as "No stays are live yet"
+ * with nothing anywhere to explain it.
+ */
 export async function safeSearch(filters: SearchFilters = {}): Promise<Paginated<ApiProperty>> {
   try {
     return await searchProperties(filters);
-  } catch {
+  } catch (error) {
+    console.error(
+      '[safeSearch] property search failed, rendering an empty catalogue:',
+      error instanceof Error ? error.message : error,
+    );
     return { items: [], meta: { total: 0, page: 1, limit: filters.limit ?? 12, totalPages: 0 } };
   }
 }

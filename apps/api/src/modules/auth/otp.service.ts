@@ -11,6 +11,7 @@ import { ErrorCodes } from '../../common/constants/error-codes';
 import { UserRoles } from '../../common/constants/roles';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from './auth.service';
+import { OTP_STORE, type OtpStore } from './otp/otp-store';
 import type { AuthTokens, RequestUser } from './auth.types';
 import { RequestOtpDto, VerifyOtpDto, type OtpPurpose } from './dto/otp.dto';
 import { PasswordService } from './password.service';
@@ -33,6 +34,7 @@ export class OtpService {
     private readonly auth: AuthService,
     private readonly passwords: PasswordService,
     @Inject(SMS_PROVIDER) private readonly sms: SmsProvider,
+    @Inject(OTP_STORE) private readonly store: OtpStore,
   ) {}
 
   /**
@@ -88,52 +90,59 @@ export class OtpService {
       }
     }
 
-    const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    const recentSends = await this.prisma.otpChallenge.count({
-      where: { phone, purpose, createdAt: { gte: hourAgo } },
-    });
-    if (recentSends >= this.maxSendsPerHour()) {
-      throw new BadRequestException({
-        errorCode: ErrorCodes.OTP_RATE_LIMITED,
-        message: 'Too many OTP requests. Try again later.',
-      });
-    }
-
-    const latest = await this.prisma.otpChallenge.findFirst({
-      where: { phone, purpose, consumedAt: null },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (
-      latest &&
-      now.getTime() - latest.lastSentAt.getTime() < this.resendMs()
-    ) {
+    // Cooldown first: it is the cheaper check and the one a user hits most.
+    if (await this.store.isCoolingDown(phone, purpose)) {
       throw new BadRequestException({
         errorCode: ErrorCodes.OTP_COOLDOWN,
         message: 'Please wait before requesting another OTP.',
       });
     }
 
-    await this.prisma.otpChallenge.updateMany({
-      where: { phone, purpose, consumedAt: null },
-      data: { consumedAt: now },
-    });
+    const sendsInWindow = await this.store.countSends(
+      phone,
+      purpose,
+      this.sendWindowSeconds(),
+      now.getTime(),
+    );
+    if (sendsInWindow >= this.maxSendsPerHour()) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.OTP_RATE_LIMITED,
+        message: 'Too many OTP requests. Try again later.',
+      });
+    }
 
     const code = String(randomInt(100000, 1000000));
     const expiresAt = new Date(now.getTime() + this.ttlMs());
-    await this.prisma.otpChallenge.create({
-      data: {
-        phone,
-        purpose,
+
+    // Writing the challenge replaces any previous one for this phone and
+    // purpose, so only the newest code can ever be verified.
+    await this.store.putChallenge(
+      phone,
+      purpose,
+      {
         codeHash: this.hashCode(phone, code),
-        expiresAt,
-        lastSentAt: now,
-        ipAddress: context.ipAddress,
+        attemptCount: 0,
+        expiresAt: expiresAt.getTime(),
       },
-    });
+      Math.ceil(this.ttlMs() / 1000),
+    );
+    await this.store.recordSend(
+      phone,
+      purpose,
+      this.sendWindowSeconds(),
+      now.getTime(),
+    );
+    await this.store.startCooldown(
+      phone,
+      purpose,
+      Math.ceil(this.resendMs() / 1000),
+    );
 
     await this.sms.send({
       phone,
       message: `Your verification code is ${code}. It expires in ${Math.floor(this.ttlMs() / 1000)} seconds.`,
+      // OTP-only gateways render their own template and need the bare code.
+      code,
     });
 
     return {
@@ -167,12 +176,8 @@ export class OtpService {
     purpose: OtpPurpose,
     code: string,
   ): Promise<void> {
-    const now = new Date();
-
-    const challenge = await this.prisma.otpChallenge.findFirst({
-      where: { phone, purpose, consumedAt: null },
-      orderBy: { createdAt: 'desc' },
-    });
+    const now = Date.now();
+    const challenge = await this.store.getChallenge(phone, purpose);
 
     if (!challenge) {
       throw new UnauthorizedException({
@@ -181,11 +186,10 @@ export class OtpService {
       });
     }
 
-    if (challenge.expiresAt.getTime() <= now.getTime()) {
-      await this.prisma.otpChallenge.update({
-        where: { id: challenge.id },
-        data: { consumedAt: now },
-      });
+    // Redis expires the key on its own, but the stored timestamp is still
+    // checked so a clock skew or a lingering key cannot extend a code's life.
+    if (challenge.expiresAt <= now) {
+      await this.store.consumeChallenge(phone, purpose);
       throw new UnauthorizedException({
         errorCode: ErrorCodes.OTP_EXPIRED,
         message: 'This OTP has expired.',
@@ -193,10 +197,7 @@ export class OtpService {
     }
 
     if (challenge.attemptCount >= this.maxAttempts()) {
-      await this.prisma.otpChallenge.update({
-        where: { id: challenge.id },
-        data: { consumedAt: now },
-      });
+      await this.store.consumeChallenge(phone, purpose);
       throw new UnauthorizedException({
         errorCode: ErrorCodes.OTP_LOCKED,
         message: 'Too many incorrect attempts. Request a new OTP.',
@@ -205,21 +206,22 @@ export class OtpService {
 
     const expected = this.hashCode(phone, code);
     if (!this.safeEqual(expected, challenge.codeHash)) {
-      await this.prisma.otpChallenge.update({
-        where: { id: challenge.id },
-        data: { attemptCount: { increment: 1 } },
-      });
+      const attempts = await this.store.incrementAttempts(phone, purpose);
+      // Burn the challenge as soon as the budget is spent, so the next call
+      // reports a locked code rather than handing out another guess.
+      if (attempts >= this.maxAttempts()) {
+        await this.store.consumeChallenge(phone, purpose);
+      }
       throw new UnauthorizedException({
         errorCode: ErrorCodes.OTP_INVALID,
         message: 'The OTP is incorrect.',
       });
     }
 
-    const claimed = await this.prisma.otpChallenge.updateMany({
-      where: { id: challenge.id, consumedAt: null },
-      data: { consumedAt: now },
-    });
-    if (claimed.count === 0) {
+    // Whoever deletes the key wins; a second concurrent verify of the same
+    // correct code is rejected instead of issuing a second session.
+    const claimed = await this.store.consumeChallenge(phone, purpose);
+    if (!claimed) {
       throw new UnauthorizedException({
         errorCode: ErrorCodes.OTP_INVALID,
         message: 'This OTP has already been used.',
@@ -329,6 +331,11 @@ export class OtpService {
 
   private maxAttempts(): number {
     return this.config.get<number>('OTP_MAX_ATTEMPTS', DEFAULT_MAX_ATTEMPTS);
+  }
+
+  /** Trailing window the send limit is measured over. */
+  private sendWindowSeconds(): number {
+    return 60 * 60;
   }
 
   private maxSendsPerHour(): number {

@@ -35,14 +35,14 @@ export default function AdminRefundsPage() {
             <tbody>
               {data?.items.map((refund) => (
                 <tr key={refund.id}>
-                  <td className={adminUi.mono}>{refund.id}</td>
-                  <td>
+                  <td className={adminUi.mono} data-label="Refund ID">{refund.id}</td>
+                  <td data-label="Booking">
                     <Link href={`/admin/bookings/${refund.bookingId}`}>{refund.bookingId}</Link>
                   </td>
-                  <td className={adminUi.mono}>{refund.paymentId}</td>
-                  <td className={adminUi.mono}>{refund.gatewayRefundId ?? '—'}</td>
-                  <td>{formatInr(refund.amount)}</td>
-                  <td>
+                  <td className={adminUi.mono} data-label="Payment ID">{refund.paymentId}</td>
+                  <td className={adminUi.mono} data-label="Gateway refund">{refund.gatewayRefundId ?? '—'}</td>
+                  <td data-label="Amount">{formatInr(refund.amount)}</td>
+                  <td data-label="Status">
                     <span className={adminUi.badge}>{statusLabel(refund.status)}</span>
                     <div className="t-caption">{formatDateTime(refund.createdAt)}</div>
                     <div className="t-caption">{refund.reason}</div>

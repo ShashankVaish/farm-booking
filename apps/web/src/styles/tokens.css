@@ -1,61 +1,133 @@
+/* ===========================================================================
+   Baagly design tokens — single source of truth for the whole web app.
+
+   Derived from the logo: a coral disc, a cream mountain range, on near-black.
+       coral  #FF5A60      cream  #F1E5DD      base  #0D0C10
+
+   Two rules this file exists to enforce:
+     1. Coral is an ACCENT. It fills primary CTAs, active states and small
+        highlights — never a large surface. Big coral areas read cheap on dark
+        and leave nothing for the CTA to stand out against.
+     2. Every pairing below meets WCAG AA. Where a colour could not meet it,
+        a second token exists for that context rather than bending the rule.
+   =========================================================================== */
+
 :root {
-  /*
-   * Colour — Baagly.
-   * Drawn from the logo: a coral disc with a cream mountain range. The palette
-   * is deliberately two-hue (coral + warm neutral) so the brand reads as one
-   * thing rather than a spectrum. Every pairing below meets WCAG AA.
-   * Text on a coral fill is dark ink, not white: white on this coral is only
-   * 3.0:1, while the ink reaches 6.1:1 and keeps the logo colour intact.
-   */
-  --color-background: #0d0c10;
-  --color-surface: #17151b;
-  --color-surface-elevated: #201d25;
-  --color-text-primary: #f7f2ec;
-  --color-text-secondary: #c9c2bb;
-  --color-text-muted: #a39c95;
-  --color-border: #302c36;
-  --color-primary: #f9615f;
-  --color-primary-hover: #ff7a73;
-  --color-on-primary: #1a1013;
-  --color-accent: #ffa39c;
-  --color-accent-soft: #2a1b1e;
-  --color-success: #7fc9a4;
-  --color-warning: #f0c05a;
-  --color-error: #ff8b84;
-  --color-focus: #ff9d97;
+  /* --- Brand constants -----------------------------------------------------
+     The literal logo values. Used by the mark itself; everything else in the
+     app should reach for a semantic token below, not these. */
+  --brand-coral: #ff5a60;
+  --brand-cream: #f1e5dd;
+  --brand-base: #0d0c10;
+
+  /* --- Background layers ---------------------------------------------------
+     Four depths. Each step is a small lift in lightness with a trace of the
+     cream's warmth, so panels separate without borders doing all the work. */
+  --color-background: #0d0c10; /* page ground */
+  --color-sunken: #08070a; /* wells, inset fields, table headers */
+  --color-surface: #15131a; /* raised panel, card */
+  --color-surface-elevated: #1d1a23; /* card sitting on a panel */
+  --color-overlay-surface: #26222d; /* modal, popover, dropdown */
+  --color-overlay: rgb(6 5 8 / 0.76); /* scrim behind a modal */
+
+  /* --- Text tiers ----------------------------------------------------------
+     Cream-derived so type feels warm against the near-black rather than
+     clinical white. All three clear 4.5:1 on every layer above. */
+  --color-text-primary: #f1e5dd; /* 12.6–15.8:1 */
+  --color-text-secondary: #c6bbb3; /*  8.3–10.4:1 */
+  --color-text-muted: #9a908e; /*  5.0–6.3:1  */
+  --color-text-disabled: #6e6568; /* non-interactive only */
+
+  /* --- Coral scale ---------------------------------------------------------
+     `--color-primary` is a FILL. Never set it as a text colour on dark: as
+     text it only reaches ~4.0:1. Use `--color-primary-text` for coral type. */
+  --color-primary: #ff5a60; /* CTA fill, active state */
+  --color-primary-hover: #ff7278; /* lifts on hover — dark UI reads lighter as "closer" */
+  --color-primary-press: #e84a50;
+  --color-primary-text: #ff9aa0; /* coral AS TEXT: 8.5–9.6:1 */
+  --color-primary-tint: #2b1518; /* tinted surface behind coral text */
+  --color-primary-border: #5c2a2e; /* hairline on a tinted surface */
+
+  /* Text placed ON a coral fill. Dark ink, deliberately:
+     white on #FF5A60 is 3.05:1 and fails; this ink reaches 5.94:1 and keeps
+     the logo colour untouched. */
+  --color-on-primary: #2a0c0f;
+
+  /* --- Semantic ------------------------------------------------------------
+     Chosen for hue distance from coral (358°), not just contrast, so a status
+     pill is never mistaken for a brand highlight.
+       success 151°  (153° away)   warning 41°  (43° away)   error 338° (20°) */
+  --color-success: #6fd3a3;
+  --color-success-tint: #10241c;
+  --color-warning: #f2c25b;
+  --color-warning-tint: #241d10;
+  --color-error: #ff6fa5;
+  --color-error-tint: #26121c;
+  --color-info: #8fb8e8;
+  --color-info-tint: #121b26;
+
+  /* --- Borders -------------------------------------------------------------
+     `--color-border` is decorative and may sit below 3:1. Anything that
+     outlines an interactive control must use `--color-border-control`, which
+     clears 3:1 on every surface (WCAG 1.4.11). */
+  --color-border-subtle: #221f29;
+  --color-border: #332e3d;
+  --color-border-strong: #4a4356;
+  --color-border-control: #7a7188; /* 3.4–4.2:1 — form fields, checkboxes */
+
+  /* --- Focus --------------------------------------------------------------
+     No single light ring clears 3:1 on both a dark surface and a coral fill
+     (#FFA8AD is 10.6:1 on dark but 1.7:1 on coral). So there are two: the
+     light ring for everything, and a dark ring for focus on a coral fill. */
+  --color-focus: #ffa8ad; /* 9.4–10.6:1 on dark surfaces */
+  --color-focus-on-primary: #2a0c0f; /* 5.9:1 on a coral fill */
+
   --color-inverse: #ffffff;
-  --color-overlay: rgb(8 6 9 / 0.74);
 
-  /* Brand constants — the logo disc and its cream, used by the mark itself. */
-  --brand-coral: #f9615f;
-  --brand-cream: #f7ece1;
+  /* --- Deprecated aliases --------------------------------------------------
+     The old palette exposed a single `accent` pair. Both now resolve into the
+     coral scale so nothing breaks mid-redesign; call sites are migrated to
+     --color-primary-text / --color-primary-tint during the component pass,
+     after which these two are deleted. */
+  --color-accent: var(--color-primary-text);
+  --color-accent-soft: var(--color-primary-tint);
 
-  /* Typography */
-  --font-sans: var(--font-sans-family), 'Segoe UI', sans-serif;
-  --font-display: var(--font-display-family), 'Segoe UI', sans-serif;
+  /* --- Typography ----------------------------------------------------------
+     Playfair Display carries the wordmark, so it carries headings; Manrope
+     handles UI and body, where a high-contrast serif would tire the eye. */
+  --font-sans: var(--font-sans-family), 'Segoe UI', system-ui, sans-serif;
+  --font-display: var(--font-display-family), Georgia, 'Times New Roman', serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
+  --font-weight-bold: 700;
 
+  /* Display and headings: serif, tighter tracking as size grows. */
   --fs-display: 2.5rem;
-  --lh-display: 1.15;
-  --ls-display: -0.02em;
+  --lh-display: 1.12;
+  --ls-display: -0.015em;
 
   --fs-h1: 2rem;
-  --lh-h1: 1.2;
-  --ls-h1: -0.018em;
+  --lh-h1: 1.18;
+  --ls-h1: -0.012em;
 
   --fs-h2: 1.5rem;
-  --lh-h2: 1.25;
-  --ls-h2: -0.014em;
+  --lh-h2: 1.24;
+  --ls-h2: -0.01em;
 
   --fs-h3: 1.25rem;
   --lh-h3: 1.3;
-  --ls-h3: -0.01em;
+  --ls-h3: -0.006em;
 
   --fs-h4: 1.0625rem;
   --lh-h4: 1.35;
   --ls-h4: 0;
+
+  /* Body and UI: sans, generous leading for reading. */
+  --fs-body-large: 1.125rem;
+  --lh-body-large: 1.6;
 
   --fs-body: 1rem;
   --lh-body: 1.6;
@@ -73,15 +145,17 @@
   --lh-caption: 1.4;
   --ls-caption: 0.01em;
 
-  --fs-price: 1.125rem;
-  --lh-price: 1.2;
+  /* Money wants to dominate and to align in columns. */
+  --fs-price-lg: 2rem;
+  --fs-price: 1.375rem;
+  --lh-price: 1.15;
   --ls-price: -0.01em;
 
   --fs-metadata: 0.75rem;
   --lh-metadata: 1.4;
   --ls-metadata: 0.02em;
 
-  /* Spacing */
+  /* --- Spacing — 4px base -------------------------------------------------- */
   --space-0: 0;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -94,33 +168,52 @@
   --space-12: 3rem;
   --space-16: 4rem;
   --space-20: 5rem;
+  --space-24: 6rem;
 
-  /* Radii — few, intentional */
+  /* Vertical rhythm between page sections. Scales up with the viewport so the
+     hero breathes on desktop without stranding content on a phone. */
+  --section-gap: var(--space-12);
+  --section-gap-lg: var(--space-16);
+  --hero-pad-top: var(--space-12);
+  --hero-pad-bottom: var(--space-12);
+
+  /* --- Radius -------------------------------------------------------------- */
   --radius-none: 0;
-  --radius-sm: 8px;
+  --radius-xs: 6px;
+  --radius-sm: 10px;
   --radius-md: 14px;
-  --radius-lg: 22px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
   --radius-full: 999px;
 
-  /* Shadows — restrained */
+  /* --- Elevation -----------------------------------------------------------
+     On a near-black ground a shadow alone is nearly invisible, so each level
+     pairs a shadow with a 1px top highlight to suggest a lit edge. */
   --shadow-none: none;
-  --shadow-sm: 0 8px 24px rgb(0 0 0 / 0.2);
-  --shadow-md: 0 18px 48px rgb(0 0 0 / 0.35);
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-sm: 0 4px 16px rgb(0 0 0 / 0.35);
+  --shadow-md: 0 12px 32px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 24px 64px rgb(0 0 0 / 0.55);
+  --shadow-accent: 0 8px 24px rgb(255 90 96 / 0.25);
+  --highlight-top: inset 0 1px 0 rgb(255 255 255 / 0.05);
 
-  /* Motion */
+  /* --- Motion --------------------------------------------------------------
+     Short and restrained. Anything longer than 280ms feels sluggish in a UI. */
   --duration-fast: 120ms;
   --duration-base: 180ms;
   --duration-slow: 280ms;
   --easing-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --easing-exit: cubic-bezier(0.4, 0, 1, 1);
 
-  /* Layout */
+  /* --- Layout -------------------------------------------------------------- */
   --header-height: 3.5rem;
   --bottom-nav-height: 4rem;
   --container: 82rem;
+  --container-narrow: 46rem;
   --gutter: 1.25rem;
   --touch: 2.75rem;
 
-  /* Breakpoints (documentation + JS mirror; CSS uses matching media) */
+  /* --- Breakpoints (documentation + JS mirror; CSS uses matching media) ----- */
   --bp-320: 320px;
   --bp-375: 375px;
   --bp-390: 390px;
@@ -132,11 +225,14 @@
   --bp-1920: 1920px;
 }
 
+/* Small phones: shrink display type and gutters before anything can overflow. */
 @media (max-width: 374px) {
   :root {
-    --fs-display: 2.125rem;
-    --fs-h1: 1.75rem;
+    --fs-display: 2rem;
+    --fs-h1: 1.625rem;
+    --fs-price-lg: 1.625rem;
     --gutter: 0.875rem;
+    --section-gap: var(--space-10);
   }
 }
 
@@ -144,13 +240,21 @@
   :root {
     --header-height: 4.25rem;
     --gutter: 1.5rem;
-    --fs-display: 3rem;
+    --fs-display: 3.25rem;
     --fs-h1: 2.25rem;
+    --fs-h2: 1.75rem;
+    --section-gap: var(--space-16);
+    --section-gap-lg: var(--space-20);
+    --hero-pad-top: var(--space-16);
+    --hero-pad-bottom: var(--space-16);
   }
 }
 
 @media (min-width: 1024px) {
   :root {
     --gutter: 2.5rem;
+    --fs-display: 3.75rem;
+    --section-gap-lg: var(--space-24);
+    --hero-pad-top: var(--space-20);
   }
 }

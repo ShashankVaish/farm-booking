@@ -134,14 +134,14 @@ export function UsersPanel({ ownersOnly = false }: { ownersOnly?: boolean }) {
             <tbody>
               {data?.items.map((user) => (
                 <tr key={user.id}>
-                  <td>{user.name}</td>
-                  <td>{user.email}</td>
-                  <td>
+                  <td data-label="Name">{user.name}</td>
+                  <td data-label="Email">{user.email}</td>
+                  <td data-label="Role">
                     <span className={adminUi.badge}>{statusLabel(user.role)}</span>
                   </td>
-                  <td>{user.isActive ? 'Active' : 'Disabled'}</td>
-                  <td>{formatDateTime(user.createdAt)}</td>
-                  <td>
+                  <td data-label="Status">{user.isActive ? 'Active' : 'Disabled'}</td>
+                  <td data-label="Registered">{formatDateTime(user.createdAt)}</td>
+                  <td data-label="Actions">
                     <Button size="sm" variant={user.isActive ? 'danger' : 'secondary'} onClick={() => setPending(user)}>
                       {user.isActive ? 'Disable' : 'Enable'}
                     </Button>

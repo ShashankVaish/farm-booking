@@ -48,6 +48,8 @@ describe('PaymentsService money-safety', () => {
   const pricing = { platformFeeBps: jest.fn().mockReturnValue(500) };
   const audit = { record: jest.fn().mockResolvedValue(undefined) };
   const config = { get: jest.fn().mockReturnValue(30) };
+  // Booking hold now comes from PlatformSettingsService rather than env.
+  const platformSettings = { getNumber: jest.fn().mockReturnValue(30) };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -99,6 +101,7 @@ describe('PaymentsService money-safety', () => {
       pricing as never,
       config as never,
       audit as never,
+      platformSettings as never,
     );
   }
 
@@ -273,6 +276,9 @@ describe('PaymentsService money-safety', () => {
     });
     expect(availability.markBooked).not.toHaveBeenCalled();
     expect(provider.createRefund).toHaveBeenCalled();
+  });
+
+  it('10. rejects a capture that belongs to a different booking', async () => {
     provider.fetchPayment.mockResolvedValue({
       providerPaymentId: 'pay_1',
       providerOrderId: 'order_1',
@@ -355,8 +361,9 @@ describe('PaymentsService money-safety', () => {
       'order_1',
       'pay_1',
     );
-    expect(result.confirm).toBe(false);
-    expect(result.refundInventory).toBe(true);
+    // settleCapturedPayment returns a union; this path is the settled branch,
+    // which is the only one carrying these flags.
+    expect(result).toMatchObject({ confirm: false, refundInventory: true });
     expect(availability.markBooked).not.toHaveBeenCalled();
   });
 

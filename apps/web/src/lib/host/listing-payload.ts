@@ -27,6 +27,8 @@ export function toPropertyPayload(draft: ListingDraft) {
     propertyRules,
     cancellationPolicy: draft.cancellationPolicy.trim() || undefined,
     isPartyFriendly: draft.isPartyFriendly,
+    isAdultOnly: draft.isAdultOnly,
+    isCoupleFriendly: draft.isCoupleFriendly,
     amenityIds: draft.amenityIds,
     images: draft.images.map((image, index) => ({
       url: image.url,
@@ -65,6 +67,8 @@ export function fromApiProperty(property: ApiProperty): ListingDraft {
     partyRules: property.partyRules ?? '',
     cancellationPolicy: property.cancellationPolicy ?? '',
     isPartyFriendly: Boolean(property.isPartyFriendly),
+    isAdultOnly: Boolean(property.isAdultOnly),
+    isCoupleFriendly: Boolean(property.isCoupleFriendly),
     amenityIds,
     images: (property.images ?? []).map((image, index) => ({
       url: image.url,

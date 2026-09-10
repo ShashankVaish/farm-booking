@@ -46,6 +46,8 @@ export type ApiProperty = {
   propertyRules?: string | null;
   cancellationPolicy?: string | null;
   isPartyFriendly?: boolean;
+  isAdultOnly?: boolean;
+  isCoupleFriendly?: boolean;
   averageRating?: number | string;
   reviewCount?: number;
   images?: ApiPropertyImage[];

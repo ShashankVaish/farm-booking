@@ -112,12 +112,18 @@ textarea {
   margin-inline: auto;
 }
 
+/*
+ * Headings use Playfair Display. Its stroke contrast needs a little more
+ * weight than a sans at the same size to hold up on a dark background, and
+ * the tighter tracking below stops the larger sizes reading as loose.
+ */
 .t-display,
 .t-h1,
 .t-h2,
-.t-h3 {
+.t-h3,
+.t-h4 {
   font-family: var(--font-display);
-  font-weight: var(--font-weight-regular);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
   margin: 0;
 }
@@ -148,11 +154,10 @@ textarea {
 
 .t-h4 {
   margin: 0;
-  font-family: var(--font-sans);
   font-size: var(--fs-h4);
   line-height: var(--lh-h4);
   letter-spacing: var(--ls-h4);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
 }
 
 .t-body {

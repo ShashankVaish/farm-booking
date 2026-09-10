@@ -1,0 +1,289 @@
+.controls {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
+}
+
+@media (min-width: 640px) {
+  .controls {
+    grid-template-columns: minmax(0, 14rem) minmax(0, 12rem) auto;
+    align-items: end;
+  }
+}
+
+/* Summary ----------------------------------------------------------------- */
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+@media (min-width: 900px) {
+  .summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.summaryCell {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.summaryCell dt {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+.summaryCell dd {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  overflow-wrap: anywhere;
+}
+
+.payable dd {
+  color: var(--color-success);
+}
+
+.hold dd {
+  color: var(--color-warning);
+}
+
+/* Host cards -------------------------------------------------------------- */
+
+.hosts {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.host {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.hostHead {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+@media (min-width: 720px) {
+  .hostHead {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+}
+
+.hostName {
+  margin: 0;
+  font-size: var(--fs-h4);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.hostMeta {
+  margin: 0.2rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+  overflow-wrap: anywhere;
+}
+
+.amount {
+  text-align: left;
+}
+
+@media (min-width: 720px) {
+  .amount {
+    text-align: right;
+  }
+}
+
+.amountValue {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.amountLabel {
+  margin: 0.15rem 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+/* Bank block -------------------------------------------------------------- */
+
+.bank {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+}
+
+@media (min-width: 640px) {
+  .bank {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .bank {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.field {
+  min-width: 0;
+}
+
+.fieldLabel {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+.fieldValue {
+  margin: 0.2rem 0 0;
+  font-size: var(--fs-body-small);
+  overflow-wrap: anywhere;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.missing {
+  color: var(--color-warning);
+  font-style: italic;
+}
+
+.blocked {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  color: var(--color-warning);
+  font-size: var(--fs-body-small);
+}
+
+/* Stay lines -------------------------------------------------------------- */
+
+.stays {
+  display: grid;
+}
+
+.stay {
+  display: grid;
+  gap: 0.2rem;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.stay:last-child {
+  border-bottom: 0;
+}
+
+@media (min-width: 720px) {
+  .stay {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto;
+    gap: var(--space-4);
+    align-items: baseline;
+  }
+}
+
+.stayTitle {
+  min-width: 0;
+  font-size: var(--fs-body-small);
+  overflow-wrap: anywhere;
+}
+
+.stayDates {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-caption);
+}
+
+.stayAmounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+}
+
+.stayNet {
+  font-size: var(--fs-body-small);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (min-width: 720px) {
+  .stayNet {
+    text-align: right;
+  }
+}
+
+.toggle {
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+  text-align: left;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-elevated);
+}
+
+.amountSecondary {
+  margin: 0.2rem 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+}
+
+/* Earned vs upcoming, so a future stay is never mistaken for money due. */
+.tagEarned,
+.tagUpcoming {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-full);
+  border: 1px solid currentColor;
+  font-size: 0.625rem;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.tagEarned {
+  color: var(--color-success);
+}
+
+.tagUpcoming {
+  color: var(--color-text-muted);
+}

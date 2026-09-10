@@ -115,6 +115,11 @@ export class EnvironmentVariables {
   @IsString()
   WEB_APP_URL?: string;
 
+  /** Redis connection for OTP state. Falls back to an in-memory store if unset. */
+  @IsOptional()
+  @IsString()
+  REDIS_URL?: string;
+
   @IsOptional()
   @IsString()
   SMS_PROVIDER?: string;
@@ -130,6 +135,10 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   TWILIO_FROM_NUMBER?: string;
+
+  @IsOptional()
+  @IsString()
+  RENFLAIR_API_KEY?: string;
 
   @IsOptional()
   @IsString()

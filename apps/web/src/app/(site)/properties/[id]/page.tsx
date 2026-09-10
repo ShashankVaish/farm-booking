@@ -156,6 +156,14 @@ export default async function PropertyPage({ params }: Props) {
               <dt className="t-caption">Pets</dt>
               <dd>{meta.pets || 'Not specified'}</dd>
             </div>
+            <div className={styles.fact}>
+              <dt className="t-caption">Minimum age</dt>
+              <dd>{property.isAdultOnly ? 'Guests must be 18+' : 'All ages welcome'}</dd>
+            </div>
+            <div className={styles.fact}>
+              <dt className="t-caption">Couples</dt>
+              <dd>{property.isCoupleFriendly ? 'Couple friendly' : 'Not specified'}</dd>
+            </div>
           </dl>
           {meta.noise ? (
             <p className="t-body-small" style={{ marginTop: 'var(--space-3)' }}>
