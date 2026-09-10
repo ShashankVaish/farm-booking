@@ -191,3 +191,61 @@ describe('paymentPendingEmail', () => {
     expect(rendered.html).toContain('https://baagly.test/bookings/7f3c9a12');
   });
 });
+
+describe('booking confirmation address block', () => {
+  const located = {
+    ...stay(),
+    address: 'Plot 14, Sector 3, Greater Noida, Uttar Pradesh, 201310',
+    mapUrl: 'https://www.google.com/maps/search/?api=1&query=28.6259346%2C77.4369007',
+    directionsUrl: 'https://www.google.com/maps/dir/?api=1&destination=28.6259346%2C77.4369007',
+  };
+
+  it('gives the guest the full address once the stay is paid for', () => {
+    const rendered = bookingConfirmedEmail(located);
+    expect(rendered.text).toContain('Plot 14, Sector 3, Greater Noida, Uttar Pradesh, 201310');
+    expect(rendered.html).toContain('Plot 14, Sector 3');
+  });
+
+  it('links to Google Maps and to directions in both bodies', () => {
+    const rendered = bookingConfirmedEmail(located);
+    for (const body of [rendered.html, rendered.text]) {
+      expect(body).toContain('google.com/maps/search/');
+      expect(body).toContain('google.com/maps/dir/');
+    }
+    expect(rendered.html).toContain('View on Google Maps');
+    expect(rendered.html).toContain('Get directions');
+  });
+
+  it('omits the block entirely when the listing has no location', () => {
+    // No empty "Address" heading over nothing.
+    const rendered = bookingConfirmedEmail(stay());
+    expect(rendered.html).not.toContain('Address');
+    expect(rendered.text).not.toContain('Address:');
+  });
+
+  it('still renders a map link when the street address is unknown', () => {
+    const rendered = bookingConfirmedEmail({ ...stay(), mapUrl: located.mapUrl });
+    expect(rendered.html).toContain('View on Google Maps');
+  });
+
+  it('escapes an address containing markup', () => {
+    const rendered = bookingConfirmedEmail({ ...located, address: '<b>Plot 14</b>' });
+    expect(rendered.html).not.toContain('<b>Plot 14</b>');
+    expect(rendered.html).toContain('&lt;b&gt;Plot 14');
+  });
+
+  it('keeps the exact address out of the awaiting-payment email', () => {
+    // The terms promise the address stays private until a booking is confirmed.
+    // This email is sent while it is not.
+    const pending = paymentPendingEmail({ ...located, holdMinutes: 30 });
+    expect(pending.text).not.toContain('Plot 14');
+    expect(pending.html).not.toContain('Plot 14');
+    expect(pending.html).not.toContain('google.com/maps');
+  });
+
+  it('keeps it out of the host copy too', () => {
+    // The host knows their own address; repeating it is noise.
+    const host = hostBookingConfirmedEmail({ ...located, hostName: 'Vikram Shah' });
+    expect(host.html).not.toContain('Plot 14');
+  });
+});

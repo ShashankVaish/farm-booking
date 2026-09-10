@@ -443,3 +443,15 @@
   font-size: var(--fs-caption);
   font-variant-numeric: tabular-nums;
 }
+
+/* Shown in place of a map when Google Maps cannot load — a missing key, a
+   referrer restriction, or a blocked script. Says what happened instead of
+   leaving an empty grey box. */
+.mapError {
+  margin: 0;
+  padding: var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+  line-height: var(--lh-body);
+  text-align: center;
+}

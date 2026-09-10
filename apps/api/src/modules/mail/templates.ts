@@ -216,7 +216,64 @@ export type BookingEmailData = {
   bookingId: string;
   brandName: string;
   bookingUrl: string;
+  /*
+    Full street address and a Google Maps link.
+
+    Only populated for a confirmed booking. The listing page and the
+    awaiting-payment email deliberately show the area alone — the terms promise
+    that the exact address stays private until a booking is confirmed, and this
+    email is the moment that promise is satisfied rather than broken.
+  */
+  address?: string | null;
+  mapUrl?: string | null;
+  directionsUrl?: string | null;
 };
+
+/**
+ * The address block, shown only once a booking is confirmed.
+ *
+ * A guest reading this on the day wants two things: the address to give a
+ * driver, and a link that opens navigation. Both are plain text and a plain
+ * link — no map image, because Static Maps would need an API key inside the
+ * email and most clients block remote images by default anyway.
+ */
+function addressBlock(data: BookingEmailData): string {
+  const address = (data.address ?? '').trim();
+  if (!address && !data.mapUrl) return '';
+
+  const lines: string[] = [];
+  if (address) {
+    lines.push(
+      `<p style="margin:0 0 6px;color:${BRAND.ink};font-size:15px;line-height:1.6;font-weight:600;">${escapeHtml(address)}</p>`,
+    );
+  }
+  const links: string[] = [];
+  if (data.mapUrl) {
+    links.push(
+      `<a href="${escapeHtml(data.mapUrl)}" style="color:${BRAND.coral};font-weight:600;text-decoration:underline;">View on Google Maps</a>`,
+    );
+  }
+  if (data.directionsUrl) {
+    links.push(
+      `<a href="${escapeHtml(data.directionsUrl)}" style="color:${BRAND.coral};font-weight:600;text-decoration:underline;">Get directions</a>`,
+    );
+  }
+  if (links.length > 0) {
+    lines.push(
+      `<p style="margin:0;font-size:14px;line-height:1.6;">${links.join(' &nbsp;·&nbsp; ')}</p>`,
+    );
+  }
+
+  return `
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 0;">
+            <tr>
+              <td style="padding:16px 18px;background:${BRAND.cream};border-radius:12px;">
+                <p style="margin:0 0 8px;color:${BRAND.muted};font-size:12px;letter-spacing:0.08em;text-transform:uppercase;">Address</p>
+                ${lines.join('\n                ')}
+              </td>
+            </tr>
+          </table>`;
+}
 
 export function bookingConfirmedEmail(data: BookingEmailData): RenderedEmail {
   const rows = detailRows([
@@ -231,8 +288,16 @@ export function bookingConfirmedEmail(data: BookingEmailData): RenderedEmail {
   const body = `
           ${paragraph(`Hi ${escapeHtml(firstName(data.guestName))}, your payment went through and your stay is confirmed. The host has been told to expect you.`)}
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">${rows}</table>
+          ${addressBlock(data)}
           ${button('View your booking', data.bookingUrl)}
           ${paragraph(`<span style="color:${BRAND.muted};font-size:13px;">Booking reference ${escapeHtml(shortRef(data.bookingId))}</span>`)}`;
+
+  const addressLines: string[] = [];
+  if ((data.address ?? '').trim()) {
+    addressLines.push('', 'Address:', `  ${(data.address ?? '').trim()}`);
+  }
+  if (data.mapUrl) addressLines.push(`  View on Google Maps: ${data.mapUrl}`);
+  if (data.directionsUrl) addressLines.push(`  Get directions: ${data.directionsUrl}`);
 
   return {
     subject: `Confirmed — ${data.propertyTitle}, ${formatStayDate(data.checkIn)}`,
@@ -253,6 +318,7 @@ export function bookingConfirmedEmail(data: BookingEmailData): RenderedEmail {
       `Check-out:  ${formatStayDate(data.checkOut)}`,
       `Guests:     ${data.guests}`,
       `Total paid: ${formatInr(data.total)}`,
+      ...addressLines,
       '',
       `View your booking: ${data.bookingUrl}`,
       `Booking reference ${shortRef(data.bookingId)}`,

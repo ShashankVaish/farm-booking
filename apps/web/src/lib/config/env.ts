@@ -21,6 +21,7 @@ export const publicEnv = {
   brandName: firstNonEmpty(process.env.NEXT_PUBLIC_BRAND_NAME, 'Baagly'),
   apiUrl: firstNonEmpty(process.env.NEXT_PUBLIC_API_URL),
   siteUrl: firstNonEmpty(process.env.NEXT_PUBLIC_SITE_URL),
+  googleMapsApiKey: firstNonEmpty(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY),
 } as const;
 
 export function getApiBaseUrl(): string {
