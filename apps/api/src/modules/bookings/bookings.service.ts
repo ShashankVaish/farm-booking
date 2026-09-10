@@ -34,7 +34,9 @@ import {
 import { assertBookingTransition, canCustomerCancel } from './booking-status';
 import { AuditActions, AuditService } from '../../common/audit.service';
 import { bookingDetailInclude } from './booking-include';
-
+import { MailService } from '../mail/mail.service';
+import { paymentPendingEmail } from '../mail/templates';
+import { PlatformSettingsService } from '../settings/platform-settings.service';
 
 @Injectable()
 export class BookingsService {
@@ -45,6 +47,8 @@ export class BookingsService {
     private readonly availability: AvailabilityService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    private readonly mail: MailService,
+    private readonly settings: PlatformSettingsService,
   ) {}
 
   async quote(dto: QuoteBookingDto, userId?: string) {
@@ -163,6 +167,21 @@ export class BookingsService {
         body: `Your booking for ${property.title} is awaiting payment.`,
         metadata: { bookingId: booking.id },
         dedupeKey: `BOOKING_CREATED:${booking.id}:${user.id}`,
+        // The dates are held but not paid for. The email carries the deep link
+        // back to checkout, which is the whole reason for sending it.
+        email: paymentPendingEmail({
+          guestName: user.name,
+          propertyTitle: property.title,
+          location: [property.city, property.state].filter(Boolean).join(', '),
+          checkIn: booking.checkInDate,
+          checkOut: booking.checkOutDate,
+          guests: booking.guestCount,
+          total: Number(breakdown.totalAmount),
+          bookingId: booking.id,
+          brandName: this.mail.brandName(),
+          bookingUrl: `${this.mail.webUrl()}/bookings/${booking.id}`,
+          holdMinutes: this.settings.getNumber('BOOKING_EXPIRE_MINUTES'),
+        }),
       });
       await this.notifications.notify({
         userId: property.ownerId,

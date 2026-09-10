@@ -399,3 +399,47 @@
   font-size: var(--fs-body-small);
   overflow-wrap: anywhere;
 }
+
+/* --- Booking slots (day party / night party / overnight) ------------------- */
+
+.slotGroup {
+  margin: 0 0 var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.slotGroup legend {
+  padding: 0 var(--space-2);
+}
+
+.slotBlock {
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.slotBlock:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.slotHint {
+  margin: var(--space-2) 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--fs-body-small);
+}
+
+/* Reads back what the two time fields add up to, so a night slot entered the
+   wrong way round is obvious before the listing is saved. */
+.slotSummary {
+  display: inline-block;
+  margin: var(--space-3) 0 0;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-primary-border);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-text);
+  font-size: var(--fs-caption);
+  font-variant-numeric: tabular-nums;
+}

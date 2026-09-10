@@ -1,4 +1,5 @@
 import { OverlayPlayground } from '@/components/design-system/overlay-playground';
+import { TimeFieldDemo } from '@/components/design-system/time-field-demo';
 import {
   BookingCardFoundation,
   DatePickerFoundation,
@@ -152,6 +153,11 @@ export default function DesignSystemPage() {
           </Card>
           <BookingCardFoundation price={28000} />
         </div>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className="t-h2">Time field</h2>
+        <TimeFieldDemo />
       </section>
 
       <section className={styles.section}>

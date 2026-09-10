@@ -7,7 +7,12 @@ import {
   MinLength,
 } from 'class-validator';
 
-export type OtpPurpose = 'LOGIN' | 'REGISTER' | 'VERIFY_PHONE';
+export type OtpPurpose =
+  | 'LOGIN'
+  | 'REGISTER'
+  | 'VERIFY_PHONE'
+  /** Email confirmation before a password signup; keyed by email, not phone. */
+  | 'VERIFY_EMAIL';
 
 export class RequestOtpDto {
   @IsString()

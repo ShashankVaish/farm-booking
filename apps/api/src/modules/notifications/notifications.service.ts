@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { paginated } from '../../common/pagination';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 
 export const NotificationTypes = {
   BOOKING_CREATED: 'BOOKING_CREATED',
@@ -17,6 +18,12 @@ export const NotificationTypes = {
   NEW_REVIEW: 'NEW_REVIEW',
   COUPON: 'COUPON',
 } as const;
+
+/** A rendered message body, without the recipient. */
+export type EmailBody = { subject: string; html: string; text: string };
+
+/** Who a notification actually resolved to, as stored. */
+export type NotificationRecipient = { name: string; email: string };
 
 export type NotificationPreferenceFlags = {
   bookingConfirmation: boolean;
@@ -87,7 +94,10 @@ export function isNotificationAllowed(
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService,
+  ) {}
 
   async notify(params: {
     userId: string;
@@ -96,7 +106,27 @@ export class NotificationsService {
     body: string;
     metadata?: Prisma.InputJsonValue;
     dedupeKey?: string;
-  }): Promise<{ created: boolean; reason?: 'preference' | 'duplicate' }> {
+    /**
+     * An email to send alongside the in-app notification.
+     *
+     * Routed through here rather than sent directly from the call sites so that
+     * one set of rules governs both channels: an email goes out only when the
+     * notification row is actually written, which means a muted preference
+     * silences the email too and a `dedupeKey` collision cannot send a second
+     * copy of a confirmation.
+     *
+     * Given a function, it is called with the recipient that was actually
+     * resolved from `userId`. That keeps a greeting from being addressed to the
+     * wrong person: the same booking notifies both the guest and the host, and
+     * whichever name happened to be in scope at the call site is not
+     * necessarily the one being written to.
+     */
+    email?: EmailBody | ((recipient: NotificationRecipient) => EmailBody);
+  }): Promise<{
+    created: boolean;
+    reason?: 'preference' | 'duplicate';
+    emailed?: boolean;
+  }> {
     const prefs = await this.getPreferences(params.userId);
     if (!isNotificationAllowed(params.type, prefs)) {
       return { created: false, reason: 'preference' };
@@ -113,7 +143,10 @@ export class NotificationsService {
           dedupeKey: params.dedupeKey,
         },
       });
-      return { created: true };
+      const emailed = params.email
+        ? await this.emailUser(params.userId, params.email)
+        : undefined;
+      return { created: true, emailed };
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -128,6 +161,34 @@ export class NotificationsService {
       });
       return { created: false };
     }
+  }
+
+  /**
+   * Looks the address up and hands it to the mail service.
+   *
+   * Never throws: the booking, payment or refund that triggered this has
+   * already happened, so a mail failure must not turn a successful request into
+   * an error. `sendQuietly` logs it instead.
+   */
+  private async emailUser(
+    userId: string,
+    email: EmailBody | ((recipient: NotificationRecipient) => EmailBody),
+  ): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true, isActive: true },
+    });
+    // A disabled account still gets its in-app row for the audit trail, but
+    // must not be mailed.
+    if (!user?.email || !user.isActive) {
+      return false;
+    }
+    const recipient: NotificationRecipient = {
+      name: user.name,
+      email: user.email,
+    };
+    const body = typeof email === 'function' ? email(recipient) : email;
+    return this.mail.sendQuietly({ to: recipient.email, ...body });
   }
 
   async getPreferences(userId: string): Promise<NotificationPreferenceFlags> {

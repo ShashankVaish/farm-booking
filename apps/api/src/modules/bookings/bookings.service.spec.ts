@@ -3,6 +3,13 @@ import { BookingsService } from './bookings.service';
 import { UserRoles } from '../../common/constants/roles';
 import type { RequestUser } from '../auth/auth.types';
 
+const mail = {
+  brandName: () => 'Baagly',
+  webUrl: () => 'https://baagly.test',
+  sendQuietly: jest.fn().mockResolvedValue(true),
+};
+const platformSettings = { getNumber: jest.fn().mockReturnValue(30) };
+
 const customer: RequestUser = {
   id: 'cust-1',
   email: 'c@example.com',
@@ -113,6 +120,8 @@ describe('BookingsService', () => {
       availability as never,
       notifications as never,
       { record: jest.fn().mockResolvedValue(undefined) } as never,
+      mail as never,
+      platformSettings as never,
     );
 
     return { service, prisma, tx, availability, notifications };

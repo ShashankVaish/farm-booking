@@ -312,12 +312,29 @@ export function RegisterForm() {
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /*
+    Email signup is two steps: the address is confirmed by a code before the
+    account is created, so the API can refuse a signup for an inbox nobody has
+    proved they can read. 'details' collects the form, 'code' confirms it.
+  */
+  const [emailStep, setEmailStep] = useState<'details' | 'code'>('details');
+  const [emailCode, setEmailCode] = useState('');
 
   useEffect(() => {
     if (seconds <= 0) return;
     const timer = window.setTimeout(() => setSeconds((value) => value - 1), 1000);
     return () => window.clearTimeout(timer);
   }, [seconds]);
+
+  // One countdown serves both methods, so switching tabs must not leave a
+  // resend timer from the other one running.
+  useEffect(() => {
+    setSeconds(0);
+    setError(null);
+    setOtpSent(false);
+    setEmailStep('details');
+    setEmailCode('');
+  }, [mode]);
 
   const passwordHint = useMemo(
     () => (/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password) ? undefined : 'Use at least 8 characters with a letter and a number.'),
@@ -331,27 +348,78 @@ export function RegisterForm() {
     });
   }
 
-  async function submitEmail(event: FormEvent) {
-    event.preventDefault();
+  /** Everything the details step must get right before a code is worth sending. */
+  function validateDetails(): string | null {
+    if (name.trim().length < 2) return 'Enter your full name.';
+    if (!email.trim()) return 'Enter your email address.';
+    if (!isStrongPassword(password)) {
+      return 'Use at least 8 characters with a letter and a number.';
+    }
+    if (phone.trim() && !indianMobile(phone)) {
+      return 'Enter a valid 10-digit Indian mobile number, or leave it blank.';
+    }
+    return null;
+  }
+
+  async function sendEmailCode() {
     setBusy(true);
     setError(null);
     try {
-      if (!isStrongPassword(password)) {
-        setError('Use at least 8 characters with a letter and a number.');
+      const problem = validateDetails();
+      if (problem) {
+        setError(problem);
         return;
       }
-      const mobile = indianMobile(phone);
-      if (phone.trim() && !mobile) {
-        setError('Enter a valid 10-digit Indian mobile number, or leave it blank.');
-        return;
-      }
+      const result = await apiClient.post<{ resendAvailableAt: string }>(
+        '/api/auth/email-otp/request',
+        { email: email.trim().toLowerCase() },
+        { auth: false },
+      );
+      setEmailStep('code');
+      setEmailCode('');
+      const wait = Math.max(
+        0,
+        Math.ceil((new Date(result.resendAvailableAt).getTime() - Date.now()) / 1000),
+      );
+      setSeconds(wait || 60);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? otpMessage(err.code, err.message)
+          : authErrorMessage(err, 'Could not send the verification code.'),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitEmail(event: FormEvent) {
+    event.preventDefault();
+    if (emailStep === 'details') {
+      void sendEmailCode();
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const address = email.trim().toLowerCase();
+      // Confirm the address first. Registering without this returns
+      // EMAIL_NOT_VERIFIED, so doing it in this order keeps the failure on the
+      // code field where it can actually be corrected.
+      await apiClient.post(
+        '/api/auth/email-otp/verify',
+        { email: address, code: emailCode.trim() },
+        { auth: false },
+      );
+
       const result = await apiClient.post<{ accessToken: string }>(
         '/api/auth/register',
         {
           name: name.trim(),
-          email: email.trim().toLowerCase(),
+          email: address,
           password,
-          phone: mobile,
+          phone: indianMobile(phone),
           role: asHost ? 'OWNER' : 'CUSTOMER',
         },
         { auth: false },
@@ -360,7 +428,11 @@ export function RegisterForm() {
       router.push(asHost ? '/host' : '/dashboard');
       router.refresh();
     } catch (err) {
-      setError(authErrorMessage(err, 'Could not create account.'));
+      setError(
+        err instanceof ApiError
+          ? otpMessage(err.code, err.message)
+          : authErrorMessage(err, 'Could not create account.'),
+      );
     } finally {
       setBusy(false);
     }
@@ -474,9 +546,79 @@ export function RegisterForm() {
             onChange={setPassword}
             hint={passwordHint}
           />
-          <Button className={styles.submit} type="submit" block disabled={busy} loading={busy}>
-            {busy ? 'Creating…' : asHost ? 'Create host account' : 'Create account'}
+
+          {emailStep === 'code' ? (
+            <Input
+              id="reg-email-code"
+              label="Verification code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              maxLength={6}
+              placeholder="6-digit code"
+              value={emailCode}
+              onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, ''))}
+              hint={`Sent to ${email.trim().toLowerCase()}. Check your spam folder if it has not arrived.`}
+            />
+          ) : null}
+
+          {/*
+            Signup deliberately does not say whether an address is already
+            registered, so someone who has an account reaches this step and
+            waits for a code that is not coming. They are emailed about it, but
+            the way out has to be on screen too.
+          */}
+          {emailStep === 'code' ? (
+            <p className={styles.help}>
+              Already have an account? <Link href="/auth/login">Sign in instead</Link>.
+            </p>
+          ) : null}
+
+          <Button
+            className={styles.submit}
+            type="submit"
+            block
+            disabled={busy || (emailStep === 'code' && emailCode.trim().length < 6)}
+            loading={busy}
+          >
+            {busy
+              ? emailStep === 'code'
+                ? 'Creating…'
+                : 'Sending…'
+              : emailStep === 'code'
+                ? asHost
+                  ? 'Verify and create host account'
+                  : 'Verify and create account'
+                : 'Send verification code'}
           </Button>
+
+          {emailStep === 'code' ? (
+            <div className={styles.inlineActions}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={seconds > 0 || busy}
+                onClick={() => void sendEmailCode()}
+              >
+                {seconds > 0 ? `Resend in ${seconds}s` : 'Resend code'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  setEmailStep('details');
+                  setEmailCode('');
+                  setError(null);
+                  setSeconds(0);
+                }}
+              >
+                Use a different email
+              </Button>
+            </div>
+          ) : null}
         </form>
       ) : (
         <form

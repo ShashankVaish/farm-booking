@@ -83,14 +83,32 @@ describe('PaymentsService money-safety', () => {
         customerId: 'c1',
         propertyId: 'p1',
         status: 'PAYMENT_PENDING',
+        checkInDate: new Date('2026-10-01'),
+        checkOutDate: new Date('2026-10-02'),
+        guestCount: 4,
         totalAmount: decimal('1050.00'),
         platformFee: decimal('50.00'),
         nights: [{ date: new Date('2026-10-01') }],
-        property: { title: 'Lake House', ownerId: 'o1' },
+        // Mirrors paymentBookingInclude. settleCapturedPayment reloads the row
+        // itself with that include, so anything it selects has to be here or
+        // the fixture is testing a shape production never sees.
+        customer: { id: 'c1', name: 'Asha Rao', email: 'asha@example.com' },
+        property: {
+          title: 'Lake House',
+          ownerId: 'o1',
+          city: 'Lonavala',
+          state: 'Maharashtra',
+        },
       },
       ...overrides,
     };
   }
+
+  const mail = {
+    brandName: () => 'Baagly',
+    webUrl: () => 'https://baagly.test',
+    sendQuietly: jest.fn().mockResolvedValue(true),
+  };
 
   function service(prisma: object) {
     return new PaymentsService(
@@ -102,6 +120,7 @@ describe('PaymentsService money-safety', () => {
       config as never,
       audit as never,
       platformSettings as never,
+      mail as never,
     );
   }
 
