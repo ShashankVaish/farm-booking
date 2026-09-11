@@ -39,8 +39,12 @@ const EXTRA_AMENITIES = [
   { slug: 'party-allowed', label: 'Party allowed' },
 ];
 
+/*
+  Photos are capped but no longer required. The four-photo minimum blocked hosts
+  who wanted to publish first and add photos later; a listing with none falls
+  back to a styled placeholder rather than breaking.
+*/
 const MAX_PHOTOS = 8;
-const MIN_PHOTOS = 4;
 
 function draftAsProperty(draft: ListingDraft): ApiProperty {
   return {
@@ -363,13 +367,11 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
           >
             <p className="t-body">Drag photos here or choose files</p>
             <p className="t-caption">
-              JPEG, PNG, or WebP · up to 8 MB · {MIN_PHOTOS}–{MAX_PHOTOS} photos required
+              JPEG, PNG, or WebP · up to 25 MB each · up to {MAX_PHOTOS} photos
             </p>
             <p className="t-caption">
               {draft.images.length} of {MAX_PHOTOS} added
-              {draft.images.length < MIN_PHOTOS
-                ? ` · ${MIN_PHOTOS - draft.images.length} more needed`
-                : ' · minimum met'}
+              {draft.images.length === 0 ? ' · a listing with photos gets far more bookings' : ''}
             </p>
             <input
               type="file"
@@ -648,9 +650,6 @@ function validateStep(step: number, draft: ListingDraft): Record<string, string>
   }
   if (step === 4) {
     if (draft.images.length > MAX_PHOTOS) return { photos: `Add no more than ${MAX_PHOTOS} photos.` };
-    if (draft.images.length < MIN_PHOTOS) {
-      return { photos: `Add at least ${MIN_PHOTOS} photos — guests judge a stay by them.` };
-    }
     return {};
   }
   if (step === 5) {
@@ -665,9 +664,6 @@ function validateStep(step: number, draft: ListingDraft): Record<string, string>
       return { slots: 'Choose at least one — day party, night party or overnight stay.' };
     }
     return {};
-  }
-  if (step === 10 && draft.images.length < MIN_PHOTOS) {
-    return { photos: `Add at least ${MIN_PHOTOS} photos before submitting.` };
   }
   return {};
 }

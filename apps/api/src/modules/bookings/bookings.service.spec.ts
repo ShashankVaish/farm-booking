@@ -212,4 +212,44 @@ describe('BookingsService', () => {
     expect(result.idempotent).toBe(true);
     expect(result.booking.id).toBe('existing');
   });
+
+  const host: RequestUser = {
+    id: 'host-9',
+    email: 'host@example.com',
+    role: UserRoles.OWNER,
+    name: 'Host',
+  };
+
+  const stay = {
+    propertyId: 'prop-1',
+    checkInDate: '2026-10-01',
+    checkOutDate: '2026-10-02',
+    guestCount: 2,
+  };
+
+  it('lets a host book somebody else’s property', async () => {
+    /*
+      Anyone who was not a CUSTOMER used to be rejected outright, so listing a
+      property silently removed the ability to book one — "become a host" was a
+      one-way door. This is the regression guard for that.
+    */
+    const { service, prisma } = setup();
+    prisma.booking.findFirst.mockResolvedValue(null);
+
+    await expect(service.create(host, stay)).resolves.toBeDefined();
+  });
+
+  it('still refuses to let a host book their own property', async () => {
+    // It would take their own dates off sale and charge them a platform fee to
+    // pay themselves.
+    const { service, prisma } = setup();
+    prisma.property.findUnique.mockResolvedValue({
+      ...property,
+      ownerId: host.id,
+    });
+
+    await expect(service.create(host, stay)).rejects.toMatchObject({
+      response: expect.objectContaining({ errorCode: 'FORBIDDEN' }),
+    });
+  });
 });

@@ -25,6 +25,18 @@ export class OwnerController {
     private readonly kyc: HostKycService,
   ) {}
 
+  /*
+    The only route here a non-host may call — it is how someone becomes one.
+    The handler-level @Roles overrides the OWNER requirement on the class, which
+    would otherwise make this endpoint reachable only by people who no longer
+    need it.
+  */
+  @Roles(UserRoles.CUSTOMER, UserRoles.OWNER)
+  @Post('become-host')
+  becomeHost(@CurrentUser() user: RequestUser) {
+    return this.owner.becomeHost(user.id);
+  }
+
   @Get('overview')
   overview(@CurrentUser() user: RequestUser) {
     return this.owner.overview(user.id);

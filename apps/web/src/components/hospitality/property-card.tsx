@@ -28,15 +28,13 @@ export function PropertyCard({ property }: { property: PropertyCardModel }) {
   return (
     <article className={styles.card}>
       <div className={styles.mediaWrap}>
-        <Link href={href} aria-label={property.name}>
-          <MediaImage
-            asset={property.image}
-            alt={property.name}
-            tone={property.imageTone}
-            aspectRatio="5 / 4"
-            sizes="(min-width: 1024px) 30vw, (min-width: 768px) 45vw, 100vw"
-          />
-        </Link>
+        <MediaImage
+          asset={property.image}
+          alt={property.name}
+          tone={property.imageTone}
+          aspectRatio="5 / 4"
+          sizes="(min-width: 1024px) 30vw, (min-width: 768px) 45vw, 100vw"
+        />
         {property.badge ? <PropertyBadge>{property.badge}</PropertyBadge> : null}
         <WishlistButton propertyId={property.id} propertyName={property.name} />
       </div>
@@ -44,7 +42,20 @@ export function PropertyCard({ property }: { property: PropertyCardModel }) {
         <p className="t-metadata">{property.type}</p>
         <div className={styles.topRow}>
           <h3 className={styles.title}>
-            <Link href={href}>{property.name}</Link>
+            {/*
+              One link, stretched over the whole card by `.title a::after`, so a
+              tap anywhere on it opens the listing — previously only the image
+              and the title text were clickable, and the price, location and
+              empty space did nothing.
+
+              Exactly one stretched link per card: nesting the image in its own
+              <a> as well would put two links on the same target, which reads as
+              a duplicate to a screen reader. The wishlist button sits above it
+              on the z-axis so it stays independently clickable.
+            */}
+            <Link href={href} className={styles.cardLink}>
+              {property.name}
+            </Link>
           </h3>
           <Rating value={property.rating} count={property.reviewCount} />
         </div>

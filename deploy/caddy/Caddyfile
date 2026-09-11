@@ -18,7 +18,7 @@ api.baagly.com {
 	# Photos can be several megabytes and a listing allows up to eight, so the
 	# default request cap has to be raised or uploads fail with a confusing 413.
 	request_body {
-		max_size 12MB
+		max_size 25MB
 	}
 
 	reverse_proxy 127.0.0.1:3001 {

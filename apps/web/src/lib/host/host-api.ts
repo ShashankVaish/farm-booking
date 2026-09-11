@@ -130,6 +130,14 @@ export const hostApi = {
     apiClient.get<Paginated<ApiReview & { property?: { id: string; title: string } }>>(
       `/api/owner/reviews${toQueryString({ page, limit: 20 })}`,
     ),
+  /**
+   * Turns the signed-in guest into a host. Idempotent, so it is safe to call
+   * for someone who already is one.
+   */
+  becomeHost: () =>
+    apiClient.post<{ id: string; email: string; name: string; role: string; alreadyHost: boolean }>(
+      '/api/owner/become-host',
+    ),
   profile: () => apiClient.get<OwnerProfile>('/api/owner/profile'),
   updateProfile: (body: { name?: string; businessName?: string; gstNumber?: string; panNumber?: string }) =>
     apiClient.patch<OwnerProfile>('/api/owner/profile', body),

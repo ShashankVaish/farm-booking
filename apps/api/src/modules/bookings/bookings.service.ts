@@ -71,14 +71,28 @@ export class BookingsService {
   }
 
   async create(user: RequestUser, dto: CreateBookingDto) {
-    if (user.role !== UserRoles.CUSTOMER && user.role !== UserRoles.ADMIN) {
+    const property = await this.requireApprovedProperty(dto.propertyId);
+
+    /*
+      Hosts book too.
+
+      This used to reject anyone who was not a CUSTOMER, so the moment someone
+      listed a property they lost the ability to book one — which made "become a
+      host" a one-way door. Hosting is an addition to an account, not a separate
+      kind of account.
+
+      The one thing still refused is booking your own property: it would take
+      your own dates off sale, charge you a platform fee, and pay it back to
+      yourself minus that fee.
+    */
+    if (property.ownerId === user.id) {
       throw new ForbiddenException({
         errorCode: ErrorCodes.FORBIDDEN,
-        message: 'Only customers can create bookings.',
+        message:
+          'You cannot book your own property. Block the dates on your calendar instead.',
       });
     }
 
-    const property = await this.requireApprovedProperty(dto.propertyId);
     this.assertStay(property.guestCapacity, dto);
 
     const existingOpen = await this.prisma.booking.findFirst({
