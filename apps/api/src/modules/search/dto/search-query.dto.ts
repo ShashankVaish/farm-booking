@@ -98,6 +98,15 @@ export class SearchQueryDto {
   @Min(0)
   minRating?: number;
 
+  /*
+    Filters to listings carrying the admin-awarded Trusted property badge. Read
+    only: this narrows the result set and cannot set the flag on anything.
+  */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  trusted?: boolean;
+
   @IsOptional()
   @IsIn(['recommended', 'price_asc', 'price_desc', 'rating', 'newest'])
   sort?: 'recommended' | 'price_asc' | 'price_desc' | 'rating' | 'newest';

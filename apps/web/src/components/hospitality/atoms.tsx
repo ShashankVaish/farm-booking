@@ -1,34 +1,44 @@
 import { cn } from '@/lib/cn';
 import styles from './hospitality.module.css';
 
-export function Rating({
-  value,
-  count,
-}: {
-  value: number;
-  count?: number;
-}) {
-  const rounded = Math.round(value * 2) / 2;
-  const label = count !== undefined ? `${value.toFixed(1)} from ${count} reviews` : `${value.toFixed(1)} rating`;
-
+/**
+ * The "Trusted property" mark.
+ *
+ * Granted by an admin after a manual check and never by the host, so it is the
+ * one claim on a card a guest can take at face value. It stands where the star
+ * rating used to: with guest reviews removed there is nothing left to average,
+ * and a row of empty stars says less than nothing.
+ *
+ * Anchored to the opposite corner from the category badge so the two never
+ * collide on a narrow card.
+ */
+export function TrustedBadge() {
   return (
-    <span className={styles.stars} aria-label={label}>
-      {Array.from({ length: 5 }).map((_, index) => {
-        const filled = index + 1 <= rounded;
-        return (
-          <svg key={index} width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-            <path
-              d="M6 1.2 7.4 4.3 10.8 4.6 8.2 6.8 9 10.2 6 8.5 3 10.2 3.8 6.8 1.2 4.6 4.6 4.3Z"
-              fill={filled ? 'currentColor' : 'none'}
-              stroke="currentColor"
-              strokeWidth="0.8"
-            />
-          </svg>
-        );
-      })}
-      <span className="t-metadata" style={{ marginLeft: '0.35rem', color: 'var(--color-text-secondary)' }}>
-        {value.toFixed(1)}
-        {count !== undefined ? ` (${count})` : ''}
+    <span className={styles.trustedRow}>
+      <span className={styles.trustedChip}>
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+          <path
+            d="M6 0.8 10.4 2.5V6c0 2.4-1.8 4.2-4.4 5.2C3.4 10.2 1.6 8.4 1.6 6V2.5Z"
+            fill="currentColor"
+            opacity="0.18"
+          />
+          <path
+            d="M6 0.8 10.4 2.5V6c0 2.4-1.8 4.2-4.4 5.2C3.4 10.2 1.6 8.4 1.6 6V2.5Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="0.9"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M4.1 5.9 5.5 7.3 8 4.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        Trusted
       </span>
     </span>
   );

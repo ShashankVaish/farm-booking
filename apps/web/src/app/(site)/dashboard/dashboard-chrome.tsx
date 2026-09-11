@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
-import { EmptyState, ErrorState, Spinner } from '@/components/ui/feedback';
+import { ErrorState, Spinner } from '@/components/ui/feedback';
 import { apiClient } from '@/lib/api/client';
 import { ApiError } from '@/lib/api/errors';
 import type { AuthUser } from '@/lib/properties/types';
@@ -54,19 +54,13 @@ export function DashboardChrome({ children }: { children: ReactNode }) {
     );
   }
 
-  if (user?.role === 'OWNER') {
-    return (
-      <div className="container" style={{ padding: 'var(--space-12) 0' }}>
-        <EmptyState
-          title="Host account"
-          description="Property tools live in the host dashboard."
-          actionHref="/host"
-          actionLabel="Go to host dashboard"
-        />
-      </div>
-    );
-  }
-
+  /*
+    Hosts keep their guest account. This page used to be replaced for OWNER by
+    a "Property tools live in the host dashboard" panel, which meant that the
+    moment someone listed a property their own trips, wishlist and profile
+    became unreachable. Hosts can book stays like anyone else, so they get the
+    same dashboard — with a link across to the host tools rather than a wall.
+  */
   return (
     <div className="container" style={{ padding: 'var(--space-8) 0 var(--space-16)' }}>
       <nav className={styles.nav} aria-label="Account">
@@ -78,6 +72,11 @@ export function DashboardChrome({ children }: { children: ReactNode }) {
             </Link>
           );
         })}
+        {user?.role === 'OWNER' || user?.role === 'ADMIN' ? (
+          <Link href="/host" className={styles.navCrossLink}>
+            Host dashboard
+          </Link>
+        ) : null}
       </nav>
       {children}
     </div>

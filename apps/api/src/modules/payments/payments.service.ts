@@ -17,8 +17,8 @@ import { createHash } from 'crypto';
 import { AuditActions, AuditService } from '../../common/audit.service';
 import {
   formatPropertyAddress,
-  googleMapsDirectionsUrl,
-  googleMapsPlaceUrl,
+  mapDirectionsUrl,
+  mapPlaceUrl,
 } from '../../common/maps';
 import { ErrorCodes } from '../../common/constants/error-codes';
 import { UserRoles } from '../../common/constants/roles';
@@ -145,8 +145,8 @@ export class PaymentsService {
       // The stay is paid for, so the exact address is now the guest's to have.
       // Only the confirmation template renders these.
       address: formatPropertyAddress(property),
-      mapUrl: googleMapsPlaceUrl(property.latitude, property.longitude),
-      directionsUrl: googleMapsDirectionsUrl(property.latitude, property.longitude),
+      mapUrl: mapPlaceUrl(property.latitude, property.longitude),
+      directionsUrl: mapDirectionsUrl(property.latitude, property.longitude),
     };
   }
 

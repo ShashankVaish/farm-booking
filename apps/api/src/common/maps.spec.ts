@@ -1,57 +1,58 @@
-import {
-  formatPropertyAddress,
-  googleMapsDirectionsUrl,
-  googleMapsPlaceUrl,
-} from './maps';
+import { formatPropertyAddress, mapDirectionsUrl, mapPlaceUrl } from './maps';
 
-describe('googleMapsPlaceUrl', () => {
-  it('builds a link that opens the Maps app on a phone', () => {
-    const url = googleMapsPlaceUrl(28.6259346, 77.4369007);
-    expect(url).toContain('https://www.google.com/maps/search/');
-    expect(url).toContain('api=1');
-    expect(url).toContain('query=28.6259346%2C77.4369007');
+describe('mapPlaceUrl', () => {
+  it('drops a marker at the property on OpenStreetMap', () => {
+    // OSM, not Google: the site has no Maps billing account, and an unbilled
+    // Google project watermarks every tile.
+    const url = mapPlaceUrl(28.6259346, 77.4369007);
+    expect(url).toContain('https://www.openstreetmap.org/');
+    expect(url).toContain('mlat=28.6259346');
+    expect(url).toContain('mlon=77.4369007');
+  });
+
+  it('never points at a Google endpoint', () => {
+    expect(mapPlaceUrl(28.6, 77.4)).not.toContain('google');
+    expect(mapDirectionsUrl(28.6, 77.4)).not.toContain('google');
   });
 
   it('accepts the string form Prisma Decimal serialises to', () => {
-    expect(googleMapsPlaceUrl('28.6259346', '77.4369007')).toBe(
-      googleMapsPlaceUrl(28.6259346, 77.4369007),
+    expect(mapPlaceUrl('28.6259346', '77.4369007')).toBe(
+      mapPlaceUrl(28.6259346, 77.4369007),
     );
   });
 
   it('rounds to the precision the property record stores', () => {
-    expect(googleMapsPlaceUrl(28.62593461234567, 77.4)).toContain(
-      'query=28.6259346%2C77.4000000',
-    );
+    expect(mapPlaceUrl(28.62593461234567, 77.4)).toContain('mlat=28.6259346');
   });
 
   it('returns null rather than a link to nowhere', () => {
-    expect(googleMapsPlaceUrl(null, null)).toBeNull();
-    expect(googleMapsPlaceUrl(undefined, undefined)).toBeNull();
-    expect(googleMapsPlaceUrl('not-a-number', 77)).toBeNull();
-    expect(googleMapsPlaceUrl(91, 77)).toBeNull();
-    expect(googleMapsPlaceUrl(28, 181)).toBeNull();
+    expect(mapPlaceUrl(null, null)).toBeNull();
+    expect(mapPlaceUrl(undefined, undefined)).toBeNull();
+    expect(mapPlaceUrl('not-a-number', 77)).toBeNull();
+    expect(mapPlaceUrl(91, 77)).toBeNull();
+    expect(mapPlaceUrl(28, 181)).toBeNull();
   });
 
   it('treats 0,0 as unset', () => {
     // Null Island is in the Atlantic. Sending a guest there is worse than
     // sending no link at all.
-    expect(googleMapsPlaceUrl(0, 0)).toBeNull();
+    expect(mapPlaceUrl(0, 0)).toBeNull();
   });
 
   it('still works for a genuine zero on one axis', () => {
-    expect(googleMapsPlaceUrl(0, 77.4)).not.toBeNull();
+    expect(mapPlaceUrl(0, 77.4)).not.toBeNull();
   });
 });
 
-describe('googleMapsDirectionsUrl', () => {
+describe('mapDirectionsUrl', () => {
   it('sets the property as the destination', () => {
-    const url = googleMapsDirectionsUrl(28.6259346, 77.4369007);
-    expect(url).toContain('https://www.google.com/maps/dir/');
-    expect(url).toContain('destination=28.6259346%2C77.4369007');
+    const url = mapDirectionsUrl(28.6259346, 77.4369007);
+    expect(url).toContain('https://www.openstreetmap.org/directions');
+    expect(url).toContain('to=28.6259346%2C77.4369007');
   });
 
   it('returns null without usable coordinates', () => {
-    expect(googleMapsDirectionsUrl(0, 0)).toBeNull();
+    expect(mapDirectionsUrl(0, 0)).toBeNull();
   });
 });
 
@@ -82,7 +83,12 @@ describe('formatPropertyAddress', () => {
 
   it('skips empty and whitespace-only parts', () => {
     expect(
-      formatPropertyAddress({ address: '  ', city: 'Pune', state: null, pincode: undefined }),
+      formatPropertyAddress({
+        address: '  ',
+        city: 'Pune',
+        state: null,
+        pincode: undefined,
+      }),
     ).toBe('Pune');
   });
 

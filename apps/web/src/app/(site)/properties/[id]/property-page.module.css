@@ -76,6 +76,25 @@
   overflow-wrap: anywhere;
 }
 
+/*
+  The trust mark plus its explanation, sitting beside the location. Wraps as a
+  unit so the chip and the sentence never end up on separate lines with the
+  chip stranded.
+*/
+.trusted {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  position: relative;
+  color: var(--color-text-secondary);
+}
+
+/* The chip positions itself absolutely on a card; inside this row it is just
+   part of the flow. */
+.trusted > span:first-child {
+  position: static;
+}
+
 .headerMeta {
   display: flex;
   flex-wrap: wrap;

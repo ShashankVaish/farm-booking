@@ -136,7 +136,22 @@ export function PropertyGallery({ images, title }: { images: GalleryImage[]; tit
   useEffect(() => {
     const strip = thumbStrip.current;
     const active = strip?.children[index] as HTMLElement | undefined;
-    active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (!strip || !active) return;
+
+    /*
+      The strip is scrolled directly rather than with `scrollIntoView`.
+
+      scrollIntoView walks up and scrolls EVERY scrollable ancestor, including
+      the document — so on a phone each autoplay tick dragged the whole page
+      down to the gallery, which reads as the page jumping on its own every few
+      seconds. Setting scrollLeft moves only this strip and never the page.
+    */
+    const target = active.offsetLeft - strip.clientWidth / 2 + active.clientWidth / 2;
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    strip.scrollTo({
+      left: Math.max(0, target),
+      behavior: smooth ? 'smooth' : 'auto',
+    });
   }, [index]);
 
   if (count === 0) return null;

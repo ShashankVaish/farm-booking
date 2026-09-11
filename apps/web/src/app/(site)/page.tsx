@@ -9,6 +9,17 @@ import { safeSearch } from '@/lib/properties/api';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 import styles from './home.module.css';
 
+/*
+  Rebuild this page at most once a minute.
+
+  Without it Next prerenders the homepage once at build time and serves that
+  HTML forever. On the first deploy there were no approved listings yet, so the
+  page was frozen showing "No stays are live yet" while /explore — which is
+  dynamic because it reads search params — showed the real thing. Every listing
+  approved after a build would otherwise be invisible here until the next one.
+*/
+export const revalidate = 60;
+
 export const metadata = buildPageMetadata({
   title: brand.name,
   description: brand.shortDescription,
@@ -25,23 +36,26 @@ const DESTINATIONS = [
 ];
 
 export default async function HomePage() {
-  const [popular, weekend, party, pool, rated] = await Promise.all([
-    safeSearch({ sort: 'rating', limit: 6 }),
+  const [popular, weekend, party, pool, trusted] = await Promise.all([
+    safeSearch({ sort: 'newest', limit: 6 }),
     safeSearch({ propertyType: 'WEEKEND_STAY', limit: 6 }),
     safeSearch({ partyAllowed: true, limit: 6 }),
     safeSearch({ pool: true, limit: 6 }),
-    safeSearch({ minRating: 4.5, sort: 'rating', limit: 6 }),
+    // Carries the badge an admin awards by hand, which is now the only
+    // quality signal on the site — guest reviews are gone, so sorting or
+    // filtering by rating would order everything by a column stuck at zero.
+    safeSearch({ trusted: true, limit: 6 }),
   ]);
 
   // Only collections that actually have approved stays are rendered. Showing a
   // row of placeholder listings — or five identical empty states — would tell a
   // guest nothing true about what is bookable right now.
   const collections = [
-    { kicker: 'Most loved', title: 'Popular farmhouses', href: '/explore?sort=rating', items: popular.items },
+    { kicker: 'New here', title: 'Recently added farmhouses', href: '/explore?sort=newest', items: popular.items },
     { kicker: 'Short breaks', title: 'Weekend stays', href: '/explore?propertyType=WEEKEND_STAY', items: weekend.items },
     { kicker: 'Celebrate', title: 'Party venues', href: '/explore?partyAllowed=true', items: party.items },
     { kicker: 'Water', title: 'Swimming pool properties', href: '/explore?pool=true', items: pool.items },
-    { kicker: 'Trusted', title: 'Highly rated properties', href: '/explore?minRating=4.5&sort=rating', items: rated.items },
+    { kicker: 'Checked by us', title: 'Trusted properties', href: '/explore?trusted=true', items: trusted.items },
   ]
     .map((section) => ({ ...section, properties: section.items.map(toPropertyCard) }))
     .filter((section) => section.properties.length > 0);

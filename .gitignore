@@ -1,5 +1,6 @@
 # Environment (keep committed examples only)
 .env
+.env.production
 .env.*
 !.env.example
 !.env*.example

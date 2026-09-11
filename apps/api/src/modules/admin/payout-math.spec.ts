@@ -3,7 +3,9 @@ import { settleStay, sumStays } from './payout-math';
 describe('settleStay', () => {
   it('pays the host the guest total minus the platform fee', () => {
     // ₹12,600 paid, ₹600 platform fee (5% of ₹12,000 base).
-    expect(settleStay({ totalAmount: 12600, platformFee: 600, refunded: 0 })).toEqual({
+    expect(
+      settleStay({ totalAmount: 12600, platformFee: 600, refunded: 0 }),
+    ).toEqual({
       gross: '12600.00',
       platformFee: '600.00',
       refunded: '0.00',
@@ -27,16 +29,28 @@ describe('settleStay', () => {
 
   it('keeps paise precision rather than drifting on floats', () => {
     expect(
-      settleStay({ totalAmount: '228.90', platformFee: '10.90', refunded: '0' }),
+      settleStay({
+        totalAmount: '228.90',
+        platformFee: '10.90',
+        refunded: '0',
+      }),
     ).toMatchObject({ net: '218.00' });
     expect(
-      settleStay({ totalAmount: '236.25', platformFee: '11.25', refunded: '0.05' }),
+      settleStay({
+        totalAmount: '236.25',
+        platformFee: '11.25',
+        refunded: '0.05',
+      }),
     ).toMatchObject({ net: '224.95' });
   });
 
   it('accepts decimal strings as stored by Prisma', () => {
     expect(
-      settleStay({ totalAmount: '18900.00', platformFee: '900.00', refunded: '0.00' }),
+      settleStay({
+        totalAmount: '18900.00',
+        platformFee: '900.00',
+        refunded: '0.00',
+      }),
     ).toMatchObject({ net: '18000.00' });
   });
 });
@@ -44,8 +58,16 @@ describe('settleStay', () => {
 describe('sumStays', () => {
   it('adds a batch without floating point drift', () => {
     const stays = [
-      settleStay({ totalAmount: '228.90', platformFee: '10.90', refunded: '0' }),
-      settleStay({ totalAmount: '236.25', platformFee: '11.25', refunded: '0' }),
+      settleStay({
+        totalAmount: '228.90',
+        platformFee: '10.90',
+        refunded: '0',
+      }),
+      settleStay({
+        totalAmount: '236.25',
+        platformFee: '11.25',
+        refunded: '0',
+      }),
       settleStay({ totalAmount: 12600, platformFee: 600, refunded: 0 }),
     ];
     expect(sumStays(stays)).toEqual({

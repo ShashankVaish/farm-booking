@@ -30,6 +30,7 @@ export async function searchProperties(filters: SearchFilters = {}): Promise<Pag
     partyAllowed: filters.partyAllowed,
     pool: filters.pool,
     minRating: filters.minRating,
+    trusted: filters.trusted,
     sort: filters.sort,
     page: filters.page ?? 1,
     limit: filters.limit ?? 12,

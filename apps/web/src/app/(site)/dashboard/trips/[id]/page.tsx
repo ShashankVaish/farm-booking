@@ -1,9 +1,9 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input, Textarea } from '@/components/ui/forms';
+import { Textarea } from '@/components/ui/forms';
 import { EmptyState, ErrorState, Spinner } from '@/components/ui/feedback';
 import { PriceBreakdown } from '@/components/hospitality/price-breakdown';
 import { bookingApi } from '@/lib/bookings/api';
@@ -32,8 +32,6 @@ export default function TripDetailPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [reason, setReason] = useState('');
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState('');
 
   function load() {
     setLoading(true);
@@ -63,27 +61,11 @@ export default function TripDetailPage() {
     }
   }
 
-  async function submitReview(event: FormEvent) {
-    event.preventDefault();
-    if (!booking) return;
-    setBusy(true);
-    try {
-      await bookingApi.review(booking.property.id, { bookingId: booking.id, rating, comment: comment || undefined });
-      notify('Review submitted.');
-      load();
-    } catch (err) {
-      setError(err instanceof ApiError || err instanceof NetworkError ? err.message : 'Could not submit review.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   if (loading) return <Spinner label="Loading trip" />;
   if (error && !booking) return <ErrorState description={error} onRetry={load} />;
   if (!booking) return <EmptyState title="Trip not found" description="This booking is not in your account." />;
 
   const canCancel = ['PENDING', 'PAYMENT_PENDING', 'CONFIRMED'].includes(booking.status);
-  const canReview = booking.status === 'COMPLETED' && !booking.review;
   const canPay = booking.status === 'PENDING' || booking.status === 'PAYMENT_PENDING';
 
   return (
@@ -119,16 +101,6 @@ export default function TripDetailPage() {
           <Textarea id="reason" label="Cancel reason (optional)" value={reason} onChange={(e) => setReason(e.target.value)} rows={3} />
           <Button type="submit" variant="danger" disabled={busy}>
             {busy ? 'Cancelling…' : 'Cancel booking'}
-          </Button>
-        </form>
-      ) : null}
-      {canReview ? (
-        <form onSubmit={submitReview} style={{ marginTop: 'var(--space-6)' }}>
-          <h2 className="t-h3">Write a review</h2>
-          <Input id="rating" label="Rating" type="number" min={1} max={5} value={rating} onChange={(e) => setRating(Number(e.target.value))} />
-          <Textarea id="comment" label="Comment" value={comment} onChange={(e) => setComment(e.target.value)} rows={4} />
-          <Button type="submit" disabled={busy}>
-            Submit review
           </Button>
         </form>
       ) : null}

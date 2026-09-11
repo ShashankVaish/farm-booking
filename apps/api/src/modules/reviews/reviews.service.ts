@@ -29,16 +29,18 @@ export class ReviewsService {
   ) {}
 
   async create(propertyId: string, user: RequestUser, dto: CreateReviewDto) {
-    if (user.role !== UserRoles.CUSTOMER && user.role !== UserRoles.ADMIN) {
-      throw new ForbiddenException({
-        errorCode: ErrorCodes.FORBIDDEN,
-        message: 'Only customers can write reviews.',
-      });
-    }
-
+    /*
+      No role gate here. Whoever made the booking may review it, host or guest
+      — the `booking.customerId !== user.id` check below is the real rule, and
+      it is strictly narrower than a role test. Requiring CUSTOMER meant that
+      listing a property silently removed the ability to review stays you had
+      paid for.
+    */
     const booking = await this.prisma.booking.findUnique({
       where: { id: dto.bookingId },
-      include: { property: { select: { id: true, ownerId: true, title: true } } },
+      include: {
+        property: { select: { id: true, ownerId: true, title: true } },
+      },
     });
     if (!booking || booking.propertyId !== propertyId) {
       throw new BadRequestException({
@@ -138,11 +140,7 @@ export class ReviewsService {
     });
   }
 
-  async respond(
-    id: string,
-    user: RequestUser,
-    dto: OwnerReviewResponseDto,
-  ) {
+  async respond(id: string, user: RequestUser, dto: OwnerReviewResponseDto) {
     const review = await this.prisma.review.findUnique({
       where: { id },
       include: { property: { select: { ownerId: true } } },
@@ -153,10 +151,7 @@ export class ReviewsService {
         message: 'Review not found.',
       });
     }
-    if (
-      review.property.ownerId !== user.id &&
-      user.role !== UserRoles.ADMIN
-    ) {
+    if (review.property.ownerId !== user.id && user.role !== UserRoles.ADMIN) {
       throw new ForbiddenException({
         errorCode: ErrorCodes.FORBIDDEN,
         message: 'Only the property owner can respond to this review.',

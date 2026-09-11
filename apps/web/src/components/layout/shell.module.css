@@ -91,15 +91,24 @@
   gap: var(--space-2);
 }
 
+/* Rendered as a sibling of .header on purpose — see site-header.tsx. A
+   backdrop-filter on an ancestor would make that ancestor the containing block
+   for this fixed element, which is what previously left it with no height and
+   no background. */
 .menu {
   position: fixed;
   inset: var(--header-height) 0 0 0;
-  z-index: 30;
+  z-index: 45;
   background: var(--color-background);
   padding: var(--space-6) var(--gutter);
+  /* Room for the bottom nav, which stays above this at z-index 40. */
+  padding-bottom: calc(var(--bottom-nav-height) + var(--space-6) + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  /* A short phone in landscape cannot fit the links otherwise. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .menuLink {
@@ -112,11 +121,27 @@
   color: var(--color-text-primary);
 }
 
+/*
+  Account block at the foot of the mobile menu. Separated by a rule so "Log out"
+  is not mistaken for another navigation destination, and pushed to the bottom
+  so the menu still opens on the places a guest usually wants.
+*/
+.menuAccount {
+  margin-top: auto;
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .brand {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
+  /* Full-height tap target in the header bar. */
+  min-height: var(--touch);
 }
 
 .brand:hover {
@@ -164,9 +189,37 @@
   gap: var(--space-3) var(--space-5);
 }
 
+/* Footer links measured 22px tall on a phone, below the 24px minimum a tap
+   target needs (WCAG 2.5.8). The row gap absorbs the extra height, so nothing
+   moves visually on desktop. */
 .footerNav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
   font-size: var(--fs-body-small);
   color: var(--color-text-secondary);
+}
+
+/*
+  Support block. Given its own row above the fine print so the number is not
+  mistaken for another footer link, and sized as a tap target because on a
+  phone the whole point of it is that you can dial it.
+*/
+.support {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.supportLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
 }
 
 .bottomNav {
@@ -215,6 +268,12 @@
 
 @media (min-width: 768px) {
   .menuToggle {
+    display: none;
+  }
+
+  /* Resizing to desktop while the menu is open must not leave it covering
+     the page; the toggle that closes it is hidden at this width. */
+  .menu {
     display: none;
   }
 

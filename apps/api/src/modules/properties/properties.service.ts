@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { KycStatus, Prisma, PropertyStatus } from '@prisma/client';
@@ -12,13 +13,14 @@ import { paginated } from '../../common/pagination';
 import { slugify } from '../../common/slug';
 import { isUuid } from '../../common/uuid';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
+import { propertySubmittedEmail } from '../mail/templates';
 import type { RequestUser } from '../auth/auth.types';
 import { assertValidCoordinates } from '../locations/geo';
 import {
   CreatePropertyDto,
   ListPropertiesQueryDto,
   MAX_LISTING_PHOTOS,
-  MIN_LISTING_PHOTOS,
   UpdatePropertyDto,
 } from './dto/property.dto';
 import {
@@ -34,7 +36,12 @@ const publicInclude = {
 
 @Injectable()
 export class PropertiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(PropertiesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService,
+  ) {}
 
   async create(user: RequestUser, dto: CreatePropertyDto) {
     if (user.role !== UserRoles.OWNER && user.role !== UserRoles.ADMIN) {
@@ -166,7 +173,8 @@ export class PropertiesService {
     if (!owner?.phoneVerifiedAt) {
       throw new BadRequestException({
         errorCode: ErrorCodes.VALIDATION_ERROR,
-        message: 'Verify your mobile number before submitting a listing for review.',
+        message:
+          'Verify your mobile number before submitting a listing for review.',
       });
     }
 
@@ -180,12 +188,20 @@ export class PropertiesService {
     }
   }
 
-  /** Guests judge a stay by its photos, so a listing needs a real set of them. */
+  /**
+   * Photos are capped, not required.
+   *
+   * There used to be a four-photo floor here as well. The listing wizard
+   * stopped asking for four, so a host could finish every step and then be
+   * refused at submission by a rule nothing had mentioned — the client asked
+   * for the minimum to go, and it has to go on this side too or the wizard
+   * change does nothing.
+   */
   private assertPhotoCount(count: number): void {
-    if (count < MIN_LISTING_PHOTOS || count > MAX_LISTING_PHOTOS) {
+    if (count > MAX_LISTING_PHOTOS) {
       throw new BadRequestException({
         errorCode: ErrorCodes.VALIDATION_ERROR,
-        message: `Add between ${MIN_LISTING_PHOTOS} and ${MAX_LISTING_PHOTOS} photos before submitting this listing.`,
+        message: `Add no more than ${MAX_LISTING_PHOTOS} photos.`,
       });
     }
   }
@@ -204,7 +220,9 @@ export class PropertiesService {
         // so submitting and re-photographing in one call is judged correctly.
         const photoCount =
           dto.images?.length ??
-          (await this.prisma.propertyImage.count({ where: { propertyId: id } }));
+          (await this.prisma.propertyImage.count({
+            where: { propertyId: id },
+          }));
         this.assertPhotoCount(photoCount);
       }
     }
@@ -217,7 +235,11 @@ export class PropertiesService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const submittedForReview =
+      status === PropertyStatus.PENDING_APPROVAL &&
+      property.status !== PropertyStatus.PENDING_APPROVAL;
+
+    const saved = await this.prisma.$transaction(async (tx) => {
       if (amenityIds) {
         await tx.propertyAmenity.deleteMany({ where: { propertyId: id } });
         if (amenityIds.length > 0) {
@@ -255,6 +277,72 @@ export class PropertiesService {
         include: publicInclude,
       });
     });
+
+    if (submittedForReview) {
+      await this.notifyAdminOfSubmission(saved.id);
+    }
+
+    return saved;
+  }
+
+  /**
+   * Tells the operations inbox that a listing is waiting to be reviewed.
+   *
+   * Deliberately outside the transaction and deliberately quiet: a mail server
+   * that is down must not roll back the host's submission or surface as an
+   * error on their screen. The listing is saved either way, and it is still
+   * visible in the admin queue — the email is a prompt, not the record.
+   */
+  private async notifyAdminOfSubmission(propertyId: string): Promise<void> {
+    try {
+      await this.sendSubmissionAlert(propertyId);
+    } catch (error: unknown) {
+      /*
+        This runs after the transaction has committed, so anything thrown here
+        would report a failure for a submission that actually succeeded — the
+        host would see an error and resubmit a listing already in the queue.
+        `sendQuietly` swallows transport failures, but the lookup and render
+        above it can still throw, so the whole path is guarded rather than
+        trusting one link in it.
+      */
+      this.logger.error(
+        `Could not alert the admin inbox about property ${propertyId}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
+  }
+
+  private async sendSubmissionAlert(propertyId: string): Promise<void> {
+    const to = this.mail.adminAddress();
+    if (!to) return;
+
+    const property = await this.prisma.property.findUnique({
+      where: { id: propertyId },
+      select: {
+        id: true,
+        title: true,
+        city: true,
+        state: true,
+        location: true,
+        updatedAt: true,
+        owner: { select: { name: true, email: true } },
+      },
+    });
+    if (!property) return;
+
+    const where = [property.city, property.state].filter(Boolean).join(', ');
+    const email = propertySubmittedEmail({
+      propertyTitle: property.title,
+      propertyLocation: where || property.location || 'Not specified',
+      hostName: property.owner?.name ?? 'Unknown host',
+      hostEmail: property.owner?.email ?? 'unknown',
+      submittedAt: property.updatedAt,
+      reviewUrl: `${this.mail.webUrl()}/admin/properties/${property.id}`,
+      brandName: this.mail.brandName(),
+    });
+
+    await this.mail.sendQuietly({ to, ...email });
   }
 
   async remove(id: string, user: RequestUser) {

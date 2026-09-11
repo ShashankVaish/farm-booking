@@ -1,15 +1,15 @@
-import { AmenityItem, Rating } from '@/components/hospitality/atoms';
+import { AmenityItem, TrustedBadge } from '@/components/hospitality/atoms';
 import { PropertyGallery } from '@/components/hospitality/property-gallery';
 import { PropertyBookingCard } from '@/components/hospitality/property-booking-card';
 import { WishlistButton } from '@/components/hospitality/wishlist-button';
 import { Button } from '@/components/ui/button';
-import { EmptyState, ErrorState } from '@/components/ui/feedback';
-import { getProperty, getPropertyReviews } from '@/lib/properties/api';
+import { ErrorState } from '@/components/ui/feedback';
+import { brand } from '@/lib/config/brand';
+import { getProperty } from '@/lib/properties/api';
 import { coverImage, amenityName } from '@/lib/properties/map-property';
 import { photoAlt } from '@/lib/properties/photo-alt';
 import { decodeListingMeta, listingSlots } from '@/lib/host/listing-meta';
 import { formatSlotRange, formatTime12 } from '@/lib/time/clock';
-import { googleMapsEmbedUrl, googleMapsPlaceUrl, hasGoogleMapsKey } from '@/lib/maps/google-maps';
 import { PROPERTY_TYPE_LABEL, type ApiProperty } from '@/lib/properties/types';
 import { isUuid } from '@/lib/ids';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
@@ -153,12 +153,6 @@ export default async function PropertyPage({ params }: Props) {
     );
   }
 
-  const reviews = isUuid(property.id)
-    ? await getPropertyReviews(property.id).catch(() => ({
-        items: [],
-        meta: { total: 0, page: 1, limit: 8, totalPages: 0 },
-      }))
-    : { items: [], meta: { total: 0, page: 1, limit: 8, totalPages: 0 } };
   const isSample = !isUuid(property.id);
   const isApproved = property.status === 'APPROVED';
   const isBookable = !isSample && isApproved;
@@ -198,10 +192,18 @@ export default async function PropertyPage({ params }: Props) {
   const lat = Number(property.latitude);
   const lng = Number(property.longitude);
   const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
-  // Embed API rather than a JavaScript map: this section only has to show
-  // roughly where the place is, and an iframe costs no bundle on a server page.
-  const mapSrc = hasCoords ? googleMapsEmbedUrl({ latitude: lat, longitude: lng }) : null;
-  const mapLink = hasCoords ? googleMapsPlaceUrl(lat, lng) : null;
+  /*
+    OpenStreetMap embed rather than a JavaScript map: this section only has to
+    show roughly where the place is, an iframe costs no bundle on a server page,
+    and OSM needs no API key, no billing account and carries no watermark.
+  */
+  const mapPad = 0.07;
+  const mapSrc = hasCoords
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - mapPad}%2C${lat - mapPad * 0.75}%2C${lng + mapPad}%2C${lat + mapPad * 0.75}&layer=mapnik&marker=${lat}%2C${lng}`
+    : null;
+  const mapLink = hasCoords
+    ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`
+    : null;
   const siteUrl = getSiteUrl();
 
   return (
@@ -229,7 +231,18 @@ export default async function PropertyPage({ params }: Props) {
               <PinIcon />
               {locationName || 'India'}
             </span>
-            <Rating value={Number(property.averageRating ?? 0)} count={property.reviewCount} />
+            {/*
+              Spelled out here rather than shown as the bare chip used on cards.
+              On a listing page the guest is deciding, and "verified by Baagly"
+              is the part that carries weight — the word "Trusted" alone invites
+              the question this answers.
+            */}
+            {property.isTrusted ? (
+              <span className={page.trusted}>
+                <TrustedBadge />
+                <span className="t-body-small">Checked and verified by {brand.name}</span>
+              </span>
+            ) : null}
           </div>
         </div>
         {isSample ? null : (
@@ -365,11 +378,7 @@ export default async function PropertyPage({ params }: Props) {
                 referrerPolicy="no-referrer-when-downgrade"
               />
             ) : (
-              <p className={page.prose}>
-                {hasCoords && !hasGoogleMapsKey()
-                  ? 'The map is unavailable because no Google Maps key is configured.'
-                  : 'Map coming soon for this stay.'}
-              </p>
+              <p className={page.prose}>Map coming soon for this stay.</p>
             )}
             <p className={page.mapNote}>
               Approximate area shown. The exact address stays private until a booking is confirmed.
@@ -377,7 +386,7 @@ export default async function PropertyPage({ params }: Props) {
                 <>
                   {' '}
                   <a className={page.mapLink} href={mapLink} target="_blank" rel="noreferrer">
-                    Open in Google Maps
+                    Open the larger map
                   </a>
                 </>
               ) : null}
@@ -389,30 +398,6 @@ export default async function PropertyPage({ params }: Props) {
             showed the same month twice and gave guests two places to pick dates.
           */}
 
-          <section className={page.section}>
-            <h2 className={page.sectionTitle}>
-              Reviews {property.reviewCount ? `(${property.reviewCount})` : ''}
-            </h2>
-            {reviews.items.length === 0 ? (
-              <EmptyState
-                title="No reviews yet"
-                description="Guests who complete a stay will be able to share theirs here."
-              />
-            ) : (
-              <ul className={page.reviews}>
-                {reviews.items.map((review) => (
-                  <li key={review.id} className={page.review}>
-                    <Rating value={review.rating} />
-                    <p className={page.reviewWho}>{review.customer?.name}</p>
-                    {review.comment ? <p className={page.reviewBody}>{review.comment}</p> : null}
-                    {review.ownerResponse ? (
-                      <p className={page.hostReply}>Host: {review.ownerResponse}</p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         </div>
       </div>
 

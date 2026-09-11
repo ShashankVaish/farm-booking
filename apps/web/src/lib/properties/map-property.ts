@@ -24,13 +24,17 @@ function amenityNames(property: ApiProperty): string[] {
   return (property.amenities ?? []).map(amenityName).filter((name): name is string => Boolean(name));
 }
 
+/*
+  Describes what kind of stay this is. The old "Highly rated" case is gone with
+  reviews: with nothing writing ratings any more it would have labelled every
+  listing 0.0 and quietly stopped matching.
+*/
 export function propertyBadge(property: ApiProperty): string | undefined {
   if (property.isPartyFriendly) return 'Party ready';
   if (property.propertyType === 'POOL_PROPERTY') return 'Pool';
   if (property.propertyType === 'EVENT_VENUE' || property.propertyType === 'PARTY_HOUSE') {
     return 'Events';
   }
-  if (money(property.averageRating) >= 4.8) return 'Highly rated';
   return undefined;
 }
 
@@ -53,8 +57,7 @@ export function toPropertyCard(property: ApiProperty): PropertyCardModel {
     name: property.title,
     type,
     location: [property.location || property.city, property.state].filter(Boolean).join(', '),
-    rating: money(property.averageRating),
-    reviewCount: property.reviewCount ?? 0,
+    trusted: property.isTrusted === true,
     guests: property.guestCapacity,
     bedrooms: property.bedrooms,
     amenities: amenityNames(property),

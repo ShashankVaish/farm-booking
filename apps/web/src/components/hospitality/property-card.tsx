@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { AmenityItem, PriceDisplay, PropertyBadge, Rating } from '@/components/hospitality/atoms';
+import { AmenityItem, PriceDisplay, PropertyBadge, TrustedBadge } from '@/components/hospitality/atoms';
 import { WishlistButton } from '@/components/hospitality/wishlist-button';
 import { MediaImage } from '@/components/media/media-image';
 import type { MediaAsset } from '@/lib/media/types';
@@ -10,8 +10,8 @@ export type PropertyCardModel = {
   name: string;
   type: string;
   location: string;
-  rating: number;
-  reviewCount: number;
+  /** Awarded by an admin. Displayed here; never editable from this side. */
+  trusted?: boolean;
   guests: number;
   bedrooms: number;
   amenities: string[];
@@ -28,25 +28,36 @@ export function PropertyCard({ property }: { property: PropertyCardModel }) {
   return (
     <article className={styles.card}>
       <div className={styles.mediaWrap}>
-        <Link href={href} aria-label={property.name}>
-          <MediaImage
-            asset={property.image}
-            alt={property.name}
-            tone={property.imageTone}
-            aspectRatio="5 / 4"
-            sizes="(min-width: 1024px) 30vw, (min-width: 768px) 45vw, 100vw"
-          />
-        </Link>
+        <MediaImage
+          asset={property.image}
+          alt={property.name}
+          tone={property.imageTone}
+          aspectRatio="5 / 4"
+          sizes="(min-width: 1024px) 30vw, (min-width: 768px) 45vw, 100vw"
+        />
         {property.badge ? <PropertyBadge>{property.badge}</PropertyBadge> : null}
+        {property.trusted ? <TrustedBadge /> : null}
         <WishlistButton propertyId={property.id} propertyName={property.name} />
       </div>
       <div className={styles.body}>
         <p className="t-metadata">{property.type}</p>
         <div className={styles.topRow}>
           <h3 className={styles.title}>
-            <Link href={href}>{property.name}</Link>
+            {/*
+              One link, stretched over the whole card by `.title a::after`, so a
+              tap anywhere on it opens the listing — previously only the image
+              and the title text were clickable, and the price, location and
+              empty space did nothing.
+
+              Exactly one stretched link per card: nesting the image in its own
+              <a> as well would put two links on the same target, which reads as
+              a duplicate to a screen reader. The wishlist button sits above it
+              on the z-axis so it stays independently clickable.
+            */}
+            <Link href={href} className={styles.cardLink}>
+              {property.name}
+            </Link>
           </h3>
-          <Rating value={property.rating} count={property.reviewCount} />
         </div>
         <p className="t-body-small">{property.location}</p>
         <div className={styles.meta}>

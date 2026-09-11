@@ -102,6 +102,17 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
   }
 
   return (
+    /*
+      The mobile menu is a SIBLING of <header>, not a child.
+
+      `.header` sets `backdrop-filter`, and any element with a backdrop-filter
+      becomes the containing block for its fixed-position descendants. Nested
+      inside, the menu's `position: fixed; inset: var(--header-height) 0 0 0`
+      resolved against the header box — a strip one header tall — so it had
+      effectively no height, painted no background, and its links spilled over
+      the page behind it.
+    */
+    <>
     <header className={styles.header}>
       <div className={`container ${styles.headerInner}`}>
         <div className={styles.headerStart}>
@@ -175,22 +186,71 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
         </div>
       </div>
 
-      {menuOpen && variant === 'default' ? (
-        <nav id="mobile-menu" className={styles.menu} aria-label="Mobile">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={styles.menuLink}
-              aria-current={pathname.startsWith(item.href) ? 'page' : undefined}
-              onClick={() => setMenuOpen(false)}
-            >
-              {item.label}
-            </Link>
-          ))}
-          <Button href="/explore">Find a Stay</Button>
-        </nav>
-      ) : null}
     </header>
+
+    {menuOpen && variant === 'default' ? (
+      <nav id="mobile-menu" className={styles.menu} aria-label="Mobile">
+        {NAV.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={styles.menuLink}
+            aria-current={pathname.startsWith(item.href) ? 'page' : undefined}
+            onClick={() => setMenuOpen(false)}
+          >
+            {item.label}
+          </Link>
+        ))}
+        <Button href="/explore">Find a Stay</Button>
+
+        {/*
+          The account controls, repeated here.
+
+          They live in `.desktopCta`, which is `display: none` below the desktop
+          breakpoint — so on a phone a signed-in person had no way to sign out
+          at all, and no route to the admin or host dashboard. The header bar
+          has no room for them at that width, so the menu is where they belong.
+        */}
+        {sessionLoaded && user ? (
+          <div className={styles.menuAccount}>
+            <p className="t-caption">Signed in as {user.name || user.email}</p>
+            {user.role === 'ADMIN' ? (
+              <Link href="/admin" className={styles.menuLink} onClick={() => setMenuOpen(false)}>
+                Admin
+              </Link>
+            ) : null}
+            {user.role === 'OWNER' ? (
+              <Link href="/host" className={styles.menuLink} onClick={() => setMenuOpen(false)}>
+                Host dashboard
+              </Link>
+            ) : null}
+            <Link href="/dashboard" className={styles.menuLink} onClick={() => setMenuOpen(false)}>
+              My trips &amp; wishlist
+            </Link>
+            <Button
+              type="button"
+              variant="secondary"
+              block
+              disabled={loggingOut}
+              onClick={() => {
+                setMenuOpen(false);
+                void logout();
+              }}
+            >
+              {loggingOut ? 'Signing out…' : 'Log out'}
+            </Button>
+          </div>
+        ) : null}
+
+        {sessionLoaded && !user ? (
+          <div className={styles.menuAccount}>
+            <Button href="/auth/login" variant="secondary" block>
+              Sign in
+            </Button>
+          </div>
+        ) : null}
+      </nav>
+    ) : null}
+    </>
   );
 }

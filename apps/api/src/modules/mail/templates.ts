@@ -11,6 +11,18 @@
  * here as literals rather than referenced.
  */
 
+/**
+ * Support contact, repeated in the footer of every message.
+ *
+ * Hard-coded alongside the palette rather than injected: these templates are
+ * pure functions so the wording can be tested without a mail server, and a
+ * contact number that varies by environment would make the tests meaningless.
+ */
+const SUPPORT = {
+  phone: '+91 99977 60912',
+  email: 'info@baagly.com',
+};
+
 const BRAND = {
   coral: '#ff5a60',
   ink: '#0d0c10',
@@ -109,7 +121,11 @@ function layout(options: {
           <tr>
             <td style="padding:20px 32px 28px;border-top:1px solid ${BRAND.hairline};color:${BRAND.muted};font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;">
               You are receiving this because you have an account with ${escapeHtml(options.brandName)}.<br />
-              Please do not reply to this message — this mailbox is not monitored.
+              <!-- "Do not reply" needs somewhere to point, or it just reads as
+                   "you cannot reach us". -->
+              Questions? Call ${escapeHtml(SUPPORT.phone)} or email
+              <a href="mailto:${escapeHtml(SUPPORT.email)}" style="color:${BRAND.muted};">${escapeHtml(SUPPORT.email)}</a>.
+              Replies to this address are not monitored.
             </td>
           </tr>
         </table>
@@ -250,7 +266,7 @@ function addressBlock(data: BookingEmailData): string {
   const links: string[] = [];
   if (data.mapUrl) {
     links.push(
-      `<a href="${escapeHtml(data.mapUrl)}" style="color:${BRAND.coral};font-weight:600;text-decoration:underline;">View on Google Maps</a>`,
+      `<a href="${escapeHtml(data.mapUrl)}" style="color:${BRAND.coral};font-weight:600;text-decoration:underline;">View on the map</a>`,
     );
   }
   if (data.directionsUrl) {
@@ -297,7 +313,8 @@ export function bookingConfirmedEmail(data: BookingEmailData): RenderedEmail {
     addressLines.push('', 'Address:', `  ${(data.address ?? '').trim()}`);
   }
   if (data.mapUrl) addressLines.push(`  View on Google Maps: ${data.mapUrl}`);
-  if (data.directionsUrl) addressLines.push(`  Get directions: ${data.directionsUrl}`);
+  if (data.directionsUrl)
+    addressLines.push(`  Get directions: ${data.directionsUrl}`);
 
   return {
     subject: `Confirmed — ${data.propertyTitle}, ${formatStayDate(data.checkIn)}`,
@@ -410,6 +427,63 @@ export function paymentPendingEmail(
       '',
       `Complete payment: ${data.bookingUrl}`,
       `The hold expires in about ${data.holdMinutes} minutes. Booking reference ${shortRef(data.bookingId)}`,
+    ].join('\n'),
+  };
+}
+
+// --- New listing awaiting review (to the admin inbox) ----------------------
+
+/**
+ * Sent to the operations inbox the moment a host submits a listing for review.
+ *
+ * Everything an admin needs to triage without opening the dashboard is in the
+ * body — which property, whose, and where — because the common case is reading
+ * this on a phone and deciding whether it is worth going to a desk for.
+ */
+export function propertySubmittedEmail(input: {
+  propertyTitle: string;
+  propertyLocation: string;
+  hostName: string;
+  hostEmail: string;
+  submittedAt: Date | string;
+  reviewUrl: string;
+  brandName: string;
+}): RenderedEmail {
+  const rows = detailRows([
+    { label: 'Property', value: input.propertyTitle },
+    { label: 'Location', value: input.propertyLocation },
+    { label: 'Host', value: input.hostName },
+    { label: 'Host email', value: input.hostEmail },
+    { label: 'Submitted', value: formatStayDate(input.submittedAt) },
+  ]);
+
+  const body = `
+          ${paragraph('A host has submitted a listing and it is waiting in the review queue.')}
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">${rows}</table>
+          ${button('Review this listing', input.reviewUrl)}
+          ${paragraph(`<span style="color:${BRAND.muted};font-size:13px;">It stays invisible to guests until it is approved.</span>`)}`;
+
+  return {
+    subject: `New listing to review — ${input.propertyTitle}`,
+    html: layout({
+      preheader: `${input.hostName} submitted ${input.propertyTitle} for review.`,
+      heading: 'New listing awaiting review',
+      body,
+      brandName: input.brandName,
+    }),
+    text: [
+      'New listing awaiting review',
+      '',
+      'A host has submitted a listing and it is waiting in the review queue.',
+      '',
+      `Property:   ${input.propertyTitle}`,
+      `Location:   ${input.propertyLocation}`,
+      `Host:       ${input.hostName}`,
+      `Host email: ${input.hostEmail}`,
+      `Submitted:  ${formatStayDate(input.submittedAt)}`,
+      '',
+      `Review this listing: ${input.reviewUrl}`,
+      'It stays invisible to guests until it is approved.',
     ].join('\n'),
   };
 }

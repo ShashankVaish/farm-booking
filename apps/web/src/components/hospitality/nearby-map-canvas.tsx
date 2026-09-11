@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import type { ApiProperty } from '@/lib/properties/types';
-import { DARK_MAP_STYLE, loadGoogleMaps } from '@/lib/maps/google-maps';
 import styles from './nearby-map.module.css';
 
 type Props = {
@@ -10,138 +11,39 @@ type Props = {
   properties: ApiProperty[];
 };
 
-/** Coral, matching the brand accent used for active states elsewhere. */
-const PROPERTY_COLOR = '#ff5a60';
-/** A cool tone for "you", so the two marker kinds are told apart by hue. */
-const VIEWER_COLOR = '#8fb8e8';
-
 export function NearbyMapCanvas({ center, properties }: Props) {
+  const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const mapsRef = useRef<typeof google.maps | null>(null);
-  // Overlays are tracked so a re-render clears exactly what it drew. Google has
-  // no "remove every layer" call, and leaving them attached stacks duplicate
-  // pins on every search.
-  const overlaysRef = useRef<Array<google.maps.MVCObject & { setMap: (map: google.maps.Map | null) => void }>>([]);
-  const infoRef = useRef<google.maps.InfoWindow | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
-    loadGoogleMaps()
-      .then((maps) => {
-        if (cancelled || !containerRef.current || mapRef.current) return;
-        mapsRef.current = maps;
-        mapRef.current = new maps.Map(containerRef.current, {
-          center: { lat: center.latitude, lng: center.longitude },
-          zoom: 12,
-          styles: DARK_MAP_STYLE,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-        });
-        infoRef.current = new maps.InfoWindow();
-      })
-      .catch((cause: Error) => {
-        if (!cancelled) setError(cause.message);
-      });
-
+    if (!containerRef.current || mapRef.current) return;
+    const map = L.map(containerRef.current).setView([center.latitude, center.longitude], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+    mapRef.current = map;
     return () => {
-      cancelled = true;
-      overlaysRef.current.forEach((overlay) => overlay.setMap(null));
-      overlaysRef.current = [];
-      infoRef.current?.close();
+      map.remove();
       mapRef.current = null;
-      mapsRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [center.latitude, center.longitude]);
 
   useEffect(() => {
     const map = mapRef.current;
-    const maps = mapsRef.current;
-    if (!map || !maps) return;
-
-    map.setCenter({ lat: center.latitude, lng: center.longitude });
-
-    overlaysRef.current.forEach((overlay) => overlay.setMap(null));
-    overlaysRef.current = [];
-
-    const radius = new maps.Circle({
-      center: { lat: center.latitude, lng: center.longitude },
-      radius: 10000,
-      map,
-      strokeColor: VIEWER_COLOR,
-      strokeOpacity: 0.5,
-      strokeWeight: 1,
-      fillColor: VIEWER_COLOR,
-      fillOpacity: 0.06,
+    if (!map) return;
+    map.setView([center.latitude, center.longitude], 12);
+    map.eachLayer((layer) => {
+      if (layer instanceof L.Circle || layer instanceof L.CircleMarker || layer instanceof L.Marker) map.removeLayer(layer);
     });
-    overlaysRef.current.push(radius);
-
-    const you = new maps.Marker({
-      position: { lat: center.latitude, lng: center.longitude },
-      map,
-      title: 'Your location',
-      icon: {
-        path: maps.SymbolPath.CIRCLE,
-        scale: 7,
-        fillColor: VIEWER_COLOR,
-        fillOpacity: 1,
-        strokeColor: '#0d0c10',
-        strokeWeight: 2,
-      },
-    });
-    overlaysRef.current.push(you);
-
+    L.circle([center.latitude, center.longitude], { radius: 10000, color: '#9b4fe0', fillOpacity: 0.06 }).addTo(map);
+    L.circleMarker([center.latitude, center.longitude], { radius: 8, color: '#fff', fillColor: '#9b4fe0', fillOpacity: 1, weight: 3 }).addTo(map).bindPopup('Your location');
     properties.forEach((property) => {
       const latitude = Number(property.latitude);
       const longitude = Number(property.longitude);
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
-
-      const marker = new maps.Marker({
-        position: { lat: latitude, lng: longitude },
-        map,
-        title: property.title,
-        icon: {
-          path: maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: PROPERTY_COLOR,
-          fillOpacity: 1,
-          strokeColor: '#0d0c10',
-          strokeWeight: 2,
-        },
-      });
-      marker.addListener('click', () => {
-        // Set as text, not HTML: a property title is user-supplied and would
-        // otherwise be an injection point in the info window.
-        const content = document.createElement('div');
-        const name = document.createElement('strong');
-        name.textContent = property.title;
-        const place = document.createElement('div');
-        place.textContent = [property.city, property.state].filter(Boolean).join(', ');
-        content.append(name, place);
-        infoRef.current?.setContent(content);
-        infoRef.current?.open({ map, anchor: marker });
-      });
-      overlaysRef.current.push(marker);
+      L.circleMarker([latitude, longitude], { radius: 7, color: '#ff8660', fillColor: '#ff8660', fillOpacity: 0.95, weight: 2 })
+        .addTo(map)
+        .bindPopup(`<strong>${property.title}</strong><br />${property.city}, ${property.state}`);
     });
   }, [center, properties]);
 
-  if (error) {
-    return (
-      <div className={styles.mapCanvas} role="status">
-        <p className={styles.mapError}>{error}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      ref={containerRef}
-      className={styles.mapCanvas}
-      aria-label="Map showing nearby properties"
-    />
-  );
+  return <div ref={containerRef} className={styles.mapCanvas} aria-label="Map showing nearby properties" />;
 }

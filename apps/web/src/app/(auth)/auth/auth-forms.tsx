@@ -33,7 +33,15 @@ const GOOGLE_ERRORS: Record<string, string> = {
   account_disabled: 'This account has been disabled.',
   google_email_unverified: 'Verify your email with Google, then try again.',
   google_not_configured: 'Google sign-in is not configured on the server yet.',
-  google_state: 'Google sign-in timed out. Please try again.',
+  /*
+    The security cookie set when sign-in started did not come back. Expiry is
+    only one cause; the other — and the one that looks identical to a user — is
+    the sign-in starting on one hostname and Google returning to another, which
+    means GOOGLE_OAUTH_REDIRECT_URI does not match the host the app runs on.
+    Calling that a timeout sent us looking at the network instead of the config.
+  */
+  google_state:
+    'Google sign-in could not be completed. Please try again, and if it keeps happening the sign-in redirect URL needs checking.',
   redirect_uri_mismatch:
     'Google rejected the redirect URL for this app. An administrator needs to add it in the Google Cloud console.',
 };
@@ -269,7 +277,15 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
             <p className={styles.hostCtaNote}>
               List a farmhouse, villa or party house and take bookings from verified guests.
             </p>
-            <Button href="/auth/register?role=OWNER" variant="secondary" size="sm">
+            {/*
+              Points at /host, not at a fresh OWNER signup. Someone reading this
+              on the sign-in page usually already has an account, and sending
+              them to register built them a second one with a separate wishlist
+              and booking history. /host adds hosting to whichever account they
+              sign in with, and bounces to this page first if they are signed
+              out.
+            */}
+            <Button href="/host" variant="secondary" size="sm">
               Become a host
             </Button>
           </div>
