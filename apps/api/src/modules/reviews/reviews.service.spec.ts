@@ -29,7 +29,9 @@ describe('review authorization', () => {
   it('rejects reviews without a completed booking on the same property', async () => {
     const prisma = {
       booking: {
-        findUnique: jest.fn().mockResolvedValue(booking({ propertyId: 'other' })),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue(booking({ propertyId: 'other' })),
       },
     };
     const service = new ReviewsService(prisma as never, notifications);
@@ -89,6 +91,36 @@ describe('review authorization', () => {
     ).rejects.toMatchObject({
       response: expect.objectContaining({ errorCode: 'REVIEW_NOT_ALLOWED' }),
     });
+  });
+
+  it('lets a host review a stay they booked elsewhere', async () => {
+    /*
+      Regression guard: reviewing used to require the CUSTOMER role, so anyone
+      who listed a property lost the ability to review stays they had paid for.
+      Ownership of the booking is the rule, not the account's role.
+    */
+    const host: RequestUser = { ...customer, role: UserRoles.OWNER };
+    const created = { id: 'r1' };
+    const prisma = {
+      booking: { findUnique: jest.fn().mockResolvedValue(booking()) },
+      // recalculateRating runs inside the transaction, against the tx client.
+      $transaction: jest.fn((fn: (tx: unknown) => unknown) =>
+        fn({
+          review: {
+            create: jest.fn().mockResolvedValue(created),
+            aggregate: jest
+              .fn()
+              .mockResolvedValue({ _avg: { rating: 5 }, _count: { _all: 1 } }),
+          },
+          property: { update: jest.fn() },
+        }),
+      ),
+    };
+
+    const service = new ReviewsService(prisma as never, notifications);
+    await expect(
+      service.create('prop-1', host, { bookingId: 'b1', rating: 5 }),
+    ).resolves.toEqual(created);
   });
 
   it('rejects a non-owner from responding', async () => {

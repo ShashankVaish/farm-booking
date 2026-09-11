@@ -43,6 +43,27 @@
   font-weight: var(--font-weight-medium);
 }
 
+/*
+  The link back to the guest side of the account. Separated from the host tabs
+  above it so it does not read as another section of the host dashboard: a rule
+  on the wide layout where the nav is a column, and a left margin on the narrow
+  one where it is a scrolling row.
+*/
+.navCrossLink {
+  color: var(--color-primary);
+  margin-inline-start: var(--space-2);
+}
+
+@media (min-width: 1024px) {
+  .navCrossLink {
+    margin-inline-start: 0;
+    margin-block-start: var(--space-3);
+    padding-block-start: var(--space-3);
+    border-top: 1px solid var(--color-border);
+    border-radius: 0;
+  }
+}
+
 .panel {
   background: var(--color-surface);
   border: 1px solid var(--color-border);

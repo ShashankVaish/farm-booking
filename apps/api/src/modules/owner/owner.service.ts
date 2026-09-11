@@ -1,15 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { BookingStatus } from '@prisma/client';
 import { ErrorCodes } from '../../common/constants/error-codes';
 import { paginated } from '../../common/pagination';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../../common/audit.service';
+import { UserRoles } from '../../common/constants/roles';
 import { money } from '../../common/money';
 import { occupancyRate } from './owner-metrics';
 import { toUtcDateOnly } from '../../common/dates';
 
 @Injectable()
 export class OwnerService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   properties(ownerId: string, page: number, limit: number) {
     return this.page(
@@ -157,6 +166,83 @@ export class OwnerService {
       page,
       limit,
     );
+  }
+
+  /**
+   * Turns an ordinary guest into a host.
+   *
+   * Hosting is an addition to an account, not a different kind of account: the
+   * same person books stays and lets their own place out, so this upgrades the
+   * role in place rather than asking them to register again. An OWNER can still
+   * book — see bookings.service — so nothing is lost by accepting.
+   *
+   * Idempotent: calling it again on an existing host is a no-op, which matters
+   * because the button that calls it can be double-tapped.
+   */
+  async becomeHost(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true, role: true, isActive: true },
+    });
+
+    if (!user || !user.isActive) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.NOT_FOUND,
+        message: 'Account not found.',
+      });
+    }
+
+    // An admin keeps its own role; downgrading it to OWNER would silently strip
+    // the moderation powers the account exists for.
+    if (user.role === UserRoles.ADMIN) {
+      throw new ForbiddenException({
+        errorCode: ErrorCodes.FORBIDDEN,
+        message: 'Admin accounts cannot be converted into host accounts.',
+      });
+    }
+
+    const upgraded = await this.prisma.$transaction(async (tx) => {
+      const next =
+        user.role === UserRoles.OWNER
+          ? user
+          : await tx.user.update({
+              where: { id: userId },
+              data: { role: UserRoles.OWNER },
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                isActive: true,
+              },
+            });
+
+      // The profile carries KYC and payout details. It must exist before the
+      // listing wizard's verification step can save anything into it.
+      await tx.ownerProfile.upsert({
+        where: { userId },
+        create: { userId },
+        update: {},
+      });
+
+      return next;
+    });
+
+    await this.audit.record({
+      actorId: userId,
+      action: 'HOST_ACCOUNT_ENABLED',
+      entityType: 'User',
+      entityId: userId,
+      metadata: { previousRole: user.role },
+    });
+
+    return {
+      id: upgraded.id,
+      email: upgraded.email,
+      name: upgraded.name,
+      role: upgraded.role,
+      alreadyHost: user.role === UserRoles.OWNER,
+    };
   }
 
   async profile(userId: string) {

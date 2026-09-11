@@ -18,6 +18,8 @@
 }
 
 .card {
+  /* Anchors the stretched card link below. */
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -97,12 +99,21 @@
   line-height: 1.25;
 }
 
-/* The card title was a 17px-tall tap target — under the 24px minimum. The
-   image above it is already a large link to the same place, so this only has
-   to clear the floor rather than reach 44. */
+/* One stretched link covers the whole card, so a tap anywhere on it opens the
+   listing. This also solves the tap-target size: the target is the card, not
+   the 17px line of text. z-index 1 keeps it under the wishlist button (z-index
+   2), which must stay separately clickable. */
 .title a {
   display: inline-block;
   padding-block: var(--space-2);
+}
+
+.cardLink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
 }
 
 .meta {

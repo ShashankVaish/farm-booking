@@ -9,6 +9,17 @@ import { safeSearch } from '@/lib/properties/api';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 import styles from './home.module.css';
 
+/*
+  Rebuild this page at most once a minute.
+
+  Without it Next prerenders the homepage once at build time and serves that
+  HTML forever. On the first deploy there were no approved listings yet, so the
+  page was frozen showing "No stays are live yet" while /explore — which is
+  dynamic because it reads search params — showed the real thing. Every listing
+  approved after a build would otherwise be invisible here until the next one.
+*/
+export const revalidate = 60;
+
 export const metadata = buildPageMetadata({
   title: brand.name,
   description: brand.shortDescription,

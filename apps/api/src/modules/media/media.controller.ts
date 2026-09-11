@@ -24,9 +24,12 @@ export class MediaController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: 8 * 1024 * 1024, files: 1 },
+      // Matches MAX_BYTES in apps/web/src/lib/media/upload.ts.
+      limits: { fileSize: 25 * 1024 * 1024, files: 1 },
       fileFilter: (_req, file, callback) => {
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+        if (
+          !['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)
+        ) {
           callback(
             new BadRequestException({
               errorCode: ErrorCodes.VALIDATION_ERROR,

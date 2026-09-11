@@ -29,6 +29,16 @@
   color: var(--color-text-primary);
 }
 
+/*
+  Hosts see their guest dashboard and this link across to the host tools. It is
+  pushed to the end of the row so it reads as a separate destination rather than
+  another tab of this section.
+*/
+.navCrossLink {
+  margin-inline-start: auto;
+  color: var(--color-primary);
+}
+
 .tabs {
   display: flex;
   gap: var(--space-2);

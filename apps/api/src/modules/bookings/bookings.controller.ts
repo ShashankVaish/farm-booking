@@ -35,7 +35,13 @@ export class BookingsController {
     return this.bookings.quote(dto, user?.id);
   }
 
-  @Roles(UserRoles.CUSTOMER)
+  /*
+    Hosts book too. Gating this on CUSTOMER made "become a host" a one-way door:
+    the moment someone listed a place they could no longer book one. The guard
+    only decides who may reach the handler; the service still refuses a host
+    booking their own property, which is the rule that actually matters here.
+  */
+  @Roles(UserRoles.CUSTOMER, UserRoles.OWNER)
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post()
   create(@CurrentUser() user: RequestUser, @Body() dto: CreateBookingDto) {

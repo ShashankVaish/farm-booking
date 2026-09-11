@@ -4,7 +4,16 @@ import { memoryTokenStore } from '@/lib/api/token-store';
 import type { ApiEnvelope } from '@/lib/api/types';
 import type { MediaUploadResult } from '@/lib/media/types';
 
-const MAX_BYTES = 8 * 1024 * 1024;
+/*
+  Raised from 8 MB so a full-resolution phone photo is never rejected. It is
+  still bounded: an unbounded upload is a denial-of-service vector, and the
+  proxy in front of the API caps the request body anyway, so a larger value
+  here would only move the failure somewhere with a worse error message.
+
+  Keep this in step with the multer limit in media.controller.ts and with
+  request_body/client_max_body_size in the deploy configs.
+*/
+const MAX_BYTES = 25 * 1024 * 1024;
 const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 export function validateListingImage(file: File): string | null {
@@ -12,7 +21,7 @@ export function validateListingImage(file: File): string | null {
     return 'Use a JPEG, PNG, or WebP image.';
   }
   if (file.size > MAX_BYTES) {
-    return 'Each photo must be 8 MB or smaller.';
+    return `Each photo must be ${Math.round(MAX_BYTES / 1024 / 1024)} MB or smaller.`;
   }
   return null;
 }
