@@ -39,6 +39,24 @@ describe('toPropertyCard', () => {
     expect(propertyBadge(sample)).toBe('Party ready');
   });
 
+  it('carries the admin trust flag through to the card', () => {
+    expect(toPropertyCard(sample).trusted).toBe(false);
+    expect(toPropertyCard({ ...sample, isTrusted: true }).trusted).toBe(true);
+  });
+
+  it('treats a missing trust flag as untrusted', () => {
+    // The badge is a positive claim: absent data must never imply it.
+    expect(toPropertyCard({ ...sample, isTrusted: undefined }).trusted).toBe(false);
+  });
+
+  it('no longer badges a listing on its star rating', () => {
+    /*
+      Guest reviews are gone, so averageRating is frozen at whatever it was.
+      "Highly rated" would have become a permanent, meaningless label.
+    */
+    expect(propertyBadge({ ...sample, isPartyFriendly: false, averageRating: '5.00' })).toBeUndefined();
+  });
+
   it('prefers slug in the property href', () => {
     const card = toPropertyCard({ ...sample, slug: 'courtyard-lonavala' });
     expect(card.href).toBe('/properties/courtyard-lonavala');

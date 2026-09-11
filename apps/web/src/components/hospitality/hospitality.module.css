@@ -70,6 +70,33 @@
   z-index: 2;
 }
 
+/*
+  The admin-awarded trust mark. Anchored to the opposite corner from .badgeRow
+  so a listing carrying both a category badge and this one never stacks them,
+  and kept below the wishlist button's z-index so it cannot swallow that tap.
+*/
+.trustedRow {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 2;
+}
+
+.trustedChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.5rem;
+  padding: 0 0.55rem;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--color-surface);
+  color: var(--color-success, var(--color-primary));
+  border: 1px solid currentColor;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
 .body {
   padding: 0.85rem 0.25rem 0.25rem;
   display: flex;
@@ -465,6 +492,20 @@
   opacity: 0.35;
   text-decoration: line-through;
   cursor: not-allowed;
+}
+
+/*
+  A day that is taken for the night but is still a legal departure date. It
+  keeps its booked or blocked look — nobody can sleep there — but it must not
+  look or behave like a dead cell, because it is the only way to end a stay on
+  the free night before it.
+*/
+.dayCheckOutOnly {
+  cursor: pointer;
+  opacity: 1;
+  text-decoration: none;
+  outline: 1px dashed var(--color-border-strong, var(--color-border));
+  outline-offset: -2px;
 }
 
 .stepper {

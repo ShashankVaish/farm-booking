@@ -59,6 +59,13 @@ export const adminApi = {
   suspendProperty: (id: string, reason: string) =>
     apiClient.post(`/api/admin/properties/${id}/suspend`, { reason }),
   restoreProperty: (id: string) => apiClient.post(`/api/admin/properties/${id}/restore`),
+  /*
+    The Trusted property badge. These two routes exist only under /api/admin —
+    there is no host-facing equivalent, by design, because a host vouching for
+    their own listing tells a guest nothing.
+  */
+  trustProperty: (id: string) => apiClient.post(`/api/admin/properties/${id}/trust`),
+  untrustProperty: (id: string) => apiClient.post(`/api/admin/properties/${id}/untrust`),
   bookings: (query: AdminListQuery = {}) =>
     apiClient.get<AdminList<AdminBooking>>(listPath('bookings', query)),
   booking: (id: string) => apiClient.get<AdminBooking>(`/api/admin/bookings/${id}`),

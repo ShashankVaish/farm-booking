@@ -57,6 +57,24 @@ export class MailService implements OnApplicationBootstrap {
     return (this.config.get<string>('MAIL_FROM_NAME') ?? '').trim() || 'Baagly';
   }
 
+  /**
+   * The inbox that operational alerts go to — a new listing awaiting review,
+   * for example.
+   *
+   * Falls back to the from-address because on every deployment so far they are
+   * the same shared mailbox, so the alert works out of the box rather than
+   * silently going nowhere until someone sets one more variable. Returns null
+   * only when neither is configured, which callers treat as "no alerts".
+   */
+  adminAddress(): string | null {
+    const explicit = this.config
+      .get<string>('ADMIN_NOTIFICATION_EMAIL')
+      ?.trim();
+    if (explicit) return explicit;
+    const from = this.config.get<string>('MAIL_FROM_ADDRESS')?.trim();
+    return from || null;
+  }
+
   /** Base URL for links in emails; the guest has to be able to click through. */
   webUrl(): string {
     const raw =

@@ -75,7 +75,9 @@ export class SearchService {
               {
                 amenities: {
                   some: {
-                    amenity: { name: { contains: term, mode: 'insensitive' as const } },
+                    amenity: {
+                      name: { contains: term, mode: 'insensitive' as const },
+                    },
                   },
                 },
               },
@@ -108,6 +110,9 @@ export class SearchService {
     }
     if (query.minRating !== undefined) {
       where.averageRating = { gte: query.minRating };
+    }
+    if (query.trusted) {
+      where.isTrusted = true;
     }
     if (query.pool) {
       where.AND = [

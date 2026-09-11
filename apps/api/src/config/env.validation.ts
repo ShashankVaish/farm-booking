@@ -1,4 +1,5 @@
 import {
+  IsEmail,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -152,7 +153,9 @@ export class EnvironmentVariables {
    * caller forge X-Forwarded-For and choose their own rate-limit bucket.
    */
   @IsOptional()
-  @Transform(({ value }) => (value === undefined || value === '' ? undefined : Number(value)))
+  @Transform(({ value }) =>
+    value === undefined || value === '' ? undefined : Number(value),
+  )
   @IsInt()
   @Min(0)
   TRUST_PROXY_HOPS?: number;
@@ -188,6 +191,17 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   MAIL_FROM_ADDRESS?: string;
+
+  /*
+    Where "a host submitted a listing" mail goes. Optional on purpose: when it
+    is unset the address falls back to MAIL_FROM_ADDRESS, which on every
+    deployment so far is the same shared inbox. That keeps the notification
+    working without a server-side config change, while leaving a way to split
+    the two later.
+  */
+  @IsOptional()
+  @IsEmail()
+  ADMIN_NOTIFICATION_EMAIL?: string;
 
   @IsOptional()
   @IsString()

@@ -93,13 +93,16 @@
   --color-accent-soft: var(--color-primary-tint);
 
   /* --- Typography ----------------------------------------------------------
-     Fraunces carries the wordmark, so it carries headings: a warm, soft serif
-     that reads boutique rather than formal. Inter handles UI and body, where a
-     serif would tire the eye and where its numerals matter — prices, dates and
-     guest counts sit in tables and next to each other, and Inter's tabular
-     figures line up. Both are loaded through next/font, so the families arrive
-     as CSS variables and these stacks are what everything else reads. */
-  --font-sans: var(--font-sans-family), 'Segoe UI', system-ui, sans-serif;
+     DM Serif sets the whole site. `--font-sans` keeps its name because every
+     component already reads it, but it now resolves to DM Serif Text — the cut
+     drawn for running copy — while `--font-display` is DM Serif Display for
+     headings and the wordmark. Both arrive from next/font as CSS variables, so
+     these two stacks are the only place the families are named.
+
+     The fallbacks are serifs on purpose. A sans fallback would reflow the page
+     visibly when the real face swaps in, because the metrics are nothing
+     alike. */
+  --font-sans: var(--font-sans-family), Georgia, 'Times New Roman', serif;
   --font-display: var(--font-display-family), Georgia, 'Times New Roman', serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 

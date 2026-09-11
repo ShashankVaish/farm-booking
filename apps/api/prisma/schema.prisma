@@ -217,6 +217,13 @@ model Property {
   isPartyFriendly    Boolean        @default(false)
   isAdultOnly        Boolean        @default(false)
   isCoupleFriendly   Boolean        @default(false)
+
+  // Awarded by an admin after a manual check, never set by the host. It is
+  // deliberately absent from CreatePropertyDto and UpdatePropertyDto, so a host
+  // sending `isTrusted` is rejected outright by the global validation pipe
+  // rather than having the field quietly ignored.
+  isTrusted          Boolean        @default(false)
+  trustedAt          DateTime?
   averageRating      Decimal        @default(0) @db.Decimal(3, 2)
   reviewCount        Int            @default(0)
   status             PropertyStatus @default(DRAFT)
@@ -244,6 +251,7 @@ model Property {
   @@index([status, basePrice])
   @@index([status, averageRating])
   @@index([status, createdAt])
+  @@index([status, isTrusted])
   @@index([latitude, longitude])
   @@index([deletedAt])
   @@index([pincode])

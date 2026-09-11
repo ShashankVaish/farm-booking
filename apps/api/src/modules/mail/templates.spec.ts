@@ -6,6 +6,7 @@ import {
   formatStayDate,
   hostBookingConfirmedEmail,
   paymentPendingEmail,
+  propertySubmittedEmail,
   shortRef,
   signupOtpEmail,
   type BookingEmailData,
@@ -270,5 +271,70 @@ describe('booking confirmation address block', () => {
       hostName: 'Vikram Shah',
     });
     expect(host.html).not.toContain('Plot 14');
+  });
+});
+
+describe('support contact in every email footer', () => {
+  it('gives a reader somewhere to go instead of a dead end', () => {
+    /*
+      The footer says replies are not monitored. Without a number and an
+      address next to it that sentence reads as "you cannot reach us", which is
+      the opposite of what a booking confirmation should say.
+    */
+    const email = signupOtpEmail({
+      code: '123456',
+      ttlMinutes: 5,
+      brandName: 'Baagly',
+    });
+    expect(email.html).toContain('99977 60912');
+    expect(email.html).toContain('mailto:info@baagly.com');
+  });
+});
+
+describe('propertySubmittedEmail', () => {
+  const input = {
+    propertyTitle: 'Lake House',
+    propertyLocation: 'Lonavala, Maharashtra',
+    hostName: 'Asha Kulkarni',
+    hostEmail: 'asha@example.com',
+    submittedAt: new Date('2026-09-11T06:30:00Z'),
+    reviewUrl: 'https://baagly.test/admin/properties/p1',
+    brandName: 'Baagly',
+  };
+
+  it('names the property in the subject so the inbox is scannable', () => {
+    expect(propertySubmittedEmail(input).subject).toBe(
+      'New listing to review — Lake House',
+    );
+  });
+
+  it('carries enough to triage without opening the dashboard', () => {
+    const email = propertySubmittedEmail(input);
+    for (const part of [
+      'Lake House',
+      'Lonavala',
+      'Asha Kulkarni',
+      'asha@example.com',
+    ]) {
+      expect(email.html).toContain(part);
+      expect(email.text).toContain(part);
+    }
+    expect(email.html).toContain('https://baagly.test/admin/properties/p1');
+  });
+
+  it('escapes a property title that contains markup', () => {
+    // Titles are host-supplied and land inside HTML.
+    const email = propertySubmittedEmail({
+      ...input,
+      propertyTitle: '<script>alert(1)</script>',
+    });
+    expect(email.html).not.toContain('<script>');
+    expect(email.html).toContain('&lt;script&gt;');
+  });
+
+  it('always ships a plain-text alternative', () => {
+    const email = propertySubmittedEmail(input);
+    expect(email.text.length).toBeGreaterThan(0);
+    expect(email.text).not.toContain('<');
   });
 });

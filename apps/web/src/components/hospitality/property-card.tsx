@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { AmenityItem, PriceDisplay, PropertyBadge, Rating } from '@/components/hospitality/atoms';
+import { AmenityItem, PriceDisplay, PropertyBadge, TrustedBadge } from '@/components/hospitality/atoms';
 import { WishlistButton } from '@/components/hospitality/wishlist-button';
 import { MediaImage } from '@/components/media/media-image';
 import type { MediaAsset } from '@/lib/media/types';
@@ -10,8 +10,8 @@ export type PropertyCardModel = {
   name: string;
   type: string;
   location: string;
-  rating: number;
-  reviewCount: number;
+  /** Awarded by an admin. Displayed here; never editable from this side. */
+  trusted?: boolean;
   guests: number;
   bedrooms: number;
   amenities: string[];
@@ -36,6 +36,7 @@ export function PropertyCard({ property }: { property: PropertyCardModel }) {
           sizes="(min-width: 1024px) 30vw, (min-width: 768px) 45vw, 100vw"
         />
         {property.badge ? <PropertyBadge>{property.badge}</PropertyBadge> : null}
+        {property.trusted ? <TrustedBadge /> : null}
         <WishlistButton propertyId={property.id} propertyName={property.name} />
       </div>
       <div className={styles.body}>
@@ -57,7 +58,6 @@ export function PropertyCard({ property }: { property: PropertyCardModel }) {
               {property.name}
             </Link>
           </h3>
-          <Rating value={property.rating} count={property.reviewCount} />
         </div>
         <p className="t-body-small">{property.location}</p>
         <div className={styles.meta}>

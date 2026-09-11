@@ -1,10 +1,11 @@
-import { AmenityItem, Rating } from '@/components/hospitality/atoms';
+import { AmenityItem, TrustedBadge } from '@/components/hospitality/atoms';
 import { PropertyGallery } from '@/components/hospitality/property-gallery';
 import { PropertyBookingCard } from '@/components/hospitality/property-booking-card';
 import { WishlistButton } from '@/components/hospitality/wishlist-button';
 import { Button } from '@/components/ui/button';
-import { EmptyState, ErrorState } from '@/components/ui/feedback';
-import { getProperty, getPropertyReviews } from '@/lib/properties/api';
+import { ErrorState } from '@/components/ui/feedback';
+import { brand } from '@/lib/config/brand';
+import { getProperty } from '@/lib/properties/api';
 import { coverImage, amenityName } from '@/lib/properties/map-property';
 import { photoAlt } from '@/lib/properties/photo-alt';
 import { decodeListingMeta, listingSlots } from '@/lib/host/listing-meta';
@@ -152,12 +153,6 @@ export default async function PropertyPage({ params }: Props) {
     );
   }
 
-  const reviews = isUuid(property.id)
-    ? await getPropertyReviews(property.id).catch(() => ({
-        items: [],
-        meta: { total: 0, page: 1, limit: 8, totalPages: 0 },
-      }))
-    : { items: [], meta: { total: 0, page: 1, limit: 8, totalPages: 0 } };
   const isSample = !isUuid(property.id);
   const isApproved = property.status === 'APPROVED';
   const isBookable = !isSample && isApproved;
@@ -236,7 +231,18 @@ export default async function PropertyPage({ params }: Props) {
               <PinIcon />
               {locationName || 'India'}
             </span>
-            <Rating value={Number(property.averageRating ?? 0)} count={property.reviewCount} />
+            {/*
+              Spelled out here rather than shown as the bare chip used on cards.
+              On a listing page the guest is deciding, and "verified by Baagly"
+              is the part that carries weight — the word "Trusted" alone invites
+              the question this answers.
+            */}
+            {property.isTrusted ? (
+              <span className={page.trusted}>
+                <TrustedBadge />
+                <span className="t-body-small">Checked and verified by {brand.name}</span>
+              </span>
+            ) : null}
           </div>
         </div>
         {isSample ? null : (
@@ -392,30 +398,6 @@ export default async function PropertyPage({ params }: Props) {
             showed the same month twice and gave guests two places to pick dates.
           */}
 
-          <section className={page.section}>
-            <h2 className={page.sectionTitle}>
-              Reviews {property.reviewCount ? `(${property.reviewCount})` : ''}
-            </h2>
-            {reviews.items.length === 0 ? (
-              <EmptyState
-                title="No reviews yet"
-                description="Guests who complete a stay will be able to share theirs here."
-              />
-            ) : (
-              <ul className={page.reviews}>
-                {reviews.items.map((review) => (
-                  <li key={review.id} className={page.review}>
-                    <Rating value={review.rating} />
-                    <p className={page.reviewWho}>{review.customer?.name}</p>
-                    {review.comment ? <p className={page.reviewBody}>{review.comment}</p> : null}
-                    {review.ownerResponse ? (
-                      <p className={page.hostReply}>Host: {review.ownerResponse}</p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         </div>
       </div>
 

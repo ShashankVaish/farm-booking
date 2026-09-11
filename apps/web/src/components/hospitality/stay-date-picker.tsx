@@ -6,6 +6,7 @@ import {
   applyDateClick,
   compactInr,
   isPastDate,
+  isSelectableDate,
   isUnavailableStatus,
   monthGrid,
   nightlyPrice,
@@ -112,14 +113,24 @@ export function StayDatePicker({
           const status = statusByDate.get(cell.date) ?? 'AVAILABLE';
           const past = isPastDate(cell.date, today);
           const unavailable = past || isUnavailableStatus(status);
+          /*
+            A booked day is still a legal check-out, because the departure day
+            is not a night anyone occupies. So availability decides how the cell
+            LOOKS, while this decides whether it can be CLICKED — otherwise the
+            last free night before a booked run has no reachable check-out and
+            cannot be booked at all.
+          */
+          const selectable =
+            cell.inMonth && isSelectableDate(cell.date, { checkIn, checkOut }, statusByDate, today);
           const selected = inRange(cell.date);
           const price = nightlyPrice(cell.date, basePrice, weekendPrice);
           const showPrice = cell.inMonth && !unavailable && !loading && price > 0;
+          const checkOutOnly = selectable && unavailable;
           return (
             <button
               key={cell.date}
               type="button"
-              disabled={unavailable || !cell.inMonth}
+              disabled={!selectable}
               className={cn(
                 styles.day,
                 !cell.inMonth && styles.dayOutside,
@@ -127,12 +138,15 @@ export function StayDatePicker({
                 cell.inMonth && status === 'BLOCKED' && styles.dayBlocked,
                 cell.inMonth && status === 'BOOKED' && styles.dayBooked,
                 cell.inMonth && past && styles.dayPast,
+                checkOutOnly && styles.dayCheckOutOnly,
                 selected && styles.daySelected,
               )}
               aria-pressed={selected}
               aria-label={`${cell.date}, ${
                 past ? 'in the past' : status.toLowerCase()
-              }${showPrice ? `, ${price} rupees per night` : ''}`}
+              }${checkOutOnly ? ', selectable as check-out only' : ''}${
+                showPrice ? `, ${price} rupees per night` : ''
+              }`}
               onClick={() => onChange(applyDateClick({ checkIn, checkOut }, cell.date, statusByDate, today))}
             >
               <span className={styles.dayNumber}>{Number(cell.date.slice(8, 10))}</span>

@@ -17,7 +17,6 @@ const LINKS = [
   { href: '/host/calendar', label: 'Calendar' },
   { href: '/host/bookings', label: 'Bookings' },
   { href: '/host/earnings', label: 'Earnings' },
-  { href: '/host/reviews', label: 'Reviews' },
   { href: '/host/settings', label: 'Settings' },
 ];
 

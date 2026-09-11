@@ -39,7 +39,9 @@ export class PayoutsService {
    */
   async statement(query: AdminPayoutsQueryDto) {
     const windowed = Boolean(query.days);
-    const to = query.date ? toUtcDateOnly(query.date) : toUtcDateOnly(new Date());
+    const to = query.date
+      ? toUtcDateOnly(query.date)
+      : toUtcDateOnly(new Date());
     const days = Math.min(Math.max(query.days ?? 1, 1), 365);
     const from = new Date(to);
     from.setUTCDate(from.getUTCDate() - (days - 1));
@@ -211,8 +213,7 @@ export class PayoutsService {
           /** Everything, earned or not. */
           netPayable: totals.net,
           /** A transfer should not be attempted without verified bank details. */
-          payable:
-            host.bank.onFile && host.kycStatus === KycStatus.VERIFIED,
+          payable: host.bank.onFile && host.kycStatus === KycStatus.VERIFIED,
           blockedReason: !host.bank.onFile
             ? 'No bank account on file'
             : host.kycStatus !== KycStatus.VERIFIED
