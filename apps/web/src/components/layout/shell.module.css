@@ -121,6 +121,20 @@
   color: var(--color-text-primary);
 }
 
+/*
+  Account block at the foot of the mobile menu. Separated by a rule so "Log out"
+  is not mistaken for another navigation destination, and pushed to the bottom
+  so the menu still opens on the places a guest usually wants.
+*/
+.menuAccount {
+  margin-top: auto;
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .brand {
   display: inline-flex;
   align-items: center;
@@ -184,6 +198,28 @@
   min-height: var(--touch);
   font-size: var(--fs-body-small);
   color: var(--color-text-secondary);
+}
+
+/*
+  Support block. Given its own row above the fine print so the number is not
+  mistaken for another footer link, and sized as a tap target because on a
+  phone the whole point of it is that you can dial it.
+*/
+.support {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.supportLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
 }
 
 .bottomNav {

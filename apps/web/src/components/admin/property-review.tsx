@@ -70,6 +70,34 @@ export function PropertyReview({ propertyId }: { propertyId: string }) {
   );
   const [target, setTarget] = useState<Moderation | null>(null);
   const [busy, setBusy] = useState(false);
+  const [trustBusy, setTrustBusy] = useState(false);
+
+  /*
+    The Trusted property badge.
+
+    Kept apart from the moderation buttons above because it is not a decision
+    about whether the listing may be live — it is a claim the platform makes
+    about a live listing, and it can be taken back without suspending anything.
+    Only an approved listing can be badged, which is why the control is hidden
+    until then rather than shown and failing on click.
+  */
+  async function toggleTrusted(next: boolean) {
+    setTrustBusy(true);
+    try {
+      if (next) await adminApi.trustProperty(propertyId);
+      else await adminApi.untrustProperty(propertyId);
+      notify(
+        next
+          ? 'Trusted property badge granted.'
+          : 'Trusted property badge removed.',
+      );
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'Could not update the badge.', 'error');
+    } finally {
+      setTrustBusy(false);
+      reload();
+    }
+  }
 
   async function run(reason?: string) {
     if (!target) return;
@@ -116,11 +144,26 @@ export function PropertyReview({ propertyId }: { propertyId: string }) {
               {actionsFor(data.status).length > 0
                 ? 'Every decision is written to the audit log and the owner is notified.'
                 : `No moderation actions apply while this listing is ${statusLabel(data.status).toLowerCase()}.`}
+              {data.isTrusted ? ' This listing carries the Trusted property badge.' : ''}
             </p>
             <div className={styles.actionButtons}>
               {data.status === 'APPROVED' ? (
                 <Button size="sm" variant="ghost" href={`/properties/${data.id}`}>
                   View public page
+                </Button>
+              ) : null}
+              {data.status === 'APPROVED' || data.isTrusted ? (
+                <Button
+                  size="sm"
+                  variant={data.isTrusted ? 'secondary' : 'primary'}
+                  disabled={trustBusy}
+                  onClick={() => void toggleTrusted(!data.isTrusted)}
+                >
+                  {trustBusy
+                    ? 'Saving…'
+                    : data.isTrusted
+                      ? 'Remove Trusted badge'
+                      : 'Mark as Trusted'}
                 </Button>
               ) : null}
               {actionsFor(data.status).map((action) => (

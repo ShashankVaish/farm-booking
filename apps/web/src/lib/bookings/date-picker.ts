@@ -80,6 +80,40 @@ export function rangeHasUnavailable(
   return nightsBetween(checkIn, checkOut).some((date) => isUnavailableStatus(statusByDate.get(date)));
 }
 
+/**
+ * Whether a calendar cell can be clicked, given what is already selected.
+ *
+ * A stay occupies the nights `[checkIn, checkOut)` — the check-out day itself
+ * is never occupied, because the guest leaves that morning and the next guest
+ * arrives that afternoon. So a date that is BOOKED or BLOCKED is a perfectly
+ * valid check-out, as long as every night before it is free.
+ *
+ * Treating every booked date as unclickable made the last free night before a
+ * booked run impossible to reserve: with the 16th free and the 17th taken, the
+ * only check-out that could end a stay on the 16th was disabled, so a one-night
+ * stay there could not be selected at all.
+ *
+ * The server has always agreed with this: `enumerateNights` stops before the
+ * check-out date, so it prices and accepts exactly these stays.
+ */
+export function isSelectableDate(
+  date: string,
+  current: { checkIn: string; checkOut: string },
+  statusByDate: Map<string, string>,
+  today = todayIso(),
+): boolean {
+  if (isPastDate(date, today)) return false;
+
+  // Choosing a check-out: the clicked day is the departure, not a night.
+  const choosingCheckOut = Boolean(current.checkIn) && !current.checkOut;
+  if (choosingCheckOut && date > current.checkIn) {
+    return !rangeHasUnavailable(current.checkIn, date, statusByDate);
+  }
+
+  // Otherwise the click starts a new stay, so the day is a night to sleep in.
+  return !isUnavailableStatus(statusByDate.get(date));
+}
+
 export type DateClickResult = {
   checkIn: string;
   checkOut: string;
@@ -95,23 +129,32 @@ export function applyDateClick(
   if (isPastDate(clicked, today)) {
     return { ...current, error: 'Past dates cannot be selected.' };
   }
+
+  /*
+    The clicked day means two different things depending on what is already
+    selected, and only one of them is a night the guest sleeps in.
+
+    Completing a stay: the click is the departure date. Whether that day is
+    itself booked is irrelevant — what matters is that every night from the
+    check-in up to it is free. This is what makes the last free night before a
+    booked run reservable.
+  */
+  const choosingCheckOut =
+    Boolean(current.checkIn) && !current.checkOut && clicked > current.checkIn;
+
+  if (choosingCheckOut) {
+    if (rangeHasUnavailable(current.checkIn, clicked, statusByDate)) {
+      return { ...current, error: 'Your stay includes unavailable dates. Choose another range.' };
+    }
+    return { checkIn: current.checkIn, checkOut: clicked };
+  }
+
+  // Starting a stay: the click is the first night, so it has to be free.
   if (isUnavailableStatus(statusByDate.get(clicked))) {
     return { ...current, error: 'That date is booked or blocked.' };
   }
 
-  if (!current.checkIn || (current.checkIn && current.checkOut)) {
-    return { checkIn: clicked, checkOut: '' };
-  }
-
-  if (clicked <= current.checkIn) {
-    return { checkIn: clicked, checkOut: '' };
-  }
-
-  if (rangeHasUnavailable(current.checkIn, clicked, statusByDate)) {
-    return { ...current, error: 'Your stay includes unavailable dates. Choose another range.' };
-  }
-
-  return { checkIn: current.checkIn, checkOut: clicked };
+  return { checkIn: clicked, checkOut: '' };
 }
 
 export function monthGrid(month: Date): Array<{ date: string; inMonth: boolean }> {

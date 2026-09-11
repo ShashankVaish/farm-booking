@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AmenityItem, PriceDisplay, Rating } from '@/components/hospitality/atoms';
+import { AmenityItem, PriceDisplay } from '@/components/hospitality/atoms';
 import { PropertyGallery } from '@/components/hospitality/property-gallery';
 import { PropertyCard } from '@/components/hospitality/property-card';
 import { Button } from '@/components/ui/button';
@@ -553,7 +553,6 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
             <p className="t-body-small">
               {draft.location.city}, {draft.location.state}
             </p>
-            <Rating value={0} count={0} />
             <PropertyGallery
               title={draft.title || 'Your listing'}
               images={

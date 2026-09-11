@@ -202,6 +202,53 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
           </Link>
         ))}
         <Button href="/explore">Find a Stay</Button>
+
+        {/*
+          The account controls, repeated here.
+
+          They live in `.desktopCta`, which is `display: none` below the desktop
+          breakpoint — so on a phone a signed-in person had no way to sign out
+          at all, and no route to the admin or host dashboard. The header bar
+          has no room for them at that width, so the menu is where they belong.
+        */}
+        {sessionLoaded && user ? (
+          <div className={styles.menuAccount}>
+            <p className="t-caption">Signed in as {user.name || user.email}</p>
+            {user.role === 'ADMIN' ? (
+              <Link href="/admin" className={styles.menuLink} onClick={() => setMenuOpen(false)}>
+                Admin
+              </Link>
+            ) : null}
+            {user.role === 'OWNER' ? (
+              <Link href="/host" className={styles.menuLink} onClick={() => setMenuOpen(false)}>
+                Host dashboard
+              </Link>
+            ) : null}
+            <Link href="/dashboard" className={styles.menuLink} onClick={() => setMenuOpen(false)}>
+              My trips &amp; wishlist
+            </Link>
+            <Button
+              type="button"
+              variant="secondary"
+              block
+              disabled={loggingOut}
+              onClick={() => {
+                setMenuOpen(false);
+                void logout();
+              }}
+            >
+              {loggingOut ? 'Signing out…' : 'Log out'}
+            </Button>
+          </div>
+        ) : null}
+
+        {sessionLoaded && !user ? (
+          <div className={styles.menuAccount}>
+            <Button href="/auth/login" variant="secondary" block>
+              Sign in
+            </Button>
+          </div>
+        ) : null}
       </nav>
     ) : null}
     </>

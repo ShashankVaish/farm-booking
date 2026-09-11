@@ -48,6 +48,12 @@ export type ApiProperty = {
   isPartyFriendly?: boolean;
   isAdultOnly?: boolean;
   isCoupleFriendly?: boolean;
+  /*
+    Set only by an admin, through the admin panel. Read-only everywhere on the
+    guest and host side — the site displays it, nothing here sends it.
+  */
+  isTrusted?: boolean;
+  trustedAt?: string | null;
   averageRating?: number | string;
   reviewCount?: number;
   images?: ApiPropertyImage[];
@@ -82,6 +88,8 @@ export type SearchFilters = {
   partyAllowed?: boolean;
   pool?: boolean;
   minRating?: number;
+  /** Narrows to listings carrying the admin-awarded Trusted property badge. */
+  trusted?: boolean;
   sort?: string;
   page?: number;
   limit?: number;

@@ -130,6 +130,22 @@ export class AdminController {
     return this.admin.restoreProperty(id, user.id);
   }
 
+  /*
+    The only way the Trusted property badge can be set. Deliberately on the
+    admin controller, which is guarded as ADMIN for every route — there is no
+    equivalent under /api/owner or /api/properties, so a host cannot award it
+    to their own listing.
+  */
+  @Post('properties/:id/trust')
+  trust(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.admin.setPropertyTrusted(id, true, user.id);
+  }
+
+  @Post('properties/:id/untrust')
+  untrust(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.admin.setPropertyTrusted(id, false, user.id);
+  }
+
   @Get('bookings')
   bookings(@Query() query: AdminBookingsQueryDto) {
     return this.admin.bookings(query);

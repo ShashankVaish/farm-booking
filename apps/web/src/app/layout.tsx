@@ -1,34 +1,37 @@
 import type { Metadata } from 'next';
-import { Fraunces, Inter } from 'next/font/google';
+import { DM_Serif_Display, DM_Serif_Text } from 'next/font/google';
 import { AppProviders } from '@/components/providers/app-providers';
 import { brand } from '@/lib/config/brand';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 import './globals.css';
 
-// Body copy, UI and numerals.
-const sans = Inter({
+/*
+  The site is set in DM Serif throughout, in its two cuts.
+
+  DM Serif Text is the body cut: the same design drawn with a larger x-height,
+  looser spacing and sturdier hairlines so it survives at 14–16px. It fills the
+  role Inter used to, including inside buttons, inputs and tables.
+
+  DM Serif Display is the tighter, higher-contrast cut for headings and the
+  wordmark, where the finer strokes read as deliberate rather than fragile.
+
+  Both ship a single weight (400) plus an italic. There is no 500/600/700 to
+  load, so the weight tokens in tokens.css resolve to a synthesised bold drawn
+  by the browser. That is why hierarchy here leans on size and colour rather
+  than on weight.
+*/
+const sans = DM_Serif_Text({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: '400',
+  style: ['normal', 'italic'],
   variable: '--font-sans-family',
   display: 'swap',
 });
 
-/*
-  Headings and the wordmark.
-
-  Fraunces is a variable font with an optical-size axis: at display sizes it
-  wants far less of the softness it needs at small ones. `opsz` is pinned near
-  the top of its range so headings pick up the sharper, more deliberate cut
-  rather than the chunky text-size default, and SOFT/WONK are left at their
-  defaults — dialling those up makes it novelty rather than hospitality.
-*/
-const display = Fraunces({
+const display = DM_Serif_Display({
   subsets: ['latin'],
-  // Must be 'variable' rather than a weight list: next/font rejects `axes`
-  // alongside explicit weights. It also gives headings the full weight range
-  // instead of four fixed cuts.
-  weight: 'variable',
-  axes: ['opsz'],
+  weight: '400',
+  style: ['normal', 'italic'],
   variable: '--font-display-family',
   display: 'swap',
 });
@@ -44,8 +47,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-IN">
-      <body className={`${sans.variable} ${display.variable}`}>
+    /*
+      The font variable classes belong on <html>, not on <body>.
+
+      tokens.css composes its stacks at :root — `--font-sans: var(--font-sans-family), …`.
+      A custom property is substituted at the element where it is declared, so
+      with the classes on <body> the :root declaration resolved against a
+      `--font-sans-family` that did not exist there, making `--font-sans`
+      guaranteed-invalid. That invalid value then inherited down, and every
+      `font-family: var(--font-sans)` in the app silently fell through to the
+      last item in the UA's serif fallback — the whole site rendered in Times
+      New Roman, which is why no font change appeared to take effect.
+    */
+    <html lang="en-IN" className={`${sans.variable} ${display.variable}`}>
+      <body>
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

@@ -50,6 +50,9 @@ export type AdminPropertyDetail = {
   description: string;
   propertyType: string;
   isPartyFriendly: boolean;
+  /** The admin-awarded trust badge. Set only through the two admin routes. */
+  isTrusted: boolean;
+  trustedAt: string | null;
   createdAt: string;
   updatedAt: string;
   location: {

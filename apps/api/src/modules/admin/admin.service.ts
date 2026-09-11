@@ -419,6 +419,8 @@ export class AdminService {
       description: property.description,
       propertyType: property.propertyType,
       isPartyFriendly: property.isPartyFriendly,
+      isTrusted: property.isTrusted,
+      trustedAt: property.trustedAt,
       createdAt: property.createdAt,
       updatedAt: property.updatedAt,
       location: {
@@ -524,6 +526,77 @@ export class AdminService {
       undefined,
       true,
     );
+  }
+
+  /**
+   * Grants or removes the "Trusted property" badge.
+   *
+   * This lives only on the admin surface. There is no host-facing route and no
+   * DTO field for it anywhere else, because the badge is a claim the platform
+   * makes about a listing on a guest's behalf — a host who could set it would
+   * be vouching for themselves, which is worth nothing to the guest reading it.
+   *
+   * Only an approved listing can be trusted. Badging a draft or a suspended one
+   * would put the mark on something guests cannot book, and it would survive
+   * quietly if the listing were later approved without a second look.
+   */
+  async setPropertyTrusted(id: string, trusted: boolean, actorId: string) {
+    const property = await this.prisma.property.findUnique({ where: { id } });
+    if (!property) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.PROPERTY_NOT_FOUND,
+        message: 'Property not found.',
+      });
+    }
+
+    if (trusted && property.status !== PropertyStatus.APPROVED) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.VALIDATION_ERROR,
+        message: 'Only an approved listing can be marked as trusted.',
+      });
+    }
+
+    // Nothing to do, but still report the current state so the admin UI can
+    // settle on it rather than showing a stale toggle.
+    if (property.isTrusted === trusted) {
+      return { ...property, unchanged: true };
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const next = await tx.property.update({
+        where: { id },
+        data: {
+          isTrusted: trusted,
+          // Cleared on removal so the timestamp always describes the badge the
+          // listing has now, not one it used to have.
+          trustedAt: trusted ? new Date() : null,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: trusted
+            ? AuditActions.PROPERTY_TRUSTED
+            : AuditActions.PROPERTY_UNTRUSTED,
+          entityType: 'Property',
+          entityId: id,
+        },
+      });
+      return next;
+    });
+
+    if (trusted) {
+      await this.notificationsService.notify({
+        userId: property.ownerId,
+        type: NotificationTypes.PROPERTY_TRUSTED,
+        title: 'Trusted property',
+        body: `${property.title} now carries the Trusted property badge.`,
+        metadata: { propertyId: id },
+        dedupeKey: `PROPERTY_TRUSTED:${id}`,
+      });
+    }
+
+    return { ...updated, unchanged: false };
   }
 
   async setPropertyStatus(
