@@ -296,6 +296,55 @@ migrated the schema, restore the dump from step 3a instead.
 
 ---
 
+## Payments — PayU
+
+The API takes payments through PayU's hosted checkout. The guest's browser is
+sent to PayU with a signed form, pays there, and is posted back to the site.
+
+### Server configuration (`.env.production`)
+
+| Name | Value |
+| --- | --- |
+| `PAYU_KEY` | Merchant key from the PayU dashboard |
+| `PAYU_SALT` | Merchant salt from the PayU dashboard — a secret, treat it like a password |
+| `PAYU_MODE` | `test` until PayU approves the account, then `live` |
+
+The Razorpay variables are gone; delete them from `.env.production` if they
+are still there. The API logs redact `PAYU_KEY` and `PAYU_SALT`.
+
+### PayU dashboard configuration
+
+PayU has to be told where to send the guest back. Set **all three** of these to
+the same URL:
+
+```
+https://www.baagly.com/api/payments/return
+```
+
+- **Success URL** (surl)
+- **Failure URL** (furl)
+- **Webhook / server-to-server callback**, if you enable one
+
+That URL is the site's own host, not `api.baagly.com`: the guest lands on the
+same origin their session lives on, and the site proxies `/api/*` to the API.
+Both the browser return and the webhook are hash-verified and then re-checked
+against PayU's own API before a booking is confirmed — a posted "success"
+proves nothing on its own.
+
+### Verify
+
+```bash
+# the return route answers with a redirect, not an error, even for junk
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}
+' -X POST https://api.baagly.com/api/payments/return -d 'x=1'
+# expected: 302 https://www.baagly.com/dashboard/trips?payment=unknown
+```
+
+Then make a real test-mode payment from the site and confirm the booking flips
+to confirmed and the confirmation email arrives.
+
+---
+
 ## Still outstanding
 
 These are known gaps, not steps in the release:
@@ -308,8 +357,6 @@ These are known gaps, not steps in the release:
   `www.baagly.com`.
 - `SMS_PROVIDER` is `console`, so mobile OTP codes are only written to the log.
   Set it to `renflair` with a funded `RENFLAIR_API_KEY` before relying on it.
-- `RAZORPAY_WEBHOOK_SECRET` is empty. Payment webhooks are unverified until it
-  is set and the endpoint is registered in the Razorpay dashboard.
 - Uploads exist on one server's disk with no off-box copy. A lost disk loses
   every property photo. Move them to S3/R2, or at minimum rsync
   `uploads_data` off the machine on a schedule.

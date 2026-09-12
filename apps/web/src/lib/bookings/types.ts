@@ -52,13 +52,36 @@ export type CustomerBooking = {
   };
 };
 
+/**
+ * A hosted-checkout gateway hands back a form for the browser to POST: the
+ * guest leaves the site, pays on the gateway's page, and is sent back to the
+ * booking. `checkout` is null when no gateway is configured on the server.
+ */
+export type CheckoutForm = {
+  action: string;
+  fields: Record<string, string>;
+};
+
 export type PaymentOrder = {
   paymentId: string;
   provider: string;
   providerOrderId: string;
   amount: string | number;
   currency: string;
-  keyId: string | null;
+  checkout: CheckoutForm | null;
+};
+
+/** What the gateway return URL appends when it sends the guest back. */
+export type PaymentOutcome = 'failed' | 'cancelled' | 'pending' | 'unverified' | 'unknown';
+
+export const PAYMENT_OUTCOME_MESSAGE: Record<PaymentOutcome, string> = {
+  failed: 'The payment was declined. You can try again without creating a new booking.',
+  cancelled: 'The payment was cancelled before it completed. Your dates are still held.',
+  pending:
+    'The gateway has your payment but we could not confirm it yet. This page will update on its own; if it does not, contact support with your booking ID.',
+  unverified:
+    'We received a response we could not verify. If you were charged, contact support with your booking ID and nothing will be lost.',
+  unknown: 'We could not match that payment to a booking. Check your trips, or contact support.',
 };
 
 export function openBookingKey(propertyId: string, checkIn: string, checkOut: string, guests: number): string {

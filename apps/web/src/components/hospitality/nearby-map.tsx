@@ -16,6 +16,15 @@ const NearbyMapCanvas = dynamic(() => import('./nearby-map-canvas').then((module
 
 const RADIUS_KM = 10;
 
+/*
+  Where the map opens before anyone shares a location: roughly the centre of
+  India at a zoom that shows the whole country. Every listing is on this map,
+  so it is a real starting point and not a placeholder.
+*/
+const INDIA = { latitude: 21.5, longitude: 78.5 };
+const INDIA_ZOOM = 5;
+const NEARBY_ZOOM = 12;
+
 type Coordinates = { latitude: number; longitude: number };
 
 function distanceInKm(from: Coordinates, to: Coordinates) {
@@ -29,93 +38,156 @@ function distanceInKm(from: Coordinates, to: Coordinates) {
   return earthRadius * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
 }
 
-export function NearbyMap() {
-  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
-  const [properties, setProperties] = useState<ApiProperty[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [locating, setLocating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+function hasCoordinates(property: ApiProperty): boolean {
+  return Number.isFinite(Number(property.latitude)) && Number.isFinite(Number(property.longitude));
+}
 
-  const loadNearby = useCallback((position: GeolocationPosition) => {
-    const user = { latitude: position.coords.latitude, longitude: position.coords.longitude };
-    setCoordinates(user);
-    setLocating(false);
+/**
+ * The map view.
+ *
+ * It used to demand geolocation before showing anything, and treated a refusal
+ * as an error — so anyone who tapped "Block", every browser with location off,
+ * and every automated checker saw a page whose main content was "Something went
+ * wrong" and no map. A payment provider's site verifier flagged /map as broken
+ * on exactly that basis.
+ *
+ * Now every approved listing loads immediately on a map of India, no permission
+ * needed. Sharing a location is an optional refinement that narrows the list to
+ * 10 km, and declining it is treated as the ordinary choice it is.
+ */
+export function NearbyMap() {
+  const [all, setAll] = useState<ApiProperty[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [location, setLocation] = useState<Coordinates | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationNote, setLocationNote] = useState<string | null>(null);
+
+  const loadAll = useCallback(() => {
     setLoading(true);
-    setError(null);
-    searchProperties({ limit: 100, sort: 'rating' })
-      .then((result) => {
-        const nearby = result.items
-          .filter((property) => Number.isFinite(Number(property.latitude)) && Number.isFinite(Number(property.longitude)))
-          .map((property) => ({
-            property,
-            distance: distanceInKm(user, { latitude: Number(property.latitude), longitude: Number(property.longitude) }),
-          }))
-          .filter((entry) => entry.distance <= RADIUS_KM)
-          .sort((a, b) => a.distance - b.distance)
-          .map((entry) => entry.property);
-        setProperties(nearby);
-      })
-      .catch(() => setError('Could not load nearby stays. Please try again.'))
+    setLoadError(null);
+    searchProperties({ limit: 100, sort: 'newest' })
+      .then((result) => setAll(result.items.filter(hasCoordinates)))
+      .catch(() => setLoadError('Could not load stays right now. Please try again.'))
       .finally(() => setLoading(false));
   }, []);
 
-  const requestLocation = useCallback(() => {
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  /*
+    Only ever runs from a click. A permission prompt that fires on page load is
+    denied far more often than one a person asked for, and browsers increasingly
+    suppress it outright — which was another route to the empty page.
+  */
+  const useMyLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setError('Location access is not available in this browser.');
+      setLocationNote('This browser cannot share a location. Showing all stays.');
       return;
     }
     setLocating(true);
-    setError(null);
+    setLocationNote(null);
     navigator.geolocation.getCurrentPosition(
-      loadNearby,
+      (position) => {
+        setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+        setLocating(false);
+      },
       () => {
         setLocating(false);
-        setError('Location permission was not granted. Allow location access to find stays within 10 km.');
+        setLocationNote('Location not shared — showing all stays instead.');
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
     );
-  }, [loadNearby]);
+  }, []);
 
-  useEffect(() => {
-    requestLocation();
-  }, [requestLocation]);
+  const showAll = useCallback(() => {
+    setLocation(null);
+    setLocationNote(null);
+  }, []);
 
-  if (locating || loading) {
-    return <div className={styles.state}><Spinner label={locating ? 'Requesting your location' : 'Finding nearby stays'} /></div>;
-  }
+  const visible = location
+    ? all
+        .map((property) => ({
+          property,
+          distance: distanceInKm(location, {
+            latitude: Number(property.latitude),
+            longitude: Number(property.longitude),
+          }),
+        }))
+        .filter((entry) => entry.distance <= RADIUS_KM)
+        .sort((a, b) => a.distance - b.distance)
+        .map((entry) => entry.property)
+    : all;
 
-  if (error && !coordinates) {
+  if (loading) {
     return (
       <div className={styles.state}>
-        <ErrorState description={error} onRetry={requestLocation} />
+        <Spinner label="Loading stays" />
       </div>
     );
   }
 
-  if (!coordinates) return null;
+  if (loadError) {
+    return (
+      <div className={styles.state}>
+        <ErrorState description={loadError} onRetry={loadAll} />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.layout}>
       <div className={styles.mapPanel}>
-        <NearbyMapCanvas center={coordinates} properties={properties} />
+        <NearbyMapCanvas
+          center={location ?? INDIA}
+          zoom={location ? NEARBY_ZOOM : INDIA_ZOOM}
+          radiusKm={location ? RADIUS_KM : null}
+          properties={visible}
+        />
       </div>
       <aside className={styles.results}>
         <div className={styles.resultsHead}>
           <div>
-            <p className="t-label">10 km radius</p>
-            <h2 className="t-h3">Nearby properties</h2>
+            <p className="t-label">{location ? `${RADIUS_KM} km radius` : 'All of India'}</p>
+            <h2 className="t-h3">{location ? 'Stays near you' : 'Approved stays'}</h2>
           </div>
-          <Button type="button" size="sm" variant="secondary" onClick={requestLocation}>Refresh</Button>
+          {location ? (
+            <Button type="button" size="sm" variant="secondary" onClick={showAll}>
+              Show all
+            </Button>
+          ) : (
+            <Button type="button" size="sm" variant="secondary" onClick={useMyLocation} disabled={locating}>
+              {locating ? 'Locating…' : 'Near me'}
+            </Button>
+          )}
         </div>
-        {error ? <p className="t-body-small" role="alert">{error}</p> : null}
-        {properties.length === 0 ? (
-          <EmptyState title="No stays within 10 km" description="Try Explore to search more destinations across India." actionHref="/explore" actionLabel="Explore stays" />
+        {locationNote ? (
+          <p className="t-body-small" role="status">
+            {locationNote}
+          </p>
+        ) : null}
+        {visible.length === 0 ? (
+          location ? (
+            <EmptyState
+              title={`No stays within ${RADIUS_KM} km`}
+              description="Show all stays to browse the rest of India."
+            />
+          ) : (
+            <EmptyState
+              title="No stays are live yet"
+              description="Approved listings appear here as soon as they go live."
+              actionHref="/explore"
+              actionLabel="Explore stays"
+            />
+          )
         ) : (
           <div className={styles.list}>
-            {properties.map((property) => {
+            {visible.map((property) => {
               const card = toPropertyCard(property);
               return (
-                <a className={styles.result} key={property.id} href={`/properties/${property.id}`}>
+                <a className={styles.result} key={property.id} href={card.href}>
                   <span className={styles.resultTitle}>{card.name}</span>
                   <span className="t-caption">{card.location}</span>
                   <span className={styles.resultPrice}>₹{Math.round(card.price).toLocaleString('en-IN')} / night</span>

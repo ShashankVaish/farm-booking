@@ -1,6 +1,5 @@
 'use client';
 
-import Script from 'next/script';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -8,33 +7,28 @@ import { EmptyState, ErrorState, Spinner } from '@/components/ui/feedback';
 import { PriceBreakdown } from '@/components/hospitality/price-breakdown';
 import { bookingApi } from '@/lib/bookings/api';
 import { payErrorMessage } from '@/lib/bookings/payment-errors';
-import { paymentStatusLabel, type CustomerBooking, type PriceQuote } from '@/lib/bookings/types';
+import {
+  PAYMENT_OUTCOME_MESSAGE,
+  paymentStatusLabel,
+  type CheckoutForm,
+  type CustomerBooking,
+  type PaymentOutcome,
+  type PriceQuote,
+} from '@/lib/bookings/types';
 import { ApiError } from '@/lib/api/errors';
-import { apiClient } from '@/lib/api/client';
-import type { AuthUser } from '@/lib/properties/types';
 import { brand } from '@/lib/config/brand';
 import styles from '@/app/(site)/dashboard/dashboard.module.css';
 
-type RazorpaySuccess = {
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
-};
+/*
+  How often the page asks the server whether an open payment has landed.
 
-type RazorpayInstance = {
-  open: () => void;
-  on?: (event: string, handler: (payload: RazorpayFailure) => void) => void;
-};
-
-type RazorpayFailure = { error?: { description?: string; reason?: string } };
-
-type RazorpayCtor = new (options: Record<string, unknown>) => RazorpayInstance;
-
-declare global {
-  interface Window {
-    Razorpay?: RazorpayCtor;
-  }
-}
+  Six seconds is fast enough that a guest returning from the gateway sees the
+  confirmation within one tick, and slow enough that a page left open for an
+  hour stays well inside the API's rate limit. On any failure the wait doubles,
+  up to a minute, so a struggling server is not made worse by its own clients.
+*/
+const POLL_MS = 6_000;
+const POLL_MAX_MS = 60_000;
 
 function quoteFromBooking(booking: CustomerBooking): PriceQuote {
   return {
@@ -54,70 +48,150 @@ function quoteFromBooking(booking: CustomerBooking): PriceQuote {
   };
 }
 
+function isAwaitingPayment(booking: CustomerBooking | null): boolean {
+  return !booking || booking.status === 'PENDING' || booking.status === 'PAYMENT_PENDING';
+}
+
+/** The `?payment=` flag the gateway return URL appends, read once on arrival. */
+function outcomeFromUrl(): PaymentOutcome | null {
+  if (typeof window === 'undefined') return null;
+  const value = new URLSearchParams(window.location.search).get('payment');
+  return value && value in PAYMENT_OUTCOME_MESSAGE ? (value as PaymentOutcome) : null;
+}
+
+/**
+ * Sends the browser to the gateway's hosted page.
+ *
+ * A form POST rather than a fetch: the gateway must receive the request from
+ * the browser itself, with a full navigation, so that it can later send the
+ * browser back to us. The form is created, submitted and never rendered.
+ */
+function submitCheckout(checkout: CheckoutForm): void {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = checkout.action;
+  form.style.display = 'none';
+  for (const [name, value] of Object.entries(checkout.fields)) {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+  document.body.appendChild(form);
+  form.submit();
+}
+
 export function BookingExperience({ bookingId, confirmation }: { bookingId: string; confirmation?: boolean }) {
   const router = useRouter();
   const [booking, setBooking] = useState<CustomerBooking | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  /*
+    The gateway's verdict, kept apart from `error`. `load()` clears `error`
+    whenever the booking loads cleanly, and it resolves a beat after this page
+    mounts — so a verdict stored in `error` was wiped before anyone read it.
+    This one survives until the guest acts.
+  */
+  const [notice, setNotice] = useState<string | null>(null);
+  /*
+    Two separate flags on purpose. The old single `loading` flag was set on
+    every background refresh, which swapped the whole page for a spinner and
+    back — the flicker. Only the very first load is allowed to blank the page.
+  */
+  const [initialLoading, setInitialLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [profile, setProfile] = useState<AuthUser | null>(null);
-  // Razorpay's script is loaded on the page; the button waits for it rather
-  // than failing the first click with "checkout is still loading".
-  const [checkoutReady, setCheckoutReady] = useState(false);
   const paying = useRef(false);
 
-  // Prefills the gateway form so the guest does not retype what we already know.
-  useEffect(() => {
-    apiClient
-      .get<AuthUser>('/api/auth/me')
-      .then(setProfile)
-      .catch(() => setProfile(null));
-  }, []);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    bookingApi
-      .get(bookingId)
-      .then(setBooking)
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Could not load this booking.'))
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    try {
+      const next = await bookingApi.get(bookingId);
+      setBooking(next);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not load this booking.');
+    } finally {
+      setInitialLoading(false);
+    }
   }, [bookingId]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
-  const awaitingPayStatus =
-    !booking || booking.status === 'PENDING' || booking.status === 'PAYMENT_PENDING';
-
+  // A message from the gateway return, shown once and then cleared from the URL.
   useEffect(() => {
-    if (booking && !awaitingPayStatus) {
-      return;
-    }
-    let cancelled = false;
-    async function syncFromGateway() {
+    const outcome = outcomeFromUrl();
+    if (!outcome) return;
+    setNotice(PAYMENT_OUTCOME_MESSAGE[outcome]);
+    window.history.replaceState(null, '', window.location.pathname);
+  }, []);
+
+  const awaiting = isAwaitingPayment(booking);
+
+  /*
+    Polls the server while a payment is open.
+
+    This effect depends on `awaiting` — a boolean — and never on `booking`
+    itself. The previous version listed the booking object, so every poll
+    response, being a new object, restarted the effect, which polled again
+    immediately: 600+ requests in twenty seconds, a 429 from the API, and a
+    page that reloaded itself into a spinner on every one of them.
+  */
+  useEffect(() => {
+    if (!awaiting) return;
+
+    let stopped = false;
+    let delay = POLL_MS;
+    let timer: number | undefined;
+
+    async function tick() {
+      if (stopped) return;
+      // Nothing changes while the tab is hidden; do not spend requests on it.
+      if (document.visibilityState === 'hidden') {
+        schedule();
+        return;
+      }
       try {
         const latest = await bookingApi.reconcile(bookingId);
-        // Only adopt a response that carries the relations this screen renders.
-        // A thinner payload would blank the property and crash on the next paint.
-        if (!cancelled && latest?.property?.title) {
+        if (stopped) return;
+        // Only adopt a payload that carries what this screen renders; a thinner
+        // one would blank the property and crash on the next paint.
+        if (latest?.property?.title) {
           setBooking(latest);
-        } else if (!cancelled && latest) {
+        } else if (latest) {
           setBooking((current) => (current ? { ...current, ...latest, property: current.property } : current));
         }
+        delay = POLL_MS;
       } catch {
-        if (!cancelled) load();
+        // Back off rather than retry hard; the next tick will try again.
+        delay = Math.min(delay * 2, POLL_MAX_MS);
       }
+      schedule();
     }
-    void syncFromGateway();
-    const timer = window.setInterval(() => {
-      void syncFromGateway();
-    }, 5000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
+
+    function schedule() {
+      if (stopped) return;
+      timer = window.setTimeout(() => void tick(), delay);
+    }
+
+    // First tick is immediate so a guest returning from the gateway is not
+    // left staring at "awaiting payment" for six seconds.
+    void tick();
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        window.clearTimeout(timer);
+        void tick();
+      }
     };
-  }, [awaitingPayStatus, booking, bookingId, load]);
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [awaiting, bookingId]);
 
   useEffect(() => {
     if (confirmation && booking && (booking.status === 'PENDING' || booking.status === 'PAYMENT_PENDING')) {
@@ -130,73 +204,26 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
     paying.current = true;
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       const order = await bookingApi.createOrder(booking.id);
-      if (!order.keyId) {
-        setError(
-          'Payments are not configured on the server. Your booking is saved — please contact support.',
-        );
+      if (!order.checkout) {
+        setError('Payments are not configured on the server. Your booking is saved — please contact support.');
         return;
       }
-      if (!window.Razorpay) {
-        setError('Payment checkout is still loading. Try again in a moment.');
-        return;
-      }
-      const checkout = new window.Razorpay({
-        key: order.keyId,
-        amount: Math.round(Number(order.amount) * 100),
-        currency: order.currency,
-        name: brand.name,
-        description: booking.property.title,
-        order_id: order.providerOrderId,
-        prefill: {
-          name: profile?.name ?? '',
-          email: profile?.email ?? '',
-          contact: profile?.phone ?? '',
-        },
-        notes: { bookingId: booking.id },
-        theme: { color: '#f9615f' },
-        handler: async (response: RazorpaySuccess) => {
-          try {
-            await bookingApi.verify({
-              providerOrderId: response.razorpay_order_id,
-              providerPaymentId: response.razorpay_payment_id,
-              signature: response.razorpay_signature,
-            });
-            router.replace(`/booking/${booking.id}/confirmation`);
-            router.refresh();
-          } catch (err) {
-            setError(payErrorMessage(err, 'Payment could not be verified.'));
-            load();
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            setError('Payment was interrupted. You can try again without creating a new booking.');
-            load();
-          },
-        },
-      });
-      // The gateway reports declines through this event, not the handler above.
-      checkout.on?.('payment.failed', (payload) => {
-        setError(
-          payload.error?.description ??
-            'The payment was declined. You can try again without creating a new booking.',
-        );
-        load();
-      });
-      checkout.open();
+      // The page navigates away here; `busy` stays true so the button cannot
+      // be pressed twice while the browser is leaving.
+      submitCheckout(order.checkout);
     } catch (err) {
       setError(payErrorMessage(err, 'Could not start payment.'));
-      load();
-    } finally {
+      void load();
       paying.current = false;
       setBusy(false);
     }
   }
 
-  if (loading) return <Spinner label="Loading booking" />;
-  if (error && !booking) return <ErrorState description={error} onRetry={load} />;
+  if (initialLoading) return <Spinner label="Loading booking" />;
+  if (error && !booking) return <ErrorState description={error} onRetry={() => void load()} />;
   if (!booking) return null;
 
   const awaitingPay = booking.status === 'PENDING' || booking.status === 'PAYMENT_PENDING';
@@ -205,15 +232,6 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
 
   return (
     <article className={styles.panel}>
-      <Script
-        src="https://checkout.razorpay.com/v1/checkout.js"
-        strategy="afterInteractive"
-        onReady={() => setCheckoutReady(true)}
-        onLoad={() => setCheckoutReady(true)}
-        onError={() =>
-          setError('The payment checkout script could not load. Disable any blocker and refresh.')
-        }
-      />
       <p className="t-label">Booking</p>
       <h1 className="t-h2">{showConfirmation ? 'Booking confirmed' : booking.property.title}</h1>
       <p className={styles.badge}>{paymentStatusLabel(booking)}</p>
@@ -232,6 +250,11 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
         {booking.property.cancellationPolicy || booking.cancellationPolicy || 'Standard cancellation applies as shown on the property page.'}
       </p>
 
+      {notice ? (
+        <p className="t-body-small" role="alert" style={{ color: 'var(--color-error)' }}>
+          {notice}
+        </p>
+      ) : null}
       {error ? (
         <p className="t-body-small" role="alert" style={{ color: 'var(--color-error)' }}>
           {error}
@@ -252,13 +275,18 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
       ) : null}
 
       {awaitingPay ? (
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: 'var(--space-5)' }}>
-          <Button onClick={() => void pay()} disabled={busy || !checkoutReady}>
-            {busy ? 'Opening payment…' : checkoutReady ? 'Pay now' : 'Loading payment…'}
-          </Button>
-          <Button href={`/properties/${booking.property.id}`} variant="ghost">
-            Back to property
-          </Button>
+        <div style={{ marginTop: 'var(--space-5)' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <Button onClick={() => void pay()} disabled={busy}>
+              {busy ? 'Taking you to PayU…' : 'Pay now'}
+            </Button>
+            <Button href={`/properties/${booking.property.id}`} variant="ghost">
+              Back to property
+            </Button>
+          </div>
+          <p className="t-caption" style={{ marginTop: 'var(--space-3)' }}>
+            You will be taken to PayU to pay securely, then brought back to {brand.name}.
+          </p>
         </div>
       ) : null}
 
