@@ -56,19 +56,23 @@ export function isPublicPaymentView(view: object) {
 }
 
 /**
- * Razorpay reports several distinct problems as the same opaque string, and the
- * most common one in practice is that the account balance is lower than the
- * refund. Refunds are paid out of the Razorpay balance rather than clawed back
- * from the original payment, so a large refund can fail on a funded-but-thin
- * account — and in test mode the dummy balance runs out quickly.
+ * Turns the gateway's refund rejection into something an admin can act on.
+ *
+ * Every gateway pays refunds out of the merchant balance rather than clawing
+ * the money back from the original charge, so the common failure on a young
+ * account is simply that the balance is lower than the refund. PayU says so in
+ * plain words; a couple of its other phrasings are mapped here too.
  */
 export function refundFailureHint(gatewayStatus?: string | null): string | null {
   if (!gatewayStatus) return null;
-  if (/balance/i.test(gatewayStatus)) {
-    return 'Top up the Razorpay account balance, then retry the refund.';
+  if (/balance|insufficient/i.test(gatewayStatus)) {
+    return 'Top up the PayU merchant balance, then retry the refund. Refunds are paid from the balance, not taken back from the original payment.';
   }
-  if (/invalid request sent/i.test(gatewayStatus)) {
-    return 'Usually means the Razorpay balance is below the refund amount. Refunds are paid from your Razorpay balance, not taken back from the original payment. Top up and retry.';
+  if (/already|duplicate/i.test(gatewayStatus)) {
+    return 'PayU already has a refund request for this payment. Check its status in the PayU dashboard before retrying.';
+  }
+  if (/not (found|captured)|invalid/i.test(gatewayStatus)) {
+    return 'PayU could not match this payment. Confirm the payment shows as captured in the PayU dashboard.';
   }
   return null;
 }

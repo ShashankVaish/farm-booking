@@ -168,8 +168,11 @@ export default function AdminSettingsPage() {
                 <dd>{data.environment ?? '—'}</dd>
                 <dt className="t-caption">Payment provider</dt>
                 <dd>{data.paymentProvider}</dd>
-                <dt className="t-caption">Razorpay</dt>
-                <dd>{data.razorpayConfigured ? 'Key configured on server' : 'Not configured'}</dd>
+                <dt className="t-caption">Gateway credentials</dt>
+                <dd>
+                  {data.paymentConfigured ? 'Key and salt configured on server' : 'Not configured'}
+                  {data.paymentMode === 'live' ? ' · live' : ' · test mode — no real money moves'}
+                </dd>
                 <dt className="t-caption">SMS provider</dt>
                 <dd>
                   {data.smsProvider}

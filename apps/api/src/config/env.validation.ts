@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -75,17 +76,32 @@ export class EnvironmentVariables {
   @IsString()
   LOG_LEVEL?: string;
 
+  /*
+    PayU hosted checkout. Optional at boot so the rest of the API can run
+    without a gateway (the checkout page then reports payments as not
+    configured), but both must be present to take a payment.
+  */
   @IsOptional()
   @IsString()
-  RAZORPAY_KEY_ID?: string;
+  PAYU_KEY?: string;
 
   @IsOptional()
   @IsString()
-  RAZORPAY_KEY_SECRET?: string;
+  PAYU_SALT?: string;
 
+  /** `test` uses test.payu.in; anything else that is not `live` is treated as test. */
+  @IsOptional()
+  @IsIn(['test', 'live'])
+  PAYU_MODE?: 'test' | 'live';
+
+  /**
+   * Where the gateway sends the browser back after checkout. Defaults to
+   * `${WEB_APP_URL}/api/payments/return`, which reaches this server through
+   * the site's own /api proxy — set it only if that proxy is not in place.
+   */
   @IsOptional()
   @IsString()
-  RAZORPAY_WEBHOOK_SECRET?: string;
+  PAYMENT_RETURN_URL?: string;
 
   @Transform(({ value }) => Number(value ?? 500))
   @IsInt()

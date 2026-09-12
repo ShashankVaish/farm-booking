@@ -265,7 +265,8 @@ export type AdminSettings = {
   platformFeePercent: number;
   bookingExpireMinutes: number;
   paymentProvider: string;
-  razorpayConfigured: boolean;
+  paymentMode: 'test' | 'live';
+  paymentConfigured: boolean;
   smsProvider: string;
   smsConfigured: boolean;
   mailProvider: string;

@@ -222,15 +222,22 @@ export class AdminService {
 
   settings() {
     const feeBps = this.pricing.platformFeeBps();
-    const razorpayKey = this.config.get<string>('RAZORPAY_KEY_ID');
+    const payuKey = this.config.get<string>('PAYU_KEY')?.trim();
+    const payuSalt = this.config.get<string>('PAYU_SALT')?.trim();
     return {
       platformFeeBps: feeBps,
       platformFeePercent: feeBps / 100,
       bookingExpireMinutes: this.platformSettings.getNumber(
         'BOOKING_EXPIRE_MINUTES',
       ),
-      paymentProvider: 'RAZORPAY',
-      razorpayConfigured: Boolean(razorpayKey),
+      paymentProvider: 'PAYU',
+      paymentMode:
+        (this.config.get<string>('PAYU_MODE') ?? 'test')
+          .trim()
+          .toLowerCase() === 'live'
+          ? 'live'
+          : 'test',
+      paymentConfigured: Boolean(payuKey && payuSalt),
       smsProvider: (
         this.config.get<string>('SMS_PROVIDER') ?? 'console'
       ).toLowerCase(),
@@ -1140,7 +1147,7 @@ export class AdminService {
    *
    * The refund goes back through the gateway to whatever the guest actually
    * paid with — card, UPI or netbanking. A gateway refund cannot be redirected
-   * to an arbitrary bank account, and `optimum` speed asks Razorpay to settle
+   * to an arbitrary bank account, and `optimum` speed asks the gateway to settle
    * as fast as the instrument allows rather than the usual 5-7 working days.
    *
    * Cancelling frees the nights automatically. `blockDates` additionally marks

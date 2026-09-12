@@ -36,10 +36,14 @@ describe('admin format helpers', () => {
 });
 
 describe('refundFailureHint', () => {
-  it('explains the opaque gateway error that really means low balance', () => {
-    const hint = refundFailureHint('invalid request sent');
+  it('explains an insufficient-balance rejection', () => {
+    const hint = refundFailureHint('Insufficient funds in merchant account');
     expect(hint).toContain('balance');
     expect(hint).toContain('retry');
+  });
+
+  it('points at the dashboard for a duplicate refund request', () => {
+    expect(refundFailureHint('Refund already requested')).toContain('dashboard');
   });
 
   it('handles an explicit balance error', () => {
