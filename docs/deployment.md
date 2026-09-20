@@ -296,52 +296,63 @@ migrated the schema, restore the dump from step 3a instead.
 
 ---
 
-## Payments — PayU
+## Payments — Instamojo
 
-The API takes payments through PayU's hosted checkout. The guest's browser is
-sent to PayU with a signed form, pays there, and is posted back to the site.
+The API takes payments through Instamojo (API v1.1). The server creates a
+*payment request*, the guest is redirected to Instamojo's hosted page, pays,
+and is sent back to the site.
 
 ### Server configuration (`.env.production`)
 
 | Name | Value |
 | --- | --- |
-| `PAYU_KEY` | Merchant key from the PayU dashboard |
-| `PAYU_SALT` | Merchant salt from the PayU dashboard — a secret, treat it like a password |
-| `PAYU_MODE` | `test` until PayU approves the account, then `live` |
+| `INSTAMOJO_API_KEY` | From Dashboard → Integrations |
+| `INSTAMOJO_AUTH_TOKEN` | Same page. 32 characters — a 33-character paste is the classic mistake and gets `Invalid Auth Token` |
+| `INSTAMOJO_SALT` | Same page ("Private Salt"). Verifies webhooks; without it every webhook is rejected |
 
-The Razorpay variables are gone; delete them from `.env.production` if they
-are still there. The API logs redact `PAYU_KEY` and `PAYU_SALT`.
+All three are live credentials: Instamojo no longer has a separate test host
+(`test.instamojo.com` does not resolve). Test with small amounts and refund
+them from the admin panel. Instamojo's minimum is **₹9** — a cheaper test
+listing will be refused with a readable message on the checkout page.
 
-### PayU dashboard configuration
+The API logs redact all three, plus the `X-Api-Key`/`X-Auth-Token` request
+headers and the webhook `mac`.
 
-PayU has to be told where to send the guest back. Set **all three** of these to
-the same URL:
+### Instamojo dashboard
 
-```
-https://www.baagly.com/api/payments/return
-```
+Nothing to configure for URLs. Every payment request carries its own
+`redirect_url` (`${WEB_APP_URL}/api/payments/return`) and `webhook`
+(`${WEB_APP_URL}/api/payments/webhook`), both derived from `WEB_APP_URL` and
+reached through the site's `/api` proxy.
 
-- **Success URL** (surl)
-- **Failure URL** (furl)
-- **Webhook / server-to-server callback**, if you enable one
+### How settlement is protected
 
-That URL is the site's own host, not `api.baagly.com`: the guest lands on the
-same origin their session lives on, and the site proxies `/api/*` to the API.
-Both the browser return and the webhook are hash-verified and then re-checked
-against PayU's own API before a booking is confirmed — a posted "success"
-proves nothing on its own.
+The browser redirect from Instamojo is **not signed**, so it is treated only as
+a hint. Before any booking is confirmed the API fetches the payment from
+Instamojo and checks that it is credited, belongs to this payment request, and
+matches the booking total. The webhook *is* signed (HMAC-SHA1 with the salt)
+and is verified before it is acted on. A forged redirect therefore confirms
+nothing — it was tested in a browser — and a guest whose redirect arrives before
+Instamojo has recorded the payment sees "could not confirm yet" and the page
+re-checks every six seconds.
 
 ### Verify
 
 ```bash
 # the return route answers with a redirect, not an error, even for junk
 curl -s -o /dev/null -w '%{http_code} %{redirect_url}
-' -X POST https://api.baagly.com/api/payments/return -d 'x=1'
+'   'https://api.baagly.com/api/payments/return?payment_id=x&payment_status=Credit&payment_request_id=nope'
 # expected: 302 https://www.baagly.com/dashboard/trips?payment=unknown
+
+# the webhook rejects an unsigned post
+curl -s -w ' %{http_code}
+' -X POST https://api.baagly.com/api/payments/webhook   -d 'payment_id=x&status=Credit&payment_request_id=y&mac=bad'
+# expected: {"success":false,...} 400
 ```
 
-Then make a real test-mode payment from the site and confirm the booking flips
-to confirmed and the confirmation email arrives.
+Then make one real payment of a small amount from the site, confirm the
+booking flips to confirmed and the confirmation email arrives, and refund it
+from the admin panel.
 
 ---
 

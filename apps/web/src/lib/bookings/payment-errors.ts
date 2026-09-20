@@ -17,7 +17,22 @@ export function payErrorMessage(error: unknown, fallback: string): string {
     // Check the specific code first: the gateway error arrives as a 503, so a
     // status-only test would swallow it into the generic server message.
     if (error.code === 'PAYMENT_PROVIDER_ERROR') {
-      return 'The payment gateway is not responding. Your booking is saved — try again shortly.';
+      /*
+        The API writes its gateway messages for people — "not enabled on the
+        Instamojo account yet", "rejected the server credentials", the ₹9
+        minimum — and each one calls for a different next step. Only a message
+        that is clearly machine text (a timeout, a raw response) is replaced.
+        "Try again shortly" on an unactivated account sent guests round in
+        circles.
+      */
+      const specific = error.message?.trim();
+      const looksHuman =
+        specific &&
+        specific.length < 200 &&
+        !/timed out|unexpected response|ECONN|fetch failed/i.test(specific);
+      return looksHuman
+        ? `${specific} Your booking is saved.`
+        : 'The payment gateway is not responding. Your booking is saved — try again shortly.';
     }
     if (error.status >= 500 || error.code === 'INTERNAL_ERROR') {
       return 'Payment could not be started because of a problem on our side. Your booking is saved — please try again in a moment.';

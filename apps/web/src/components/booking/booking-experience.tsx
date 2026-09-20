@@ -62,11 +62,17 @@ function outcomeFromUrl(): PaymentOutcome | null {
 /**
  * Sends the browser to the gateway's hosted page.
  *
- * A form POST rather than a fetch: the gateway must receive the request from
- * the browser itself, with a full navigation, so that it can later send the
- * browser back to us. The form is created, submitted and never rendered.
+ * A full navigation rather than a fetch: the gateway must receive the request
+ * from the browser itself so that it can later send the browser back to us.
+ * Instamojo hands us a ready-made page URL, so this is a plain redirect; a
+ * gateway that wants signed fields gets them posted from a form that is
+ * created, submitted and never rendered.
  */
 function submitCheckout(checkout: CheckoutForm): void {
+  if (checkout.method === 'GET') {
+    window.location.assign(checkout.action);
+    return;
+  }
   const form = document.createElement('form');
   form.method = 'POST';
   form.action = checkout.action;
@@ -215,8 +221,14 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
       // be pressed twice while the browser is leaving.
       submitCheckout(order.checkout);
     } catch (err) {
-      setError(payErrorMessage(err, 'Could not start payment.'));
-      void load();
+      /*
+        Shown as the notice, not `error`: `load()` clears `error` on every
+        clean refresh and the poll refreshes every few seconds, so a message
+        stored there vanished before the guest could read it — which is exactly
+        what happened with a gateway refusal. Nothing about the booking changed
+        here, so there is also no reason to reload it.
+      */
+      setNotice(payErrorMessage(err, 'Could not start payment.'));
       paying.current = false;
       setBusy(false);
     }
@@ -278,14 +290,15 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
         <div style={{ marginTop: 'var(--space-5)' }}>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <Button onClick={() => void pay()} disabled={busy}>
-              {busy ? 'Taking you to PayU…' : 'Pay now'}
+              {busy ? 'Taking you to Instamojo…' : 'Pay now'}
             </Button>
             <Button href={`/properties/${booking.property.id}`} variant="ghost">
               Back to property
             </Button>
           </div>
           <p className="t-caption" style={{ marginTop: 'var(--space-3)' }}>
-            You will be taken to PayU to pay securely, then brought back to {brand.name}.
+            You will be taken to Instamojo to pay securely by UPI, card or netbanking, then brought back to{' '}
+            {brand.name}.
           </p>
         </div>
       ) : null}

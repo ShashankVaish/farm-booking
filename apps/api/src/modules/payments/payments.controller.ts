@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   Headers,
   HttpCode,
   Param,
@@ -65,12 +66,25 @@ export class PaymentsController {
   */
   @Public()
   @Post('return')
-  async gatewayReturn(
+  async gatewayReturnPost(
     @Req() request: RawBodyRequest<Request>,
     @Res() response: Response,
   ) {
     const raw = request.rawBody?.toString('utf8') ?? '';
     const { redirectTo } = await this.payments.handleReturn(raw);
+    response.redirect(302, redirectTo);
+  }
+
+  /*
+    Instamojo sends the browser back with a GET and the outcome in the query
+    string, so the same handler accepts that shape too. The query string is
+    passed through as the "body": it is the same urlencoded form either way.
+  */
+  @Public()
+  @Get('return')
+  async gatewayReturnGet(@Req() request: Request, @Res() response: Response) {
+    const query = request.url.split('?')[1] ?? '';
+    const { redirectTo } = await this.payments.handleReturn(query);
     response.redirect(302, redirectTo);
   }
 

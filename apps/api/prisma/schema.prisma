@@ -62,9 +62,11 @@ enum PaymentStatus {
 }
 
 enum PaymentProviderType {
-  // RAZORPAY stays for the rows written before the switch; new payments are PAYU.
+  // Earlier gateways stay so the rows written under them remain readable.
+  // New payments are INSTAMOJO.
   RAZORPAY
   PAYU
+  INSTAMOJO
 }
 
 enum DiscountType {
@@ -366,7 +368,7 @@ model Booking {
 model Payment {
   id                String              @id @default(uuid())
   bookingId         String
-  provider          PaymentProviderType @default(PAYU)
+  provider          PaymentProviderType @default(INSTAMOJO)
   providerPaymentId String?
   providerOrderId   String?
   amount            Decimal             @db.Decimal(12, 2)

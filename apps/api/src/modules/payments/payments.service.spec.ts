@@ -31,12 +31,14 @@ describe('payment status machine', () => {
 
 describe('PaymentsService money-safety', () => {
   const provider = {
-    name: 'PAYU',
+    name: 'INSTAMOJO',
     isConfigured: jest.fn().mockReturnValue(true),
     createIntent: jest.fn(),
-    checkoutForm: jest
-      .fn()
-      .mockReturnValue({ action: 'https://test.payu.in/_payment', fields: {} }),
+    checkoutForm: jest.fn().mockReturnValue({
+      action: 'https://www.instamojo.com/@baagly/abc',
+      method: 'GET',
+      fields: {},
+    }),
     parseNotification: jest.fn(),
     verifyPayment: jest.fn(),
     createRefund: jest.fn(),
@@ -258,7 +260,7 @@ describe('PaymentsService money-safety', () => {
     const first = await payments.handleWebhook(webhookBody, 'evt-1');
     prisma.processedWebhookEvent.findUnique.mockResolvedValue({
       id: 'evt-1',
-      event: 'payu.success',
+      event: 'instamojo.success',
     });
     const second = await payments.handleWebhook(webhookBody, 'evt-1');
     expect(first).toMatchObject({ idempotent: true });
@@ -539,7 +541,7 @@ describe('PaymentsService gateway return', () => {
     typed a card number must never be shown an API error.
   */
   const provider = {
-    name: 'PAYU',
+    name: 'INSTAMOJO',
     isConfigured: jest.fn().mockReturnValue(true),
     createIntent: jest.fn(),
     checkoutForm: jest.fn(),
@@ -637,17 +639,57 @@ describe('PaymentsService gateway return', () => {
     });
   });
 
-  it('never settles on a post that fails the hash check', async () => {
+  it('still settles an UNSIGNED success report, because settlement re-verifies', async () => {
+    /*
+      Instamojo does not sign the browser redirect. Refusing it would strand
+      every paying guest on "awaiting payment" until the webhook arrived. It is
+      safe to act on because settleCapturedPayment fetches the payment from the
+      gateway and checks amount and request — a forged claim confirms nothing.
+    */
     provider.parseNotification.mockReturnValue({ ...success, verified: false });
-    const { service } = build('PAYMENT_PENDING');
-    const result = await service.handleReturn('txnid=txn1');
-    expect(result.redirectTo).toBe(
-      'https://baagly.test/booking/b1?payment=unverified',
+    const { service } = build('CONFIRMED');
+    const result = await service.handleReturn(
+      'payment_id=mih1&payment_status=Credit&payment_request_id=txn1',
     );
-    expect(service.settleCapturedPayment).not.toHaveBeenCalled();
+    expect(service.settleCapturedPayment).toHaveBeenCalledWith('txn1', 'mih1');
+    expect(result.redirectTo).toBe(
+      'https://baagly.test/booking/b1/confirmation',
+    );
   });
 
-  it('finds the booking from the transaction id when udf1 is missing', async () => {
+  it('does not record an UNSIGNED failure, only shows it', async () => {
+    // Anyone can type a URL with payment_status=Failed; that must not touch the row.
+    provider.parseNotification.mockReturnValue({
+      ...success,
+      verified: false,
+      status: 'FAILED',
+    });
+    const { service } = build('PAYMENT_PENDING');
+    const result = await service.handleReturn(
+      'payment_status=Failed&payment_request_id=txn1',
+    );
+    const markFailed = (service as unknown as { markFailed: jest.Mock })
+      .markFailed;
+    expect(markFailed).not.toHaveBeenCalled();
+    expect(result.redirectTo).toBe(
+      'https://baagly.test/booking/b1?payment=failed',
+    );
+  });
+
+  it('records a SIGNED failure', async () => {
+    provider.parseNotification.mockReturnValue({
+      ...success,
+      verified: true,
+      status: 'FAILED',
+    });
+    const { service } = build('PAYMENT_PENDING');
+    await service.handleReturn('signed');
+    const markFailed = (service as unknown as { markFailed: jest.Mock })
+      .markFailed;
+    expect(markFailed).toHaveBeenCalled();
+  });
+
+  it('finds the booking from the request id when the report carries none', async () => {
     provider.parseNotification.mockReturnValue({
       ...success,
       bookingId: undefined,

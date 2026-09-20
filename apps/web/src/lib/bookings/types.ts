@@ -59,6 +59,8 @@ export type CustomerBooking = {
  */
 export type CheckoutForm = {
   action: string;
+  /** GET is a plain redirect to `action`; POST submits `fields` to it. */
+  method: 'GET' | 'POST';
   fields: Record<string, string>;
 };
 
