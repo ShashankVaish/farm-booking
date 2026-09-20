@@ -13,7 +13,14 @@ export interface CreatePaymentIntentInput {
   amountPaise: number;
   currency: string;
   customerEmail: string;
+  customerName: string;
+  customerPhone?: string | null;
+  description: string;
   receipt: string;
+  /** Where the gateway sends the browser back after checkout. */
+  returnUrl: string;
+  /** Where the gateway posts server-to-server notifications. */
+  webhookUrl: string;
 }
 
 export interface CreatePaymentIntentResult {
@@ -22,6 +29,12 @@ export interface CreatePaymentIntentResult {
   amountPaise: number;
   currency: string;
   status: PaymentIntentStatus;
+  /**
+   * Anything the provider needs again later — a hosted checkout URL, for
+   * instance. Stored on the payment row as-is and handed back to
+   * `checkoutForm`, so the provider never has to re-fetch what it already knew.
+   */
+  metadata?: Record<string, string>;
 }
 
 /**
@@ -40,10 +53,14 @@ export interface CheckoutFormInput {
   customerPhone?: string | null;
   /** Where the gateway sends the browser back, for both outcomes. */
   returnUrl: string;
+  /** Whatever `createIntent` asked to have kept. */
+  metadata?: Record<string, string> | null;
 }
 
 export interface CheckoutForm {
   action: string;
+  /** GET is a plain redirect to `action`; POST submits `fields` to it. */
+  method: 'GET' | 'POST';
   fields: Record<string, string>;
 }
 
@@ -55,6 +72,11 @@ export interface CheckoutForm {
  * gateway before touching a booking.
  */
 export interface GatewayNotification {
+  /**
+   * True when the report carried a signature we checked. A browser redirect
+   * from a gateway that does not sign redirects is `false` — which is fine,
+   * because settlement re-fetches the payment from the gateway regardless.
+   */
   verified: boolean;
   providerOrderId: string;
   providerPaymentId: string | null;

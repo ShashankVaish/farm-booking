@@ -30,7 +30,8 @@ export type TermsSection = {
 };
 
 export type TermsDocument = {
-  slug: 'guest' | 'host';
+  /** URL segment. The two terms documents live under /terms; policies at the root. */
+  slug: string;
   title: string;
   subtitle: string;
   /** Shown as a callout above the document. */

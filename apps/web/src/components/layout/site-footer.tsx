@@ -21,6 +21,8 @@ export function SiteFooter() {
               rather than a single ambiguous "Terms". */}
           <Link href="/terms/guest">Guest terms</Link>
           <Link href="/terms/host">Host terms</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/refund-policy">Refunds</Link>
         </nav>
         {/*
           Real links, not plain text. On a phone the number has to be tappable

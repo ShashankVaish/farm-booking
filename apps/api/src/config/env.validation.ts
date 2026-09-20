@@ -77,31 +77,41 @@ export class EnvironmentVariables {
   LOG_LEVEL?: string;
 
   /*
-    PayU hosted checkout. Optional at boot so the rest of the API can run
-    without a gateway (the checkout page then reports payments as not
-    configured), but both must be present to take a payment.
+    Instamojo (API v1.1). Optional at boot so the rest of the API can run
+    without a gateway — the checkout page then reports payments as not
+    configured — but all three are needed to take a payment: key and token to
+    call the API, salt to verify webhooks.
   */
   @IsOptional()
   @IsString()
-  PAYU_KEY?: string;
+  INSTAMOJO_API_KEY?: string;
 
   @IsOptional()
   @IsString()
-  PAYU_SALT?: string;
+  INSTAMOJO_AUTH_TOKEN?: string;
 
-  /** `test` uses test.payu.in; anything else that is not `live` is treated as test. */
   @IsOptional()
-  @IsIn(['test', 'live'])
-  PAYU_MODE?: 'test' | 'live';
+  @IsString()
+  INSTAMOJO_SALT?: string;
+
+  /** Only for pointing at a sandbox; defaults to the live API. */
+  @IsOptional()
+  @IsString()
+  INSTAMOJO_BASE_URL?: string;
 
   /**
-   * Where the gateway sends the browser back after checkout. Defaults to
-   * `${WEB_APP_URL}/api/payments/return`, which reaches this server through
-   * the site's own /api proxy — set it only if that proxy is not in place.
+   * Where the gateway sends the browser back after checkout, and where it
+   * posts webhooks. Both default to routes on `${WEB_APP_URL}/api/payments/…`,
+   * which the site proxies to this server — set them only if that proxy is
+   * not in place.
    */
   @IsOptional()
   @IsString()
   PAYMENT_RETURN_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  PAYMENT_WEBHOOK_URL?: string;
 
   @Transform(({ value }) => Number(value ?? 500))
   @IsInt()

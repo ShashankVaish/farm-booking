@@ -222,22 +222,22 @@ export class AdminService {
 
   settings() {
     const feeBps = this.pricing.platformFeeBps();
-    const payuKey = this.config.get<string>('PAYU_KEY')?.trim();
-    const payuSalt = this.config.get<string>('PAYU_SALT')?.trim();
+    const gatewayKey = this.config.get<string>('INSTAMOJO_API_KEY')?.trim();
+    const gatewayToken = this.config
+      .get<string>('INSTAMOJO_AUTH_TOKEN')
+      ?.trim();
+    const gatewaySalt = this.config.get<string>('INSTAMOJO_SALT')?.trim();
     return {
       platformFeeBps: feeBps,
       platformFeePercent: feeBps / 100,
       bookingExpireMinutes: this.platformSettings.getNumber(
         'BOOKING_EXPIRE_MINUTES',
       ),
-      paymentProvider: 'PAYU',
-      paymentMode:
-        (this.config.get<string>('PAYU_MODE') ?? 'test')
-          .trim()
-          .toLowerCase() === 'live'
-          ? 'live'
-          : 'test',
-      paymentConfigured: Boolean(payuKey && payuSalt),
+      paymentProvider: 'INSTAMOJO',
+      // Instamojo has no sandbox any more; every configured key is live.
+      paymentMode: 'live',
+      paymentConfigured: Boolean(gatewayKey && gatewayToken),
+      webhookVerification: Boolean(gatewaySalt),
       smsProvider: (
         this.config.get<string>('SMS_PROVIDER') ?? 'console'
       ).toLowerCase(),

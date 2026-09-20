@@ -267,6 +267,7 @@ export type AdminSettings = {
   paymentProvider: string;
   paymentMode: 'test' | 'live';
   paymentConfigured: boolean;
+  webhookVerification: boolean;
   smsProvider: string;
   smsConfigured: boolean;
   mailProvider: string;

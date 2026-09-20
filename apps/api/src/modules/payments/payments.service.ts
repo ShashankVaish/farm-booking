@@ -214,7 +214,12 @@ export class PaymentsService {
           amountPaise,
           currency: booking.currency,
           customerEmail: booking.customer.email,
+          customerName: booking.customer.name,
+          customerPhone: booking.customer.phone,
+          description: booking.property?.title ?? 'Stay booking',
           receipt: `bk${booking.id.replace(/-/g, '').slice(0, 38)}`,
+          returnUrl: this.returnUrl(),
+          webhookUrl: this.webhookUrl(),
         });
 
         if (intent.amountPaise !== amountPaise) {
@@ -245,6 +250,7 @@ export class PaymentsService {
               amount: booking.totalAmount,
               currency: booking.currency,
               expiresAt,
+              metadata: intent.metadata ?? undefined,
             },
           });
         }
@@ -258,6 +264,7 @@ export class PaymentsService {
             currency: booking.currency,
             status: PaymentStatus.PENDING,
             expiresAt,
+            metadata: intent.metadata ?? undefined,
           },
         });
       },
@@ -400,15 +407,19 @@ export class PaymentsService {
       return { redirectTo: `${web}/dashboard/trips?payment=unknown` };
     }
 
-    if (!notification.verified) {
-      this.logger.warn(
-        `Return post for ${notification.providerOrderId} failed hash verification.`,
-      );
-      return { redirectTo: `${web}/booking/${bookingId}?payment=unverified` };
-    }
-
     try {
-      await this.applyNotification(notification);
+      /*
+        An unsigned report is not refused here. Some gateways do not sign the
+        browser redirect at all, and even a signed one proves only who sent it.
+        What decides the money is `settleCapturedPayment`, which fetches the
+        payment from the gateway and checks amount and request before it
+        confirms anything — so a success claim is always safe to act on, and a
+        forged one confirms nothing. Only *negative* verdicts are trusted solely
+        from signed reports: an unsigned "failed" is shown, not recorded.
+      */
+      if (notification.verified || notification.status === 'SUCCESS') {
+        await this.applyNotification(notification);
+      }
       // Read the outcome back rather than interpreting the settlement result:
       // the booking's own status is the only thing the guest is redirected on.
       const booking = await this.prisma.booking.findUnique({
@@ -1204,6 +1215,7 @@ export class PaymentsService {
       providerOrderId: string | null;
       amount: Prisma.Decimal;
       currency: string;
+      metadata?: Prisma.JsonValue | null;
     },
     booking: {
       id: string;
@@ -1222,6 +1234,7 @@ export class PaymentsService {
           customerEmail: booking.customer.email,
           customerPhone: booking.customer.phone,
           returnUrl: this.returnUrl(),
+          metadata: stringRecord(payment.metadata),
         })
       : null;
 
@@ -1245,4 +1258,24 @@ export class PaymentsService {
     if (typeof explicit === 'string' && explicit.trim()) return explicit.trim();
     return `${this.mail.webUrl()}/api/payments/return`;
   }
+
+  /**
+   * The webhook gets its own route: it expects a 200 with a body, where the
+   * return route answers with a redirect meant for a browser.
+   */
+  private webhookUrl(): string {
+    const explicit = this.config.get<unknown>('PAYMENT_WEBHOOK_URL');
+    if (typeof explicit === 'string' && explicit.trim()) return explicit.trim();
+    return `${this.mail.webUrl()}/api/payments/webhook`;
+  }
+}
+
+/** The string-valued entries of a payment row's JSON metadata. */
+function stringRecord(value: Prisma.JsonValue | null | undefined) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const out: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === 'string') out[key] = entry;
+  }
+  return out;
 }

@@ -170,8 +170,10 @@ export default function AdminSettingsPage() {
                 <dd>{data.paymentProvider}</dd>
                 <dt className="t-caption">Gateway credentials</dt>
                 <dd>
-                  {data.paymentConfigured ? 'Key and salt configured on server' : 'Not configured'}
-                  {data.paymentMode === 'live' ? ' · live' : ' · test mode — no real money moves'}
+                  {data.paymentConfigured ? 'API key and token configured on server' : 'Not configured'}
+                  {data.paymentConfigured && !data.webhookVerification
+                    ? ' · no salt, so webhooks cannot be verified'
+                    : ''}
                 </dd>
                 <dt className="t-caption">SMS provider</dt>
                 <dd>
