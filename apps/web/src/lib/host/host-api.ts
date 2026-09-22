@@ -97,6 +97,18 @@ export type HostKycStatus = {
   canSubmitListing: boolean;
 };
 
+export type AgreementAcceptance = {
+  id: string;
+  signatureName: string;
+  acceptedAt: string;
+  agreement: { id: string; version: number; title: string };
+};
+
+export type HostAgreementView = {
+  agreement: { id: string; version: number; title: string; body: string; publishedAt: string };
+  acceptance: AgreementAcceptance | null;
+};
+
 export const hostApi = {
   kyc: () => apiClient.get<HostKycStatus>('/api/owner/kyc'),
   requestKycPhoneOtp: (phone: string) =>
@@ -137,6 +149,18 @@ export const hostApi = {
   becomeHost: () =>
     apiClient.post<{ id: string; email: string; name: string; role: string; alreadyHost: boolean }>(
       '/api/owner/become-host',
+    ),
+  /*
+    The host agreement a listing must be signed against before submission.
+    The text is written by an admin and versioned; `acceptance` is this
+    listing's signature against the current version, or null.
+  */
+  agreement: (propertyId?: string) =>
+    apiClient.get<HostAgreementView>(`/api/owner/agreement${toQueryString({ propertyId })}`),
+  signAgreement: (body: { propertyId: string; signatureName: string }) =>
+    apiClient.post<{ acceptance: AgreementAcceptance; alreadySigned: boolean }>(
+      '/api/owner/agreement/sign',
+      body,
     ),
   profile: () => apiClient.get<OwnerProfile>('/api/owner/profile'),
   updateProfile: (body: { name?: string; businessName?: string; gstNumber?: string; panNumber?: string }) =>

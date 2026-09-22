@@ -13,6 +13,7 @@ import { paginated } from '../../common/pagination';
 import { slugify } from '../../common/slug';
 import { isUuid } from '../../common/uuid';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AgreementsService } from '../agreements/agreements.service';
 import { MailService } from '../mail/mail.service';
 import { propertySubmittedEmail } from '../mail/templates';
 import type { RequestUser } from '../auth/auth.types';
@@ -41,6 +42,7 @@ export class PropertiesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly agreements: AgreementsService,
   ) {}
 
   async create(user: RequestUser, dto: CreatePropertyDto) {
@@ -216,6 +218,16 @@ export class PropertiesService {
         user.role !== UserRoles.ADMIN
       ) {
         await this.assertHostVerified(property.ownerId);
+        /*
+          The host agreement — bookings, money transfer, payouts — must be
+          signed against its current version for THIS listing before it can
+          enter the queue. Enforced here, not only in the wizard, so a direct
+          API call cannot skip the signature.
+        */
+        await this.agreements.assertSignedForSubmission(
+          property.ownerId,
+          property.id,
+        );
         // Count the photos this request will leave behind, not the stored set,
         // so submitting and re-photographing in one call is judged correctly.
         const photoCount =

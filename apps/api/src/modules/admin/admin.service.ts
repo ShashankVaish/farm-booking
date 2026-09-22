@@ -34,6 +34,7 @@ import {
   PlatformSettingsService,
   type EditableSettingKey,
 } from '../settings/platform-settings.service';
+import { AgreementsService } from '../agreements/agreements.service';
 import { MailService } from '../mail/mail.service';
 import { CouponsService } from '../coupons/coupons.service';
 import { CreateCouponDto } from '../coupons/dto/create-coupon.dto';
@@ -87,6 +88,7 @@ export class AdminService {
     private readonly bookingsService: BookingsService,
     private readonly platformSettings: PlatformSettingsService,
     private readonly mail: MailService,
+    private readonly agreements: AgreementsService,
   ) {}
 
   async overview() {
@@ -428,6 +430,9 @@ export class AdminService {
       isPartyFriendly: property.isPartyFriendly,
       isTrusted: property.isTrusted,
       trustedAt: property.trustedAt,
+      // Who signed the host agreement for this listing, and whether that
+      // signature is against the version currently in force.
+      agreement: await this.agreements.acceptanceForProperty(property.id),
       createdAt: property.createdAt,
       updatedAt: property.updatedAt,
       location: {

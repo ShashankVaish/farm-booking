@@ -23,6 +23,7 @@ import { OwnerModule } from './modules/owner/owner.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { PropertiesModule } from './modules/properties/properties.module';
+import { AgreementsModule } from './modules/agreements/agreements.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { SearchModule } from './modules/search/search.module';
 import { SupportModule } from './modules/support/support.module';
@@ -101,6 +102,7 @@ import { PrismaModule } from './prisma/prisma.module';
     CouponsModule,
     AmenitiesModule,
     PropertiesModule,
+    AgreementsModule,
     SearchModule,
     AvailabilityModule,
     BookingsModule,
