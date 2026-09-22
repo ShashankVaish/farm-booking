@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AgreementsModule } from '../agreements/agreements.module';
 import { BookingsModule } from '../bookings/bookings.module';
 import { CouponsModule } from '../coupons/coupons.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -17,6 +18,7 @@ import { PayoutsService } from './payouts.service';
     ReviewsModule,
     PricingModule,
     BookingsModule,
+    AgreementsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService, PayoutsService],

@@ -356,6 +356,28 @@ from the admin panel.
 
 ---
 
+## Host agreement
+
+Hosts must sign the host agreement (bookings, money transfer, payouts) for each
+listing before it can be submitted for approval. The API enforces this — a
+direct call without a signature is refused with `AGREEMENT_REQUIRED`.
+
+- **Only admins write the text**, at **Admin → Host agreement**. Every save
+  publishes a new version; old versions are kept because signatures point at
+  the exact text signed. Republishing identical text is refused.
+- A host who signed an older version is asked to sign again on their next
+  submission. The admin's property review page shows who signed, when, from
+  which IP, and whether that signature is against the version now in force.
+- The migration seeds **version 1** with a starting text so nothing is blocked
+  on day one. Review it on the admin page and publish your own wording as
+  version 2 before the first real host submits.
+
+Responsive audit note: `npm run audit:responsive` now signs in when
+`AUDIT_EMAIL` / `AUDIT_PASSWORD` are set, so the host wizard is audited as a
+host sees it rather than as its sign-in gate.
+
+---
+
 ## Still outstanding
 
 These are known gaps, not steps in the release:

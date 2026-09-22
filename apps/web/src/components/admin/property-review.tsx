@@ -307,6 +307,45 @@ export function PropertyReview({ propertyId }: { propertyId: string }) {
             </div>
 
             <div className={styles.column}>
+              {/*
+                The signed host agreement, shown above the owner's identity
+                because it is the reviewer's first question: has this host
+                accepted the booking and payout terms for THIS listing, and
+                against the text that is currently in force? A signature on an
+                older version is shown but flagged — the host will be asked to
+                sign again before their next submission.
+              */}
+              <section className={styles.card}>
+                <h2 className={styles.cardTitle}>Host agreement</h2>
+                {data.agreement?.acceptance ? (
+                  <div className={styles.rows}>
+                    <Row label="Signed as">{data.agreement.acceptance.signatureName}</Row>
+                    <Row label="By">
+                      {data.agreement.acceptance.user.name} · {data.agreement.acceptance.user.email}
+                    </Row>
+                    <Row label="When">{formatDateTime(data.agreement.acceptance.acceptedAt)}</Row>
+                    <Row label="Version">
+                      v{data.agreement.acceptance.agreement.version}
+                      {data.agreement.current ? (
+                        <span className={cn(styles.kyc, styles.kycYes)}>Current</span>
+                      ) : (
+                        <span className={cn(styles.kyc, styles.kycNo)}>
+                          Superseded — v{data.agreement.activeVersion} is live
+                        </span>
+                      )}
+                    </Row>
+                    {data.agreement.acceptance.ipAddress ? (
+                      <Row label="From IP">{data.agreement.acceptance.ipAddress}</Row>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className={styles.missing}>
+                    Not signed. A listing cannot be submitted for approval without a signature, so
+                    this should only be blank for a draft.
+                  </p>
+                )}
+              </section>
+
               <section className={styles.card}>
                 <h2 className={styles.cardTitle}>Owner</h2>
                 <div className={styles.rows}>

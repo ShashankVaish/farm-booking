@@ -4,6 +4,19 @@ import { PropertiesService } from './properties.service';
 import { canManageProperty } from './property-status';
 import type { RequestUser } from '../auth/auth.types';
 
+/** Signature gate stub: signed by default, so existing tests stay about photos and mail. */
+function agreementsStub(signed = true) {
+  return {
+    assertSignedForSubmission: signed
+      ? jest.fn().mockResolvedValue(undefined)
+      : jest.fn().mockRejectedValue(
+          Object.assign(new Error('Please read and sign the Host Agreement'), {
+            response: { errorCode: 'AGREEMENT_REQUIRED' },
+          }),
+        ),
+  };
+}
+
 /** The service only uses mail to alert admins; nothing under test sends. */
 function mailStub() {
   return {
@@ -59,7 +72,11 @@ describe('property ownership authorization', () => {
         }),
       },
     };
-    const service = new PropertiesService(prisma as never, mailStub() as never);
+    const service = new PropertiesService(
+      prisma as never,
+      mailStub() as never,
+      agreementsStub() as never,
+    );
     await expect(service.getById(id, customer)).rejects.toBeInstanceOf(
       NotFoundException,
     );
@@ -79,7 +96,11 @@ describe('property ownership authorization', () => {
         findUnique: jest.fn().mockResolvedValue(listing),
       },
     };
-    const service = new PropertiesService(prisma as never, mailStub() as never);
+    const service = new PropertiesService(
+      prisma as never,
+      mailStub() as never,
+      agreementsStub() as never,
+    );
     await expect(
       service.getById('courtyard-lonavala', customer),
     ).resolves.toMatchObject({ slug: 'courtyard-lonavala' });
@@ -90,7 +111,11 @@ describe('property ownership authorization', () => {
   });
 
   it('rejects invalid map coordinates on create', async () => {
-    const service = new PropertiesService({} as never, mailStub() as never);
+    const service = new PropertiesService(
+      {} as never,
+      mailStub() as never,
+      agreementsStub() as never,
+    );
     await expect(
       service.create(owner, {
         title: 'Farm',
@@ -122,7 +147,7 @@ describe('submitting a listing for review', () => {
     name: 'Owner',
   };
 
-  function setup(currentStatus = 'DRAFT', photoCount = 1) {
+  function setup(currentStatus = 'DRAFT', photoCount = 1, signed = true) {
     const saved = { id: 'p1', status: 'PENDING_APPROVAL' };
     const tx = {
       propertyAmenity: { deleteMany: jest.fn(), createMany: jest.fn() },
@@ -163,10 +188,16 @@ describe('submitting a listing for review', () => {
       $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
     };
     const mail = mailStub();
+    const agreements = agreementsStub(signed);
     return {
-      service: new PropertiesService(prisma as never, mail as never),
+      service: new PropertiesService(
+        prisma as never,
+        mail as never,
+        agreements as never,
+      ),
       mail,
       prisma,
+      agreements,
     };
   }
 
@@ -187,6 +218,34 @@ describe('submitting a listing for review', () => {
     await expect(service.update('p1', owner, submit)).rejects.toMatchObject({
       response: expect.objectContaining({ errorCode: 'VALIDATION_ERROR' }),
     });
+  });
+
+  it('refuses to enter the queue until the host agreement is signed', async () => {
+    /*
+      The agreement — bookings, money transfer, payouts — is the client's
+      condition for approval. The wizard asks for the signature, but this is
+      the check that holds when the wizard is bypassed with a direct API call.
+    */
+    const { service, mail } = setup('DRAFT', 1, false);
+    await expect(service.update('p1', owner, submit)).rejects.toMatchObject({
+      response: expect.objectContaining({ errorCode: 'AGREEMENT_REQUIRED' }),
+    });
+    expect(mail.sendQuietly).not.toHaveBeenCalled();
+  });
+
+  it('checks the signature for this listing and this owner', async () => {
+    const { service, agreements } = setup('DRAFT');
+    await service.update('p1', owner, submit);
+    expect(agreements.assertSignedForSubmission).toHaveBeenCalledWith(
+      owner.id,
+      'p1',
+    );
+  });
+
+  it('does not ask for a signature on an ordinary edit', async () => {
+    const { service, agreements } = setup('DRAFT');
+    await service.update('p1', owner, { title: 'New name' });
+    expect(agreements.assertSignedForSubmission).not.toHaveBeenCalled();
   });
 
   it('emails the admin inbox when a listing enters the queue', async () => {

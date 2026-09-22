@@ -141,6 +141,8 @@ model User {
   supportTickets         SupportTicket[]
   refreshTokens          RefreshToken[]
   auditLogs              AuditLog[]
+  agreementsAuthored     HostAgreement[]
+  agreementAcceptances   HostAgreementAcceptance[]
   otpChallenges          OtpChallenge[]
 
   @@index([role])
@@ -244,6 +246,7 @@ model Property {
   wishlistItems WishlistItem[]
   documents     PropertyDocument[]
   bookingNights BookingNight[]
+  agreementAcceptances HostAgreementAcceptance[]
 
   @@index([city, status])
   @@index([state])
@@ -625,4 +628,49 @@ model PropertyDocument {
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@index([propertyId, status])
+}
+
+// --- Host agreement ----------------------------------------------------------
+//
+// The terms a host signs before a listing can be submitted for approval:
+// bookings, money transfer, payouts and the rest. Only an admin writes it.
+// Every save is a new version and the old ones are never edited or deleted,
+// because a signature means "I agreed to *this* text" — an acceptance row
+// points at the exact version that was on screen when the host signed.
+model HostAgreement {
+  id          String   @id @default(uuid())
+  version     Int      @unique
+  title       String
+  body        String   @db.Text
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  createdById String?
+
+  createdBy   User?                     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  acceptances HostAgreementAcceptance[]
+
+  @@index([isActive])
+}
+
+// One row per (agreement version, property). Submitting a listing requires a
+// row for the currently active version, so a host who signed an older text is
+// asked to sign again when the admin changes it.
+model HostAgreementAcceptance {
+  id            String   @id @default(uuid())
+  agreementId   String
+  userId        String
+  propertyId    String
+  // The name the host typed as their signature, kept exactly as typed.
+  signatureName String
+  ipAddress     String?
+  userAgent     String?
+  acceptedAt    DateTime @default(now())
+
+  agreement HostAgreement @relation(fields: [agreementId], references: [id], onDelete: Restrict)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property  Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([agreementId, propertyId])
+  @@index([propertyId])
+  @@index([userId])
 }
