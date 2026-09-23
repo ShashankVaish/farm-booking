@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { StaySearch } from '@/components/hospitality/stay-search';
 import { PropertySection } from '@/components/hospitality/property-section';
 import { Button } from '@/components/ui/button';
@@ -25,15 +24,6 @@ export const metadata = buildPageMetadata({
   description: brand.shortDescription,
   path: '/',
 });
-
-const DESTINATIONS = [
-  { city: 'Lonavala', state: 'Maharashtra' },
-  { city: 'Alibaug', state: 'Maharashtra' },
-  { city: 'Pune', state: 'Maharashtra' },
-  { city: 'Goa', state: 'Goa' },
-  { city: 'Udaipur', state: 'Rajasthan' },
-  { city: 'Jaipur', state: 'Rajasthan' },
-];
 
 export default async function HomePage() {
   const [popular, weekend, party, pool, trusted] = await Promise.all([
@@ -97,23 +87,6 @@ export default async function HomePage() {
             />
           </section>
         )}
-
-        <section style={{ padding: 'var(--space-10) 0' }}>
-          <p className="t-label">Nearby destinations</p>
-          <h2 className="t-h2">Where India gathers</h2>
-          <div className={styles.destGrid} style={{ marginTop: 'var(--space-5)' }}>
-            {DESTINATIONS.map((place) => (
-              <Link
-                key={place.city}
-                className={styles.destCard}
-                href={`/explore?city=${encodeURIComponent(place.city)}`}
-              >
-                <span className="t-h4">{place.city}</span>
-                <span className="t-caption">{place.state}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
 
         <section style={{ padding: 'var(--space-10) 0' }}>
           <p className="t-label">Why choose us</p>
