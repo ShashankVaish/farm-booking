@@ -10,6 +10,7 @@ import { validateEnv } from './config/env.validation';
 import { AdminModule } from './modules/admin/admin.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { AmenitiesModule } from './modules/amenities/amenities.module';
+import { SubscriptionPlansModule } from './modules/subscription-plans/subscription-plans.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AvailabilityModule } from './modules/availability/availability.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
@@ -101,6 +102,7 @@ import { PrismaModule } from './prisma/prisma.module';
     NotificationsModule,
     CouponsModule,
     AmenitiesModule,
+    SubscriptionPlansModule,
     PropertiesModule,
     AgreementsModule,
     SearchModule,
