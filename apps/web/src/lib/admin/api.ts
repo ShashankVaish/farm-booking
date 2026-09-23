@@ -51,6 +51,9 @@ export const adminApi = {
   agreement: () => apiClient.get<AdminAgreementView>('/api/admin/agreement'),
   publishAgreement: (body: { title: string; body: string }) =>
     apiClient.put<AdminAgreementVersion>('/api/admin/agreement', body),
+  /** Any listing's signed agreement, as a PDF, for review or a dispute. */
+  agreementPdf: (propertyId: string) =>
+    apiClient.download(`/api/admin/agreement/property/${propertyId}/pdf`),
   settings: () => apiClient.get<AdminSettings>('/api/admin/settings'),
   updateSettings: (body: { platformFeeBps?: number; bookingExpireMinutes?: number }) =>
     apiClient.patch<AdminSettings>('/api/admin/settings', body),

@@ -12,7 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Legal pages change rarely but must be discoverable: payment providers and
   // reviewers look for them at plain addresses.
-  const legalRoutes = ['/terms', '/terms/guest', '/terms/host', '/privacy', '/refund-policy', '/shipping-and-returns'].map(
+  const legalRoutes = ['/about', '/contact', '/terms', '/terms/guest', '/terms/host', '/privacy', '/refund-policy', '/shipping-and-returns'].map(
     (path) => ({
       url: `${siteUrl}${path}`,
       changeFrequency: 'monthly' as const,

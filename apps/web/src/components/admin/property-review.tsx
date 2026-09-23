@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import { QueryGate, useAdminQuery } from '@/components/admin/use-admin-query';
 import { useToast } from '@/components/providers/toast-provider';
 import { adminApi } from '@/lib/admin/api';
+import { saveBlob } from '@/lib/api/save-file';
 import { formatDateTime, formatInr, statusLabel } from '@/lib/admin/format';
 import type { AdminPropertyDetail } from '@/lib/admin/types';
 import { ApiError } from '@/lib/api/errors';
@@ -71,6 +72,26 @@ export function PropertyReview({ propertyId }: { propertyId: string }) {
   const [target, setTarget] = useState<Moderation | null>(null);
   const [busy, setBusy] = useState(false);
   const [trustBusy, setTrustBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  /*
+    The signed agreement as a file. A reviewer settling a dispute, or answering
+    a payment gateway, needs the document itself rather than a summary of it.
+  */
+  async function downloadAgreement() {
+    setPdfBusy(true);
+    try {
+      const { blob, fileName } = await adminApi.agreementPdf(propertyId);
+      saveBlob(blob, fileName);
+    } catch (err) {
+      notify(
+        err instanceof ApiError ? err.message : 'Could not download the signed agreement.',
+        'error',
+      );
+    } finally {
+      setPdfBusy(false);
+    }
+  }
 
   /*
     The Trusted property badge.
@@ -337,6 +358,16 @@ export function PropertyReview({ propertyId }: { propertyId: string }) {
                     {data.agreement.acceptance.ipAddress ? (
                       <Row label="From IP">{data.agreement.acceptance.ipAddress}</Row>
                     ) : null}
+                    <div style={{ marginTop: 'var(--space-3)' }}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={pdfBusy}
+                        onClick={() => void downloadAgreement()}
+                      >
+                        {pdfBusy ? 'Preparing…' : 'Download signed PDF'}
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <p className={styles.missing}>

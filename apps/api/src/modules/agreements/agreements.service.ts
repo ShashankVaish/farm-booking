@@ -9,6 +9,13 @@ import { ErrorCodes } from '../../common/constants/error-codes';
 import { UserRoles } from '../../common/constants/roles';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { RequestUser } from '../auth/auth.types';
+import { ConfigService } from '@nestjs/config';
+import {
+  pdfFileName,
+  renderAgreementPdf,
+  type SignedAgreement,
+} from './agreement-pdf';
+import { platformIdentity } from './platform-identity';
 import { PublishAgreementDto, SignAgreementDto } from './dto/agreement.dto';
 
 /*
@@ -41,6 +48,7 @@ export class AgreementsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly config: ConfigService,
   ) {}
 
   /** The version hosts are asked to sign right now. */
@@ -178,6 +186,70 @@ export class AgreementsService {
         message: `Please read and sign the ${agreement.title} (version ${agreement.version}) before submitting this listing for approval.`,
       });
     }
+  }
+
+  /**
+   * The signed agreement for a listing, as a PDF.
+   *
+   * Renders whichever version was actually signed — not the version in force
+   * now — because the file is evidence of what the host agreed to. A listing
+   * with no signature has no document, and says so rather than producing an
+   * empty one.
+   *
+   * `requesterId` restricts a host to their own listings; pass null for an
+   * admin, who may download any.
+   */
+  async signedPdf(propertyId: string, requesterId: string | null) {
+    const acceptance = await this.prisma.hostAgreementAcceptance.findFirst({
+      where: {
+        propertyId,
+        ...(requesterId ? { userId: requesterId } : {}),
+      },
+      orderBy: { acceptedAt: 'desc' },
+      include: {
+        agreement: true,
+        user: { select: { name: true, email: true } },
+        property: { select: { id: true, title: true, city: true, state: true } },
+      },
+    });
+
+    if (!acceptance) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.NOT_FOUND,
+        message: 'This listing has no signed agreement.',
+      });
+    }
+
+    const signed: SignedAgreement = {
+      agreement: {
+        version: acceptance.agreement.version,
+        title: acceptance.agreement.title,
+        body: acceptance.agreement.body,
+        publishedAt: acceptance.agreement.createdAt,
+      },
+      acceptance: {
+        signatureName: acceptance.signatureName,
+        acceptedAt: acceptance.acceptedAt,
+        ipAddress: acceptance.ipAddress,
+        userAgent: acceptance.userAgent,
+      },
+      host: {
+        name: acceptance.user.name,
+        email: acceptance.user.email,
+      },
+      property: {
+        id: acceptance.property.id,
+        title: acceptance.property.title,
+        city: acceptance.property.city,
+        state: acceptance.property.state,
+      },
+      platform: platformIdentity((key) => this.config.get<string>(key)),
+    };
+
+    return {
+      fileName: pdfFileName(signed),
+      pdf: await renderAgreementPdf(signed),
+    };
   }
 
   // --- Admin -----------------------------------------------------------------

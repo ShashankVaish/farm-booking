@@ -141,8 +141,69 @@ export function createApiClient(options: ClientOptions = {}) {
     return payload as T;
   }
 
+  /**
+   * Fetches a file rather than JSON.
+   *
+   * `request` always parses the body as JSON, so it cannot carry a PDF. This
+   * repeats only the auth and one-shot refresh around the call — the parts
+   * that must not differ — and returns the bytes with the server's own file
+   * name, taken from Content-Disposition so the two never disagree.
+   */
+  async function download(
+    path: string,
+    retryAfterRefresh = true,
+  ): Promise<{ blob: Blob; fileName: string }> {
+    const headers: Record<string, string> = { Accept: 'application/pdf' };
+    const token = await tokenStore.getAccessToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    let response: Response;
+    try {
+      response = await fetchImpl(resolveUrl(path), {
+        method: 'GET',
+        headers,
+        credentials: 'include',
+      });
+    } catch {
+      throw new NetworkError();
+    }
+
+    if (response.status === 401 && retryAfterRefresh) {
+      const refreshed = await refreshOnce();
+      if (refreshed) {
+        return download(path, false);
+      }
+      tokenStore.setAccessToken?.(null);
+    }
+
+    if (!response.ok) {
+      // A failure still answers in the API's JSON envelope, so the message
+      // reaching the user is the server's own rather than a status code.
+      const payload = (await response.json().catch(() => null)) as unknown;
+      if (isEnvelope(payload) && payload.success === false) {
+        throw new ApiError(
+          response.status,
+          payload.error.code,
+          payload.error.message,
+          payload.error.details,
+        );
+      }
+      throw new ApiError(response.status, 'REQUEST_FAILED', 'The file could not be downloaded.');
+    }
+
+    const disposition = response.headers.get('Content-Disposition') ?? '';
+    const match = /filename="?([^";]+)"?/i.exec(disposition);
+    return {
+      blob: await response.blob(),
+      fileName: match?.[1] ?? path.split('/').pop() ?? 'download',
+    };
+  }
+
   return {
     request,
+    download,
     get: <T>(path: string, requestOptions?: Omit<RequestOptions, 'method' | 'body'>) =>
       request<T>(path, { ...requestOptions, method: 'GET' }),
     post: <T>(path: string, body?: unknown, requestOptions?: Omit<RequestOptions, 'method' | 'body'>) =>

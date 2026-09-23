@@ -62,10 +62,21 @@ const PAGES = [
 const FIND_OVERFLOW = `() => {
   const docWidth = document.documentElement.clientWidth;
   const offenders = [];
-  const insideScroller = (el) => {
+  /*
+    True when some ancestor component deliberately bounds this element: a
+    carousel track, a horizontal scroller, a map's tile pane. Those paint well
+    past their own box on purpose and the clip is the design.
+
+    html and body are excluded on purpose. A page-level overflow-x: hidden is
+    the usual way a real horizontal-overflow bug gets hidden instead of fixed,
+    so treating the document root as intentional containment would suppress
+    exactly the finding this audit exists for.
+  */
+  const containedByAncestor = (el) => {
     for (let p = el.parentElement; p; p = p.parentElement) {
+      if (p === document.body || p === document.documentElement) break;
       const o = getComputedStyle(p).overflowX;
-      if (o === 'auto' || o === 'scroll') return true;
+      if (o === 'auto' || o === 'scroll' || o === 'hidden' || o === 'clip') return true;
     }
     return false;
   };
@@ -74,7 +85,7 @@ const FIND_OVERFLOW = `() => {
     if (style.display === 'none' || style.visibility === 'hidden') continue;
     // A fixed overlay is allowed to sit off-screen while closed.
     if (style.position === 'fixed' && parseFloat(style.opacity) === 0) continue;
-    if (insideScroller(el)) continue;
+    if (containedByAncestor(el)) continue;
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) continue;
     const overhang = Math.round(rect.right - docWidth);

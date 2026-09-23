@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/forms';
 import { ErrorState, Spinner } from '@/components/ui/feedback';
 import { hostApi, type HostAgreementView } from '@/lib/host/host-api';
 import { parseAgreementText } from '@/lib/legal/agreement-text';
 import { ApiError } from '@/lib/api/errors';
+import { saveBlob } from '@/lib/api/save-file';
 import styles from './agreement-signature.module.css';
 
 export type SignatureState = {
@@ -43,6 +45,34 @@ export function AgreementSignature({ propertyId, defaultName, value, onChange, d
   const [view, setView] = useState<HostAgreementView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  /*
+    Kept apart from `error`: that one means the agreement could not be loaded
+    and replaces the whole component, so putting a failed download in it would
+    make the agreement itself disappear behind an error about a file.
+  */
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  /*
+    A host should be able to keep a copy of what they signed, without asking
+    us for it. The file is fetched rather than linked because the API needs a
+    bearer token, which a plain anchor cannot send.
+  */
+  async function downloadPdf() {
+    if (!propertyId) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const { blob, fileName } = await hostApi.agreementPdf(propertyId);
+      saveBlob(blob, fileName);
+    } catch (err) {
+      setDownloadError(
+        err instanceof ApiError ? err.message : 'Could not download the signed agreement.',
+      );
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -124,17 +154,33 @@ export function AgreementSignature({ propertyId, defaultName, value, onChange, d
       </div>
 
       {acceptance ? (
-        <p className={styles.receipt} role="status">
-          Signed as <strong>{acceptance.signatureName}</strong> on{' '}
-          {new Date(acceptance.acceptedAt).toLocaleString('en-IN', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-          })}{' '}
-          for version {acceptance.agreement.version}.
-        </p>
+        <div className={styles.signed}>
+          <p className={styles.receipt} role="status">
+            Signed as <strong>{acceptance.signatureName}</strong> on{' '}
+            {new Date(acceptance.acceptedAt).toLocaleString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+            })}{' '}
+            for version {acceptance.agreement.version}.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={downloading}
+            onClick={() => void downloadPdf()}
+          >
+            {downloading ? 'Preparing…' : 'Download signed PDF'}
+          </Button>
+          {downloadError ? (
+            <p className="t-body-small" role="alert" style={{ color: 'var(--color-error)' }}>
+              {downloadError}
+            </p>
+          ) : null}
+        </div>
       ) : (
         <div className={styles.sign}>
           <label className={styles.agree}>

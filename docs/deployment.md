@@ -368,9 +368,31 @@ direct call without a signature is refused with `AGREEMENT_REQUIRED`.
 - A host who signed an older version is asked to sign again on their next
   submission. The admin's property review page shows who signed, when, from
   which IP, and whether that signature is against the version now in force.
-- The migration seeds **version 1** with a starting text so nothing is blocked
-  on day one. Review it on the admin page and publish your own wording as
-  version 2 before the first real host submits.
+- Migrations seed the agreement text so nothing is blocked on day one. The
+  current seeded version is the full marketplace agreement: it appoints the
+  Platform as the host's **limited payment collection agent** (the clause a
+  payment gateway looks for when onboarding a marketplace), and covers
+  commission, settlement, TDS/GST, cancellations, indemnity, liability,
+  termination and arbitration.
+
+### Before the first real host signs
+
+Three placeholders in the seeded text **must** be replaced at
+**Admin → Host agreement**, or hosts will sign a document with blanks in it:
+
+| Placeholder | Replace with |
+| --- | --- |
+| `[[LEGAL ENTITY NAME]]` | The registered name of the company operating Baagly |
+| `[[REGISTERED OFFICE ADDRESS]]` | Its registered office |
+| `[[CITY]]` | The city for arbitration seat and jurisdiction (appears twice) |
+
+Check the commercial terms match reality before publishing: the Platform
+Service Fee (the text says 5%, matching `PLATFORM_FEE_BPS=500`) and the payout
+window (the text says within 7 business days of check-out). Change either the
+text or the setting so they agree.
+
+**Have a lawyer review the text before commercial launch.** It is a structured
+draft written to match how the platform actually works, not legal advice.
 
 Responsive audit note: `npm run audit:responsive` now signs in when
 `AUDIT_EMAIL` / `AUDIT_PASSWORD` are set, so the host wizard is audited as a

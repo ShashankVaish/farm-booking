@@ -63,6 +63,18 @@
   color: var(--color-text-secondary);
 }
 
+/* The receipt and its download, side by side where there is room. */
+.signed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.signed > .receipt {
+  flex: 1 1 18rem;
+}
+
 .sign {
   display: grid;
   gap: var(--space-4);
