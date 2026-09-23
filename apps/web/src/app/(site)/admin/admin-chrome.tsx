@@ -26,6 +26,7 @@ const LINKS = [
   { href: '/admin/support', label: 'Support' },
   { href: '/admin/notifications', label: 'Notifications' },
   { href: '/admin/reports', label: 'Reports' },
+  { href: '/admin/agreement', label: 'Host agreement' },
   { href: '/admin/settings', label: 'Settings' },
 ];
 

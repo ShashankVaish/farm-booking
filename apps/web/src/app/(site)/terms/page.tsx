@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { POLICY_DOCUMENTS } from '@/lib/legal/policies-content';
 import { TERMS_DOCUMENTS } from '@/lib/legal/terms-content';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 import styles from '@/components/legal/terms.module.css';
@@ -31,6 +32,26 @@ export default function TermsIndexPage() {
       <div className={styles.cards}>
         {TERMS_DOCUMENTS.map((document) => (
           <Link key={document.slug} href={`/terms/${document.slug}`} className={styles.card}>
+            <span className={styles.cardTitle}>{document.title}</span>
+            <span className={styles.cardText}>{document.subtitle}</span>
+            <span className={styles.cardMeta}>
+              {document.sections.length} sections · Read →
+            </span>
+          </Link>
+        ))}
+      </div>
+
+      {/*
+        The policies sit alongside the terms so one "legal" link reaches all of
+        them. They live at the root rather than under /terms because payment
+        providers and privacy regulators expect them at plain addresses.
+      */}
+      <header className={styles.header} style={{ marginTop: 'var(--space-10)' }}>
+        <h2 className={styles.title}>Policies</h2>
+      </header>
+      <div className={styles.cards}>
+        {POLICY_DOCUMENTS.map((document) => (
+          <Link key={document.slug} href={`/${document.slug}`} className={styles.card}>
             <span className={styles.cardTitle}>{document.title}</span>
             <span className={styles.cardText}>{document.subtitle}</span>
             <span className={styles.cardMeta}>

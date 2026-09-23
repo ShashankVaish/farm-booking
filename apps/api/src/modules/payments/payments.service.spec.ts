@@ -31,10 +31,16 @@ describe('payment status machine', () => {
 
 describe('PaymentsService money-safety', () => {
   const provider = {
-    name: 'RAZORPAY',
+    name: 'INSTAMOJO',
+    isConfigured: jest.fn().mockReturnValue(true),
     createIntent: jest.fn(),
+    checkoutForm: jest.fn().mockReturnValue({
+      action: 'https://www.instamojo.com/@baagly/abc',
+      method: 'GET',
+      fields: {},
+    }),
+    parseNotification: jest.fn(),
     verifyPayment: jest.fn(),
-    verifyWebhookSignature: jest.fn(),
     createRefund: jest.fn(),
     fetchOrder: jest.fn(),
     fetchPayment: jest.fn(),
@@ -53,7 +59,6 @@ describe('PaymentsService money-safety', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    provider.verifyWebhookSignature.mockReturnValue(true);
     provider.fetchPayment.mockResolvedValue({
       providerPaymentId: 'pay_1',
       providerOrderId: 'order_1',
@@ -207,16 +212,16 @@ describe('PaymentsService money-safety', () => {
     const payment = pendingPayment();
     const prisma = settlePrisma(payment);
     prisma.payment.findFirst.mockResolvedValue(payment);
+    provider.parseNotification.mockReturnValue({
+      verified: true,
+      providerOrderId: 'order_1',
+      providerPaymentId: 'pay_1',
+      status: 'FAILED',
+      amountPaise: 105000,
+      reason: 'Card declined',
+    });
     const result = await service(prisma).handleWebhook(
-      JSON.stringify({
-        event: 'payment.failed',
-        payload: {
-          payment: {
-            entity: { id: 'pay_1', order_id: 'order_1', status: 'failed' },
-          },
-        },
-      }),
-      'sig',
+      'txnid=order_1&status=failure',
       'evt-fail',
     );
     expect(result).toMatchObject({ failed: true });
@@ -244,20 +249,20 @@ describe('PaymentsService money-safety', () => {
     const prisma = settlePrisma(success);
     prisma.payment.findFirst.mockResolvedValue(success);
     const payments = service(prisma);
-    const webhookBody = JSON.stringify({
-      event: 'payment.captured',
-      payload: {
-        payment: {
-          entity: { id: 'pay_1', order_id: 'order_1', status: 'captured' },
-        },
-      },
+    provider.parseNotification.mockReturnValue({
+      verified: true,
+      providerOrderId: 'order_1',
+      providerPaymentId: 'pay_1',
+      status: 'SUCCESS',
+      amountPaise: 105000,
     });
-    const first = await payments.handleWebhook(webhookBody, 'sig', 'evt-1');
+    const webhookBody = 'txnid=order_1&mihpayid=pay_1&status=success';
+    const first = await payments.handleWebhook(webhookBody, 'evt-1');
     prisma.processedWebhookEvent.findUnique.mockResolvedValue({
       id: 'evt-1',
-      event: 'payment.captured',
+      event: 'instamojo.success',
     });
-    const second = await payments.handleWebhook(webhookBody, 'sig', 'evt-1');
+    const second = await payments.handleWebhook(webhookBody, 'evt-1');
     expect(first).toMatchObject({ idempotent: true });
     expect(second).toMatchObject({ idempotent: true });
     expect(availability.markBooked).not.toHaveBeenCalled();
@@ -525,6 +530,193 @@ describe('PaymentsService money-safety', () => {
       }),
     ).rejects.toMatchObject({
       response: expect.objectContaining({ errorCode: 'FORBIDDEN' }),
+    });
+  });
+});
+
+describe('PaymentsService gateway return', () => {
+  /*
+    The browser arrives here straight from the hosted checkout page. Whatever
+    happens, the answer is a redirect into the site — a guest who has just
+    typed a card number must never be shown an API error.
+  */
+  const provider = {
+    name: 'INSTAMOJO',
+    isConfigured: jest.fn().mockReturnValue(true),
+    createIntent: jest.fn(),
+    checkoutForm: jest.fn(),
+    parseNotification: jest.fn(),
+    verifyPayment: jest.fn(),
+    createRefund: jest.fn(),
+    fetchOrder: jest.fn(),
+    fetchPayment: jest.fn(),
+  };
+  const mail = {
+    brandName: () => 'Baagly',
+    webUrl: () => 'https://baagly.test',
+    sendQuietly: jest.fn().mockResolvedValue(true),
+  };
+
+  function build(
+    bookingStatus: string | null,
+    settle?: () => Promise<unknown>,
+  ) {
+    const prisma = {
+      payment: {
+        findFirst: jest.fn().mockResolvedValue({ bookingId: 'b1' }),
+      },
+      booking: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue(bookingStatus ? { status: bookingStatus } : null),
+      },
+    };
+    const service = new PaymentsService(
+      prisma as never,
+      provider,
+      { notify: jest.fn() } as never,
+      {} as never,
+      {} as never,
+      { get: jest.fn() } as never,
+      { record: jest.fn() } as never,
+      { getNumber: jest.fn().mockReturnValue(30) } as never,
+      mail as never,
+    );
+    if (settle) {
+      jest
+        .spyOn(service, 'settleCapturedPayment')
+        .mockImplementation(settle as never);
+    } else {
+      jest
+        .spyOn(service, 'settleCapturedPayment')
+        .mockResolvedValue({} as never);
+    }
+    jest
+      .spyOn(
+        service as unknown as { markFailed: () => Promise<unknown> },
+        'markFailed',
+      )
+      .mockResolvedValue({ failed: true });
+    return { service, prisma };
+  }
+
+  const success = {
+    verified: true,
+    providerOrderId: 'txn1',
+    providerPaymentId: 'mih1',
+    status: 'SUCCESS',
+    amountPaise: 60000,
+    bookingId: 'b1',
+  };
+
+  it('sends a paid guest to the confirmation page', async () => {
+    provider.parseNotification.mockReturnValue(success);
+    const { service } = build('CONFIRMED');
+    await expect(service.handleReturn('txnid=txn1')).resolves.toEqual({
+      redirectTo: 'https://baagly.test/booking/b1/confirmation',
+    });
+  });
+
+  it('sends a declined guest back to the booking with the outcome', async () => {
+    provider.parseNotification.mockReturnValue({
+      ...success,
+      status: 'FAILED',
+    });
+    const { service } = build('PAYMENT_PENDING');
+    await expect(service.handleReturn('txnid=txn1')).resolves.toEqual({
+      redirectTo: 'https://baagly.test/booking/b1?payment=failed',
+    });
+  });
+
+  it('distinguishes a cancelled attempt from a declined one', async () => {
+    provider.parseNotification.mockReturnValue({
+      ...success,
+      status: 'CANCELLED',
+    });
+    const { service } = build('PAYMENT_PENDING');
+    await expect(service.handleReturn('txnid=txn1')).resolves.toEqual({
+      redirectTo: 'https://baagly.test/booking/b1?payment=cancelled',
+    });
+  });
+
+  it('still settles an UNSIGNED success report, because settlement re-verifies', async () => {
+    /*
+      Instamojo does not sign the browser redirect. Refusing it would strand
+      every paying guest on "awaiting payment" until the webhook arrived. It is
+      safe to act on because settleCapturedPayment fetches the payment from the
+      gateway and checks amount and request — a forged claim confirms nothing.
+    */
+    provider.parseNotification.mockReturnValue({ ...success, verified: false });
+    const { service } = build('CONFIRMED');
+    const result = await service.handleReturn(
+      'payment_id=mih1&payment_status=Credit&payment_request_id=txn1',
+    );
+    expect(service.settleCapturedPayment).toHaveBeenCalledWith('txn1', 'mih1');
+    expect(result.redirectTo).toBe(
+      'https://baagly.test/booking/b1/confirmation',
+    );
+  });
+
+  it('does not record an UNSIGNED failure, only shows it', async () => {
+    // Anyone can type a URL with payment_status=Failed; that must not touch the row.
+    provider.parseNotification.mockReturnValue({
+      ...success,
+      verified: false,
+      status: 'FAILED',
+    });
+    const { service } = build('PAYMENT_PENDING');
+    const result = await service.handleReturn(
+      'payment_status=Failed&payment_request_id=txn1',
+    );
+    const markFailed = (service as unknown as { markFailed: jest.Mock })
+      .markFailed;
+    expect(markFailed).not.toHaveBeenCalled();
+    expect(result.redirectTo).toBe(
+      'https://baagly.test/booking/b1?payment=failed',
+    );
+  });
+
+  it('records a SIGNED failure', async () => {
+    provider.parseNotification.mockReturnValue({
+      ...success,
+      verified: true,
+      status: 'FAILED',
+    });
+    const { service } = build('PAYMENT_PENDING');
+    await service.handleReturn('signed');
+    const markFailed = (service as unknown as { markFailed: jest.Mock })
+      .markFailed;
+    expect(markFailed).toHaveBeenCalled();
+  });
+
+  it('finds the booking from the request id when the report carries none', async () => {
+    provider.parseNotification.mockReturnValue({
+      ...success,
+      bookingId: undefined,
+    });
+    const { service, prisma } = build('CONFIRMED');
+    await service.handleReturn('txnid=txn1');
+    expect(prisma.payment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { providerOrderId: 'txn1' } }),
+    );
+  });
+
+  it('redirects to a safe place when the post is not from the gateway at all', async () => {
+    provider.parseNotification.mockReturnValue(null);
+    const { service } = build(null);
+    await expect(service.handleReturn('garbage')).resolves.toEqual({
+      redirectTo: 'https://baagly.test/dashboard/trips?payment=unknown',
+    });
+  });
+
+  it('turns a settlement failure into a "pending" redirect, not an error page', async () => {
+    // e.g. the gateway's info API timed out while we re-checked the payment.
+    provider.parseNotification.mockReturnValue(success);
+    const { service } = build('PAYMENT_PENDING', () =>
+      Promise.reject(new Error('gateway timeout')),
+    );
+    await expect(service.handleReturn('txnid=txn1')).resolves.toEqual({
+      redirectTo: 'https://baagly.test/booking/b1?payment=pending',
     });
   });
 });

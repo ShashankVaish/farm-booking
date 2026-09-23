@@ -23,6 +23,7 @@ import { OwnerModule } from './modules/owner/owner.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { PropertiesModule } from './modules/properties/properties.module';
+import { AgreementsModule } from './modules/agreements/agreements.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { SearchModule } from './modules/search/search.module';
 import { SupportModule } from './modules/support/support.module';
@@ -52,15 +53,18 @@ import { PrismaModule } from './prisma/prisma.module';
               'req.body.code',
               'req.body.otp',
               'req.body.signature',
-              'req.body.razorpay_signature',
+              'req.body.hash',
+              'req.body.mac',
               'req.body.card',
               'req.body.cvv',
               'req.body.cvc',
               'req.body.otp',
               'TWILIO_AUTH_TOKEN',
-              'RAZORPAY_KEY_SECRET',
-              'RAZORPAY_KEY_ID',
-              'RAZORPAY_WEBHOOK_SECRET',
+              'INSTAMOJO_AUTH_TOKEN',
+              'INSTAMOJO_SALT',
+              'INSTAMOJO_API_KEY',
+              'req.headers.x-api-key',
+              'req.headers.x-auth-token',
               'GOOGLE_MAPS_API_KEY',
               'ADMIN_PASSWORD',
             ],
@@ -98,6 +102,7 @@ import { PrismaModule } from './prisma/prisma.module';
     CouponsModule,
     AmenitiesModule,
     PropertiesModule,
+    AgreementsModule,
     SearchModule,
     AvailabilityModule,
     BookingsModule,

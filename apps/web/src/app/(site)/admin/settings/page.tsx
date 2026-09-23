@@ -168,8 +168,13 @@ export default function AdminSettingsPage() {
                 <dd>{data.environment ?? '—'}</dd>
                 <dt className="t-caption">Payment provider</dt>
                 <dd>{data.paymentProvider}</dd>
-                <dt className="t-caption">Razorpay</dt>
-                <dd>{data.razorpayConfigured ? 'Key configured on server' : 'Not configured'}</dd>
+                <dt className="t-caption">Gateway credentials</dt>
+                <dd>
+                  {data.paymentConfigured ? 'API key and token configured on server' : 'Not configured'}
+                  {data.paymentConfigured && !data.webhookVerification
+                    ? ' · no salt, so webhooks cannot be verified'
+                    : ''}
+                </dd>
                 <dt className="t-caption">SMS provider</dt>
                 <dd>
                   {data.smsProvider}

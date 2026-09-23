@@ -12,6 +12,7 @@ import { TimeField } from '@/components/ui/time-field';
 import { formatSlotRange } from '@/lib/time/clock';
 import { ErrorState, Spinner } from '@/components/ui/feedback';
 import { AvailabilityCalendar } from '@/components/host/availability-calendar';
+import { AgreementSignature, type SignatureState } from '@/components/host/agreement-signature';
 import { ApiError } from '@/lib/api/errors';
 import { hostApi, type AmenityRecord, type HostKycStatus } from '@/lib/host/host-api';
 import { validateListingLocation } from '@/lib/host/listing-location';
@@ -94,9 +95,28 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [kyc, setKyc] = useState<HostKycStatus | null>(null);
+  /*
+    The host agreement signature for this listing. Lives here rather than in
+    the step so it survives moving between steps, and so submit() can send it.
+  */
+  const [signature, setSignature] = useState<SignatureState>({
+    agreementId: null,
+    signed: false,
+    agreed: false,
+    signatureName: '',
+  });
 
   useEffect(() => {
     hostApi.amenities().then(setAmenities).catch(() => setAmenities([]));
+  }, []);
+
+  // The account name, offered as the default signature; never required to match.
+  const [profileName, setProfileName] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    hostApi
+      .me()
+      .then((me) => setProfileName(me.name || undefined))
+      .catch(() => setProfileName(undefined));
   }, []);
 
   useEffect(() => {
@@ -175,6 +195,19 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
         return;
       }
       if (saved.status !== 'PENDING_APPROVAL') {
+        /*
+          Sign before submitting, against the version the host read. The
+          server refuses submission without a signature for the current
+          version, so this order is not optional — and it needs the saved id,
+          which is why signing happens here and not on the step itself.
+        */
+        if (!signature.signed) {
+          await hostApi.signAgreement({
+            propertyId: saved.id,
+            signatureName: signature.signatureName.trim(),
+          });
+          setSignature((current) => ({ ...current, signed: true }));
+        }
         await hostApi.updateProperty(saved.id, { status: 'PENDING_APPROVAL' });
       }
       notify('Submitted for review. You cannot approve your own listing.');
@@ -596,6 +629,15 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
             <Link href="/terms/host">Host Terms &amp; Conditions</Link>, including the accuracy,
             safety and cancellation obligations they set out.
           </p>
+
+          <AgreementSignature
+            propertyId={draft.id || undefined}
+            defaultName={profileName}
+            value={signature}
+            onChange={setSignature}
+            disabled={busy || draft.status === 'PENDING_APPROVAL'}
+          />
+
           {kyc && !kyc.canSubmitListing ? (
             <p className="t-body-small" role="status" style={{ color: 'var(--color-warning)' }}>
               {!kyc.phoneVerified
@@ -603,13 +645,21 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
                 : 'Add your Aadhaar and PAN on the Verification step before submitting.'}
             </p>
           ) : null}
+          {!signature.signed && (!signature.agreed || signature.signatureName.trim().length < 3) ? (
+            <p className="t-caption" role="status">
+              Tick the agreement and type your full name to sign before submitting.
+            </p>
+          ) : null}
           <Button
             onClick={() => void submit()}
             disabled={
-              busy || draft.status === 'PENDING_APPROVAL' || (kyc ? !kyc.canSubmitListing : false)
+              busy ||
+              draft.status === 'PENDING_APPROVAL' ||
+              (kyc ? !kyc.canSubmitListing : false) ||
+              (!signature.signed && (!signature.agreed || signature.signatureName.trim().length < 3))
             }
           >
-            {busy ? 'Submitting…' : 'Submit for approval'}
+            {busy ? 'Submitting…' : signature.signed ? 'Submit for approval' : 'Sign & submit for approval'}
           </Button>
         </div>
       ) : null}

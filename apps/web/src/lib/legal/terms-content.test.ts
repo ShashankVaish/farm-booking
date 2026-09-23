@@ -110,3 +110,27 @@ describe('termsBySlug', () => {
     expect(termsBySlug('')).toBeNull();
   });
 });
+
+describe('policy documents', () => {
+  it('each has a unique slug, numbered sections and a contact section', async () => {
+    const { POLICY_DOCUMENTS } = await import('@/lib/legal/policies-content');
+    const slugs = POLICY_DOCUMENTS.map((d) => d.slug);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    for (const doc of POLICY_DOCUMENTS) {
+      expect(doc.sections.map((s) => s.number)).toEqual(doc.sections.map((_, i) => i + 1));
+      expect(new Set(doc.sections.map((s) => s.id)).size).toBe(doc.sections.length);
+      // A payment provider's reviewer wants a way to reach the merchant.
+      expect(doc.sections.some((s) => s.id === 'contact')).toBe(true);
+      expect(JSON.stringify(doc)).toContain('info@baagly.com');
+    }
+  });
+
+  it('describes the gateway actually in use', async () => {
+    // The privacy policy names the processor; a stale name here would be a
+    // false statement to every guest.
+    const { PRIVACY_POLICY } = await import('@/lib/legal/policies-content');
+    const text = JSON.stringify(PRIVACY_POLICY);
+    expect(text).toContain('Instamojo');
+    expect(text).not.toMatch(/Razorpay|PayU/);
+  });
+});

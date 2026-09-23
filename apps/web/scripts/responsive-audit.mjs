@@ -39,21 +39,53 @@ const PAGES = [
   '/terms',
   '/terms/guest',
   '/terms/host',
+  '/privacy',
+  '/refund-policy',
+  '/shipping-and-returns',
   '/host',
   '/host/properties/new',
   '/dashboard',
   '/design-system',
 ];
 
-/** Elements that stick out past the viewport, worst first. */
+/**
+ * Elements that stick out past the viewport, worst first.
+ *
+ * Content inside an element that scrolls horizontally on purpose (a chip row,
+ * a wide table in an overflow-x:auto wrapper) is skipped: extending past the
+ * edge is what those are for. Everything else that extends past the viewport
+ * is a defect even when the page does not scroll sideways — an ancestor with
+ * overflow:hidden turns a wide layout into invisible content, which is exactly
+ * how the listing wizard lost its right-hand side on phones without this
+ * script noticing.
+ */
 const FIND_OVERFLOW = `() => {
   const docWidth = document.documentElement.clientWidth;
   const offenders = [];
+  /*
+    True when some ancestor component deliberately bounds this element: a
+    carousel track, a horizontal scroller, a map's tile pane. Those paint well
+    past their own box on purpose and the clip is the design.
+
+    html and body are excluded on purpose. A page-level overflow-x: hidden is
+    the usual way a real horizontal-overflow bug gets hidden instead of fixed,
+    so treating the document root as intentional containment would suppress
+    exactly the finding this audit exists for.
+  */
+  const containedByAncestor = (el) => {
+    for (let p = el.parentElement; p; p = p.parentElement) {
+      if (p === document.body || p === document.documentElement) break;
+      const o = getComputedStyle(p).overflowX;
+      if (o === 'auto' || o === 'scroll' || o === 'hidden' || o === 'clip') return true;
+    }
+    return false;
+  };
   for (const el of document.querySelectorAll('body *')) {
     const style = getComputedStyle(el);
     if (style.display === 'none' || style.visibility === 'hidden') continue;
     // A fixed overlay is allowed to sit off-screen while closed.
     if (style.position === 'fixed' && parseFloat(style.opacity) === 0) continue;
+    if (containedByAncestor(el)) continue;
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) continue;
     const overhang = Math.round(rect.right - docWidth);
@@ -94,6 +126,26 @@ const browser = await chromium.launch();
 let failures = 0;
 const smallTargets = new Map();
 
+/*
+  With AUDIT_EMAIL and AUDIT_PASSWORD set, every viewport is audited signed in.
+  Without them the host and dashboard pages render their sign-in gate, which
+  is a real page but not the one that matters — the wizard's phone layout was
+  broken for weeks while this script reported the gate as fine.
+*/
+async function signIn(context) {
+  const email = process.env.AUDIT_EMAIL;
+  const password = process.env.AUDIT_PASSWORD;
+  if (!email || !password) return false;
+  const page = await context.newPage();
+  await page.goto(`${BASE}/auth/login`, { waitUntil: 'networkidle', timeout: 45000 });
+  await page.getByLabel(/email/i).first().fill(email);
+  await page.getByLabel(/password/i).first().fill(password);
+  await page.getByRole('button', { name: /sign in|log in/i }).first().click();
+  await page.waitForTimeout(2500);
+  await page.close();
+  return true;
+}
+
 for (const viewport of VIEWPORTS) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
@@ -101,7 +153,8 @@ for (const viewport of VIEWPORTS) {
     hasTouch: viewport.width < 768,
     deviceScaleFactor: 2,
   });
-  console.log(`\n=== ${viewport.name} (${viewport.width}px) ===`);
+  const signedIn = await signIn(context);
+  console.log(`\n=== ${viewport.name} (${viewport.width}px)${signedIn ? ' · signed in' : ''} ===`);
 
   for (const path of PAGES) {
     const page = await context.newPage();
@@ -119,11 +172,14 @@ for (const viewport of VIEWPORTS) {
         clientWidth: document.documentElement.clientWidth,
       }));
       const overflow = metrics.scrollWidth - metrics.clientWidth;
+      const offenders = await page.evaluate(`(${FIND_OVERFLOW})()`);
+      const clipped = offenders[0]?.overhang ?? 0;
 
-      if (overflow > 1) {
+      if (overflow > 1 || clipped > 1) {
         failures += 1;
-        const offenders = await page.evaluate(`(${FIND_OVERFLOW})()`);
-        console.log(`  ✗ ${path}  [${status}]  overflows by ${overflow}px`);
+        console.log(
+          `  ✗ ${path}  [${status}]  ${overflow > 1 ? `overflows by ${overflow}px` : `content clipped by ${clipped}px`}`,
+        );
         for (const item of offenders) {
           console.log(`      +${item.overhang}px  <${item.tag}> ${item.cls} ${item.text ? '· ' + item.text : ''}`);
         }

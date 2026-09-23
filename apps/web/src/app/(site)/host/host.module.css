@@ -1,7 +1,23 @@
 .frame {
   display: grid;
+  /*
+    An explicit minmax(0, 1fr) column, even in the single-column phone layout.
+
+    Without it the implicit grid track sizes to its content's min-content
+    width, and the host pages contain rows that cannot wrap — the step chips,
+    the section nav, wide tables. The track grew to ~1200px on a 412px phone,
+    an ancestor clipped the overflow, and the wizard's right-hand side simply
+    vanished off screen. minmax(0, …) lets the track shrink so those rows'
+    own `overflow-x: auto` scrollers can do their job.
+  */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-8);
   padding: var(--space-6) 0 var(--space-16);
+}
+
+/* The content column must also be allowed to shrink below its content. */
+.frame > * {
+  min-width: 0;
 }
 
 @media (min-width: 1024px) {

@@ -34,6 +34,7 @@ import {
   PlatformSettingsService,
   type EditableSettingKey,
 } from '../settings/platform-settings.service';
+import { AgreementsService } from '../agreements/agreements.service';
 import { MailService } from '../mail/mail.service';
 import { CouponsService } from '../coupons/coupons.service';
 import { CreateCouponDto } from '../coupons/dto/create-coupon.dto';
@@ -87,6 +88,7 @@ export class AdminService {
     private readonly bookingsService: BookingsService,
     private readonly platformSettings: PlatformSettingsService,
     private readonly mail: MailService,
+    private readonly agreements: AgreementsService,
   ) {}
 
   async overview() {
@@ -222,15 +224,22 @@ export class AdminService {
 
   settings() {
     const feeBps = this.pricing.platformFeeBps();
-    const razorpayKey = this.config.get<string>('RAZORPAY_KEY_ID');
+    const gatewayKey = this.config.get<string>('INSTAMOJO_API_KEY')?.trim();
+    const gatewayToken = this.config
+      .get<string>('INSTAMOJO_AUTH_TOKEN')
+      ?.trim();
+    const gatewaySalt = this.config.get<string>('INSTAMOJO_SALT')?.trim();
     return {
       platformFeeBps: feeBps,
       platformFeePercent: feeBps / 100,
       bookingExpireMinutes: this.platformSettings.getNumber(
         'BOOKING_EXPIRE_MINUTES',
       ),
-      paymentProvider: 'RAZORPAY',
-      razorpayConfigured: Boolean(razorpayKey),
+      paymentProvider: 'INSTAMOJO',
+      // Instamojo has no sandbox any more; every configured key is live.
+      paymentMode: 'live',
+      paymentConfigured: Boolean(gatewayKey && gatewayToken),
+      webhookVerification: Boolean(gatewaySalt),
       smsProvider: (
         this.config.get<string>('SMS_PROVIDER') ?? 'console'
       ).toLowerCase(),
@@ -421,6 +430,9 @@ export class AdminService {
       isPartyFriendly: property.isPartyFriendly,
       isTrusted: property.isTrusted,
       trustedAt: property.trustedAt,
+      // Who signed the host agreement for this listing, and whether that
+      // signature is against the version currently in force.
+      agreement: await this.agreements.acceptanceForProperty(property.id),
       createdAt: property.createdAt,
       updatedAt: property.updatedAt,
       location: {
@@ -1140,7 +1152,7 @@ export class AdminService {
    *
    * The refund goes back through the gateway to whatever the guest actually
    * paid with — card, UPI or netbanking. A gateway refund cannot be redirected
-   * to an arbitrary bank account, and `optimum` speed asks Razorpay to settle
+   * to an arbitrary bank account, and `optimum` speed asks the gateway to settle
    * as fast as the instrument allows rather than the usual 5-7 working days.
    *
    * Cancelling frees the nights automatically. `blockDates` additionally marks

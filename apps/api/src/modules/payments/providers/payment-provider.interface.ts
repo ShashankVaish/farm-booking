@@ -13,7 +13,14 @@ export interface CreatePaymentIntentInput {
   amountPaise: number;
   currency: string;
   customerEmail: string;
+  customerName: string;
+  customerPhone?: string | null;
+  description: string;
   receipt: string;
+  /** Where the gateway sends the browser back after checkout. */
+  returnUrl: string;
+  /** Where the gateway posts server-to-server notifications. */
+  webhookUrl: string;
 }
 
 export interface CreatePaymentIntentResult {
@@ -22,6 +29,61 @@ export interface CreatePaymentIntentResult {
   amountPaise: number;
   currency: string;
   status: PaymentIntentStatus;
+  /**
+   * Anything the provider needs again later — a hosted checkout URL, for
+   * instance. Stored on the payment row as-is and handed back to
+   * `checkoutForm`, so the provider never has to re-fetch what it already knew.
+   */
+  metadata?: Record<string, string>;
+}
+
+/**
+ * Everything a hosted-checkout gateway needs to render its payment page for
+ * one attempt. The browser POSTs `fields` to `action` and leaves the site;
+ * the gateway sends it back to the return URL afterwards.
+ */
+export interface CheckoutFormInput {
+  providerOrderId: string;
+  bookingId: string;
+  amountPaise: number;
+  currency: string;
+  description: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  /** Where the gateway sends the browser back, for both outcomes. */
+  returnUrl: string;
+  /** Whatever `createIntent` asked to have kept. */
+  metadata?: Record<string, string> | null;
+}
+
+export interface CheckoutForm {
+  action: string;
+  /** GET is a plain redirect to `action`; POST submits `fields` to it. */
+  method: 'GET' | 'POST';
+  fields: Record<string, string>;
+}
+
+/**
+ * A gateway's report of an attempt's outcome, whether it arrived as the
+ * browser being sent back to the return URL or as a server-to-server webhook.
+ * `verified` means the report's own integrity check passed; it is never on its
+ * own enough to settle — the service still re-fetches the payment from the
+ * gateway before touching a booking.
+ */
+export interface GatewayNotification {
+  /**
+   * True when the report carried a signature we checked. A browser redirect
+   * from a gateway that does not sign redirects is `false` — which is fine,
+   * because settlement re-fetches the payment from the gateway regardless.
+   */
+  verified: boolean;
+  providerOrderId: string;
+  providerPaymentId: string | null;
+  status: PaymentIntentStatus;
+  amountPaise: number | null;
+  bookingId?: string;
+  reason?: string;
 }
 
 export interface VerifyPaymentInput {
@@ -68,11 +130,18 @@ export interface FetchPaymentResult {
 
 export interface PaymentProvider {
   readonly name: string;
+  /** True once the credentials the gateway needs are all present. */
+  isConfigured(): boolean;
   createIntent(
     input: CreatePaymentIntentInput,
   ): Promise<CreatePaymentIntentResult>;
+  checkoutForm(input: CheckoutFormInput): CheckoutForm;
+  /**
+   * Parses and integrity-checks a report the gateway posted to us. Returns
+   * null when the body is not something this gateway would send.
+   */
+  parseNotification(rawBody: string): GatewayNotification | null;
   verifyPayment(input: VerifyPaymentInput): Promise<VerifyPaymentResult>;
-  verifyWebhookSignature(rawBody: string, signature: string): boolean;
   createRefund(input: CreateRefundInput): Promise<CreateRefundResult>;
   fetchOrder(providerOrderId: string): Promise<FetchOrderResult | null>;
   fetchPayment(providerPaymentId: string): Promise<FetchPaymentResult | null>;

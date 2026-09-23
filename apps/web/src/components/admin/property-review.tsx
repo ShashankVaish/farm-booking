@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import { QueryGate, useAdminQuery } from '@/components/admin/use-admin-query';
 import { useToast } from '@/components/providers/toast-provider';
 import { adminApi } from '@/lib/admin/api';
+import { saveBlob } from '@/lib/api/save-file';
 import { formatDateTime, formatInr, statusLabel } from '@/lib/admin/format';
 import type { AdminPropertyDetail } from '@/lib/admin/types';
 import { ApiError } from '@/lib/api/errors';
@@ -71,6 +72,26 @@ export function PropertyReview({ propertyId }: { propertyId: string }) {
   const [target, setTarget] = useState<Moderation | null>(null);
   const [busy, setBusy] = useState(false);
   const [trustBusy, setTrustBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  /*
+    The signed agreement as a file. A reviewer settling a dispute, or answering
+    a payment gateway, needs the document itself rather than a summary of it.
+  */
+  async function downloadAgreement() {
+    setPdfBusy(true);
+    try {
+      const { blob, fileName } = await adminApi.agreementPdf(propertyId);
+      saveBlob(blob, fileName);
+    } catch (err) {
+      notify(
+        err instanceof ApiError ? err.message : 'Could not download the signed agreement.',
+        'error',
+      );
+    } finally {
+      setPdfBusy(false);
+    }
+  }
 
   /*
     The Trusted property badge.
@@ -307,6 +328,55 @@ export function PropertyReview({ propertyId }: { propertyId: string }) {
             </div>
 
             <div className={styles.column}>
+              {/*
+                The signed host agreement, shown above the owner's identity
+                because it is the reviewer's first question: has this host
+                accepted the booking and payout terms for THIS listing, and
+                against the text that is currently in force? A signature on an
+                older version is shown but flagged — the host will be asked to
+                sign again before their next submission.
+              */}
+              <section className={styles.card}>
+                <h2 className={styles.cardTitle}>Host agreement</h2>
+                {data.agreement?.acceptance ? (
+                  <div className={styles.rows}>
+                    <Row label="Signed as">{data.agreement.acceptance.signatureName}</Row>
+                    <Row label="By">
+                      {data.agreement.acceptance.user.name} · {data.agreement.acceptance.user.email}
+                    </Row>
+                    <Row label="When">{formatDateTime(data.agreement.acceptance.acceptedAt)}</Row>
+                    <Row label="Version">
+                      v{data.agreement.acceptance.agreement.version}
+                      {data.agreement.current ? (
+                        <span className={cn(styles.kyc, styles.kycYes)}>Current</span>
+                      ) : (
+                        <span className={cn(styles.kyc, styles.kycNo)}>
+                          Superseded — v{data.agreement.activeVersion} is live
+                        </span>
+                      )}
+                    </Row>
+                    {data.agreement.acceptance.ipAddress ? (
+                      <Row label="From IP">{data.agreement.acceptance.ipAddress}</Row>
+                    ) : null}
+                    <div style={{ marginTop: 'var(--space-3)' }}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={pdfBusy}
+                        onClick={() => void downloadAgreement()}
+                      >
+                        {pdfBusy ? 'Preparing…' : 'Download signed PDF'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className={styles.missing}>
+                    Not signed. A listing cannot be submitted for approval without a signature, so
+                    this should only be blank for a draft.
+                  </p>
+                )}
+              </section>
+
               <section className={styles.card}>
                 <h2 className={styles.cardTitle}>Owner</h2>
                 <div className={styles.rows}>

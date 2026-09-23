@@ -2,6 +2,8 @@ import { apiClient } from '@/lib/api/client';
 import { toQueryString } from '@/lib/api/query';
 import type { AuthUser } from '@/lib/properties/types';
 import type {
+  AdminAgreementVersion,
+  AdminAgreementView,
   AdminAmenity,
   AdminBooking,
   AdminCoupon,
@@ -41,6 +43,17 @@ export const adminApi = {
   me: () => apiClient.get<AuthUser>('/api/auth/me'),
   overview: () => apiClient.get<AdminOverview>('/api/admin/overview'),
   reports: (query: AdminListQuery = {}) => apiClient.get<AdminReports>(listPath('reports', query)),
+  /*
+    The host agreement. Only admins can write it, and every save is a new
+    version — there is deliberately no edit-in-place, because hosts sign a
+    specific version.
+  */
+  agreement: () => apiClient.get<AdminAgreementView>('/api/admin/agreement'),
+  publishAgreement: (body: { title: string; body: string }) =>
+    apiClient.put<AdminAgreementVersion>('/api/admin/agreement', body),
+  /** Any listing's signed agreement, as a PDF, for review or a dispute. */
+  agreementPdf: (propertyId: string) =>
+    apiClient.download(`/api/admin/agreement/property/${propertyId}/pdf`),
   settings: () => apiClient.get<AdminSettings>('/api/admin/settings'),
   updateSettings: (body: { platformFeeBps?: number; bookingExpireMinutes?: number }) =>
     apiClient.patch<AdminSettings>('/api/admin/settings', body),

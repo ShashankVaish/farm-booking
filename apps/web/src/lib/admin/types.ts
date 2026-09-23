@@ -53,6 +53,7 @@ export type AdminPropertyDetail = {
   /** The admin-awarded trust badge. Set only through the two admin routes. */
   isTrusted: boolean;
   trustedAt: string | null;
+  agreement?: PropertyAgreementView;
   createdAt: string;
   updatedAt: string;
   location: {
@@ -265,7 +266,9 @@ export type AdminSettings = {
   platformFeePercent: number;
   bookingExpireMinutes: number;
   paymentProvider: string;
-  razorpayConfigured: boolean;
+  paymentMode: 'test' | 'live';
+  paymentConfigured: boolean;
+  webhookVerification: boolean;
   smsProvider: string;
   smsConfigured: boolean;
   mailProvider: string;
@@ -343,4 +346,35 @@ export type AdminPayoutStatement = {
     onHold: string;
   };
   hosts: PayoutHost[];
+};
+
+export type AdminAgreementVersion = {
+  id: string;
+  version: number;
+  title: string;
+  body: string;
+  isActive: boolean;
+  createdAt: string;
+  createdBy?: { id: string; name: string; email: string } | null;
+  _count?: { acceptances: number };
+};
+
+export type AdminAgreementView = {
+  active: AdminAgreementVersion | null;
+  versions: AdminAgreementVersion[];
+};
+
+/** Who signed the host agreement for a listing, as shown on the review page. */
+export type PropertyAgreementView = {
+  acceptance: {
+    id: string;
+    signatureName: string;
+    acceptedAt: string;
+    ipAddress: string | null;
+    agreement: { id: string; version: number; title: string };
+    user: { id: string; name: string; email: string };
+  } | null;
+  /** True only if the signature is against the version currently in force. */
+  current: boolean;
+  activeVersion: number | null;
 };

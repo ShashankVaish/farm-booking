@@ -296,6 +296,110 @@ migrated the schema, restore the dump from step 3a instead.
 
 ---
 
+## Payments — Instamojo
+
+The API takes payments through Instamojo (API v1.1). The server creates a
+*payment request*, the guest is redirected to Instamojo's hosted page, pays,
+and is sent back to the site.
+
+### Server configuration (`.env.production`)
+
+| Name | Value |
+| --- | --- |
+| `INSTAMOJO_API_KEY` | From Dashboard → Integrations |
+| `INSTAMOJO_AUTH_TOKEN` | Same page. 32 characters — a 33-character paste is the classic mistake and gets `Invalid Auth Token` |
+| `INSTAMOJO_SALT` | Same page ("Private Salt"). Verifies webhooks; without it every webhook is rejected |
+
+All three are live credentials: Instamojo no longer has a separate test host
+(`test.instamojo.com` does not resolve). Test with small amounts and refund
+them from the admin panel. Instamojo's minimum is **₹9** — a cheaper test
+listing will be refused with a readable message on the checkout page.
+
+The API logs redact all three, plus the `X-Api-Key`/`X-Auth-Token` request
+headers and the webhook `mac`.
+
+### Instamojo dashboard
+
+Nothing to configure for URLs. Every payment request carries its own
+`redirect_url` (`${WEB_APP_URL}/api/payments/return`) and `webhook`
+(`${WEB_APP_URL}/api/payments/webhook`), both derived from `WEB_APP_URL` and
+reached through the site's `/api` proxy.
+
+### How settlement is protected
+
+The browser redirect from Instamojo is **not signed**, so it is treated only as
+a hint. Before any booking is confirmed the API fetches the payment from
+Instamojo and checks that it is credited, belongs to this payment request, and
+matches the booking total. The webhook *is* signed (HMAC-SHA1 with the salt)
+and is verified before it is acted on. A forged redirect therefore confirms
+nothing — it was tested in a browser — and a guest whose redirect arrives before
+Instamojo has recorded the payment sees "could not confirm yet" and the page
+re-checks every six seconds.
+
+### Verify
+
+```bash
+# the return route answers with a redirect, not an error, even for junk
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}
+'   'https://api.baagly.com/api/payments/return?payment_id=x&payment_status=Credit&payment_request_id=nope'
+# expected: 302 https://www.baagly.com/dashboard/trips?payment=unknown
+
+# the webhook rejects an unsigned post
+curl -s -w ' %{http_code}
+' -X POST https://api.baagly.com/api/payments/webhook   -d 'payment_id=x&status=Credit&payment_request_id=y&mac=bad'
+# expected: {"success":false,...} 400
+```
+
+Then make one real payment of a small amount from the site, confirm the
+booking flips to confirmed and the confirmation email arrives, and refund it
+from the admin panel.
+
+---
+
+## Host agreement
+
+Hosts must sign the host agreement (bookings, money transfer, payouts) for each
+listing before it can be submitted for approval. The API enforces this — a
+direct call without a signature is refused with `AGREEMENT_REQUIRED`.
+
+- **Only admins write the text**, at **Admin → Host agreement**. Every save
+  publishes a new version; old versions are kept because signatures point at
+  the exact text signed. Republishing identical text is refused.
+- A host who signed an older version is asked to sign again on their next
+  submission. The admin's property review page shows who signed, when, from
+  which IP, and whether that signature is against the version now in force.
+- Migrations seed the agreement text so nothing is blocked on day one. The
+  current seeded version is the full marketplace agreement: it appoints the
+  Platform as the host's **limited payment collection agent** (the clause a
+  payment gateway looks for when onboarding a marketplace), and covers
+  commission, settlement, TDS/GST, cancellations, indemnity, liability,
+  termination and arbitration.
+
+### Before the first real host signs
+
+Three placeholders in the seeded text **must** be replaced at
+**Admin → Host agreement**, or hosts will sign a document with blanks in it:
+
+| Placeholder | Replace with |
+| --- | --- |
+| `[[LEGAL ENTITY NAME]]` | The registered name of the company operating Baagly |
+| `[[REGISTERED OFFICE ADDRESS]]` | Its registered office |
+| `[[CITY]]` | The city for arbitration seat and jurisdiction (appears twice) |
+
+Check the commercial terms match reality before publishing: the Platform
+Service Fee (the text says 5%, matching `PLATFORM_FEE_BPS=500`) and the payout
+window (the text says within 7 business days of check-out). Change either the
+text or the setting so they agree.
+
+**Have a lawyer review the text before commercial launch.** It is a structured
+draft written to match how the platform actually works, not legal advice.
+
+Responsive audit note: `npm run audit:responsive` now signs in when
+`AUDIT_EMAIL` / `AUDIT_PASSWORD` are set, so the host wizard is audited as a
+host sees it rather than as its sign-in gate.
+
+---
+
 ## Still outstanding
 
 These are known gaps, not steps in the release:
@@ -308,8 +412,6 @@ These are known gaps, not steps in the release:
   `www.baagly.com`.
 - `SMS_PROVIDER` is `console`, so mobile OTP codes are only written to the log.
   Set it to `renflair` with a funded `RENFLAIR_API_KEY` before relying on it.
-- `RAZORPAY_WEBHOOK_SECRET` is empty. Payment webhooks are unverified until it
-  is set and the endpoint is registered in the Razorpay dashboard.
 - Uploads exist on one server's disk with no off-box copy. A lost disk loses
   every property photo. Move them to S3/R2, or at minimum rsync
   `uploads_data` off the machine on a schedule.

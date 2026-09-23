@@ -3,11 +3,13 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   BookingStatus,
+  PaymentProviderType,
   PaymentStatus,
   Prisma,
   RefundStatus,
@@ -41,6 +43,7 @@ import {
 import {
   PAYMENT_PROVIDER,
   type FetchPaymentResult,
+  type GatewayNotification,
   type PaymentProvider,
 } from './providers/payment-provider.interface';
 import { CreatePaymentOrderDto, VerifyPaymentDto } from './dto/payment.dto';
@@ -52,28 +55,6 @@ import {
   assertPaymentTransition,
   isOpenPaymentStatus,
 } from './payment-status';
-
-type RazorpayWebhook = {
-  event?: string;
-  payload?: {
-    payment?: {
-      entity?: {
-        id?: string;
-        order_id?: string;
-        status?: string;
-        amount?: number;
-      };
-    };
-    refund?: {
-      entity?: {
-        id?: string;
-        payment_id?: string;
-        status?: string;
-        amount?: number;
-      };
-    };
-  };
-};
 
 // The customer is pulled in so a confirmation email can name the guest to
 // the host. Selecting just the name keeps the password hash out of the row.
@@ -89,6 +70,8 @@ const paymentBookingInclude = {
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
@@ -155,7 +138,11 @@ export class PaymentsService {
 
     const booking = await this.prisma.booking.findUnique({
       where: { id: dto.bookingId },
-      include: { customer: true, payments: true },
+      include: {
+        customer: true,
+        payments: true,
+        property: { select: { title: true } },
+      },
     });
     if (!booking) {
       throw new NotFoundException({
@@ -195,7 +182,7 @@ export class PaymentsService {
         payment.providerOrderId && isOpenPaymentStatus(payment.status),
     );
     if (existing?.providerOrderId) {
-      return this.orderPayload(existing);
+      return this.orderPayload(existing, booking);
     }
 
     const expiresAt = new Date(Date.now() + this.expireMinutes() * 60 * 1000);
@@ -227,7 +214,12 @@ export class PaymentsService {
           amountPaise,
           currency: booking.currency,
           customerEmail: booking.customer.email,
+          customerName: booking.customer.name,
+          customerPhone: booking.customer.phone,
+          description: booking.property?.title ?? 'Stay booking',
           receipt: `bk${booking.id.replace(/-/g, '').slice(0, 38)}`,
+          returnUrl: this.returnUrl(),
+          webhookUrl: this.webhookUrl(),
         });
 
         if (intent.amountPaise !== amountPaise) {
@@ -258,6 +250,7 @@ export class PaymentsService {
               amount: booking.totalAmount,
               currency: booking.currency,
               expiresAt,
+              metadata: intent.metadata ?? undefined,
             },
           });
         }
@@ -265,12 +258,13 @@ export class PaymentsService {
         return tx.payment.create({
           data: {
             bookingId: booking.id,
-            provider: 'RAZORPAY',
+            provider: this.provider.name as PaymentProviderType,
             providerOrderId: intent.providerOrderId,
             amount: booking.totalAmount,
             currency: booking.currency,
             status: PaymentStatus.PENDING,
             expiresAt,
+            metadata: intent.metadata ?? undefined,
           },
         });
       },
@@ -290,7 +284,7 @@ export class PaymentsService {
       },
     });
 
-    return this.orderPayload(payment);
+    return this.orderPayload(payment, booking);
   }
 
   async verifyCheckout(user: RequestUser, dto: VerifyPaymentDto) {
@@ -333,15 +327,23 @@ export class PaymentsService {
     );
   }
 
-  async handleWebhook(
-    rawBody: string,
-    signature: string | undefined,
-    eventIdHeader?: string,
-  ) {
-    if (
-      !signature ||
-      !this.provider.verifyWebhookSignature(rawBody, signature)
-    ) {
+  /**
+   * A server-to-server report from the gateway (its webhook).
+   *
+   * The gateway signs the body with the shared salt, which proves it sent the
+   * report — but settlement still re-fetches the payment from the gateway
+   * inside `settleCapturedPayment`, so the body is treated as a prompt to go
+   * and look, never as the truth about money.
+   */
+  async handleWebhook(rawBody: string, eventIdHeader?: string) {
+    const notification = this.provider.parseNotification(rawBody);
+    if (!notification) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.PAYMENT_NOT_VERIFIED,
+        message: 'Webhook body is not a payment notification.',
+      });
+    }
+    if (!notification.verified) {
       throw new BadRequestException({
         errorCode: ErrorCodes.PAYMENT_NOT_VERIFIED,
         message: 'Invalid webhook signature.',
@@ -357,61 +359,14 @@ export class PaymentsService {
       return { idempotent: true, event: duplicate.event };
     }
 
-    let event: RazorpayWebhook;
-    try {
-      event = JSON.parse(rawBody) as RazorpayWebhook;
-    } catch {
-      throw new BadRequestException({
-        errorCode: ErrorCodes.PAYMENT_NOT_VERIFIED,
-        message: 'Webhook body is not valid JSON.',
-      });
-    }
-    const paymentEntity = event.payload?.payment?.entity;
-    const refundEntity = event.payload?.refund?.entity;
-
-    let result: unknown = { ignored: true, event: event.event };
-
-    if (
-      (event.event === 'payment.captured' || event.event === 'order.paid') &&
-      paymentEntity?.order_id &&
-      paymentEntity.id
-    ) {
-      result = await this.settleCapturedPayment(
-        paymentEntity.order_id,
-        paymentEntity.id,
-      );
-    } else if (event.event === 'payment.failed' && paymentEntity?.order_id) {
-      result = await this.markFailed(
-        paymentEntity.order_id,
-        paymentEntity.status ?? 'failed',
-      );
-    } else if (
-      event.event === 'refund.processed' &&
-      refundEntity?.id &&
-      refundEntity.payment_id
-    ) {
-      result = await this.completeRefundFromProvider(
-        refundEntity.id,
-        refundEntity.payment_id,
-        refundEntity.status ?? 'processed',
-        refundEntity.amount,
-      );
-    } else if (
-      event.event === 'refund.failed' &&
-      refundEntity?.id &&
-      refundEntity.payment_id
-    ) {
-      result = await this.completeRefundFromProvider(
-        refundEntity.id,
-        refundEntity.payment_id,
-        refundEntity.status ?? 'failed',
-        refundEntity.amount,
-      );
-    }
+    const result = await this.applyNotification(notification);
 
     await this.prisma.processedWebhookEvent
       .create({
-        data: { id: eventId, event: event.event ?? 'unknown' },
+        data: {
+          id: eventId,
+          event: `${this.provider.name.toLowerCase()}.${notification.status.toLowerCase()}`,
+        },
       })
       .catch((error: Prisma.PrismaClientKnownRequestError) => {
         if (error.code !== 'P2002') {
@@ -420,6 +375,93 @@ export class PaymentsService {
       });
 
     return result;
+  }
+
+  /**
+   * The browser coming back from the hosted checkout page.
+   *
+   * The gateway posts the outcome to us and we answer with a redirect to the
+   * booking page, so the guest never sees an API URL. The outcome is applied
+   * the same way as a webhook. Nothing here throws to the guest: whatever went
+   * wrong is folded into the redirect target, because a bare 400 page after
+   * a card payment is the worst possible thing to show someone.
+   */
+  async handleReturn(rawBody: string): Promise<{ redirectTo: string }> {
+    const web = this.mail.webUrl();
+    const notification = this.provider.parseNotification(rawBody);
+
+    if (!notification) {
+      return { redirectTo: `${web}/dashboard/trips?payment=unknown` };
+    }
+
+    const bookingId =
+      notification.bookingId ??
+      (
+        await this.prisma.payment.findFirst({
+          where: { providerOrderId: notification.providerOrderId },
+          select: { bookingId: true },
+        })
+      )?.bookingId;
+
+    if (!bookingId) {
+      return { redirectTo: `${web}/dashboard/trips?payment=unknown` };
+    }
+
+    try {
+      /*
+        An unsigned report is not refused here. Some gateways do not sign the
+        browser redirect at all, and even a signed one proves only who sent it.
+        What decides the money is `settleCapturedPayment`, which fetches the
+        payment from the gateway and checks amount and request before it
+        confirms anything — so a success claim is always safe to act on, and a
+        forged one confirms nothing. Only *negative* verdicts are trusted solely
+        from signed reports: an unsigned "failed" is shown, not recorded.
+      */
+      if (notification.verified || notification.status === 'SUCCESS') {
+        await this.applyNotification(notification);
+      }
+      // Read the outcome back rather than interpreting the settlement result:
+      // the booking's own status is the only thing the guest is redirected on.
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: bookingId },
+        select: { status: true },
+      });
+      const settled =
+        booking?.status === BookingStatus.CONFIRMED ||
+        booking?.status === BookingStatus.COMPLETED;
+      if (settled) {
+        return { redirectTo: `${web}/booking/${bookingId}/confirmation` };
+      }
+      const outcome =
+        notification.status === 'CANCELLED' ? 'cancelled' : 'failed';
+      return { redirectTo: `${web}/booking/${bookingId}?payment=${outcome}` };
+    } catch (error: unknown) {
+      this.logger.error(
+        `Could not apply the return for ${notification.providerOrderId}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+      return { redirectTo: `${web}/booking/${bookingId}?payment=pending` };
+    }
+  }
+
+  private async applyNotification(notification: GatewayNotification) {
+    if (notification.status === 'SUCCESS' && notification.providerPaymentId) {
+      return this.settleCapturedPayment(
+        notification.providerOrderId,
+        notification.providerPaymentId,
+      );
+    }
+    if (
+      notification.status === 'FAILED' ||
+      notification.status === 'CANCELLED'
+    ) {
+      return this.markFailed(
+        notification.providerOrderId,
+        notification.reason ?? notification.status.toLowerCase(),
+      );
+    }
+    return { ignored: true, status: notification.status };
   }
 
   async requestRefundForBooking(
@@ -1160,24 +1202,80 @@ export class PaymentsService {
     return this.settings.getNumber('BOOKING_EXPIRE_MINUTES');
   }
 
-  private orderPayload(payment: {
-    id: string;
-    provider: string;
-    providerOrderId: string | null;
-    amount: Prisma.Decimal;
-    currency: string;
-  }) {
+  /**
+   * What the checkout page needs to send the guest to the gateway. The form is
+   * rebuilt on every call rather than stored: it is derived entirely from the
+   * payment row and the salt, and a stored copy would go stale the moment
+   * either changed.
+   */
+  private orderPayload(
+    payment: {
+      id: string;
+      provider: string;
+      providerOrderId: string | null;
+      amount: Prisma.Decimal;
+      currency: string;
+      metadata?: Prisma.JsonValue | null;
+    },
+    booking: {
+      id: string;
+      customer: { name: string; email: string; phone: string | null };
+      property?: { title: string } | null;
+    },
+  ) {
+    const checkout = payment.providerOrderId
+      ? this.provider.checkoutForm({
+          providerOrderId: payment.providerOrderId,
+          bookingId: booking.id,
+          amountPaise: moneyToPaise(payment.amount),
+          currency: payment.currency,
+          description: booking.property?.title ?? 'Stay booking',
+          customerName: booking.customer.name,
+          customerEmail: booking.customer.email,
+          customerPhone: booking.customer.phone,
+          returnUrl: this.returnUrl(),
+          metadata: stringRecord(payment.metadata),
+        })
+      : null;
+
     return {
       paymentId: payment.id,
       provider: payment.provider,
       providerOrderId: payment.providerOrderId,
       amount: payment.amount,
       currency: payment.currency,
-      keyId: this.keyId(),
+      checkout,
     };
   }
 
-  private keyId(): string | null {
-    return process.env.RAZORPAY_KEY_ID ?? null;
+  /**
+   * Where the gateway sends the browser back. Goes through the site's own
+   * host by default, so the guest lands on the same origin their session
+   * cookie lives on — the site proxies `/api/*` to this server.
+   */
+  private returnUrl(): string {
+    const explicit = this.config.get<unknown>('PAYMENT_RETURN_URL');
+    if (typeof explicit === 'string' && explicit.trim()) return explicit.trim();
+    return `${this.mail.webUrl()}/api/payments/return`;
   }
+
+  /**
+   * The webhook gets its own route: it expects a 200 with a body, where the
+   * return route answers with a redirect meant for a browser.
+   */
+  private webhookUrl(): string {
+    const explicit = this.config.get<unknown>('PAYMENT_WEBHOOK_URL');
+    if (typeof explicit === 'string' && explicit.trim()) return explicit.trim();
+    return `${this.mail.webUrl()}/api/payments/webhook`;
+  }
+}
+
+/** The string-valued entries of a payment row's JSON metadata. */
+function stringRecord(value: Prisma.JsonValue | null | undefined) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const out: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === 'string') out[key] = entry;
+  }
+  return out;
 }

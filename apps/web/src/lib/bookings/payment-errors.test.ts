@@ -20,8 +20,31 @@ describe('payErrorMessage', () => {
       new ApiError(503, 'PAYMENT_PROVIDER_ERROR', 'Unable to create a payment order.'),
       'fallback',
     );
-    expect(message).toContain('payment gateway is not responding');
+    expect(message).toContain('Unable to create a payment order');
     expect(message).toContain('Your booking is saved');
+  });
+
+  it('keeps a specific gateway message the guest can act on', () => {
+    // Seen live: an unactivated merchant account. "Try again shortly" would
+    // have been wrong advice — nothing changes until the merchant finishes KYC.
+    const message = payErrorMessage(
+      new ApiError(
+        503,
+        'PAYMENT_PROVIDER_ERROR',
+        'Payments are not enabled on the Instamojo account yet. The merchant needs to complete Instamojo KYC and activation.',
+      ),
+      'fallback',
+    );
+    expect(message).toContain('not enabled on the Instamojo account');
+    expect(message).toContain('Your booking is saved');
+  });
+
+  it('replaces machine text from the gateway with the calm generic line', () => {
+    const message = payErrorMessage(
+      new ApiError(503, 'PAYMENT_PROVIDER_ERROR', 'Payment gateway timed out. Try again without creating a new booking.'),
+      'fallback',
+    );
+    expect(message).toContain('payment gateway is not responding');
   });
 
   it('passes through guest-facing 4xx messages unchanged', () => {
