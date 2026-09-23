@@ -22,6 +22,7 @@ const LINKS = [
   { href: '/admin/payouts', label: 'Payouts' },
   { href: '/admin/coupons', label: 'Coupons' },
   { href: '/admin/amenities', label: 'Amenities' },
+  { href: '/admin/plans', label: 'Host plans' },
   { href: '/admin/reviews', label: 'Reviews' },
   { href: '/admin/support', label: 'Support' },
   { href: '/admin/notifications', label: 'Notifications' },

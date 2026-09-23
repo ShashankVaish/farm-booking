@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { toQueryString } from '@/lib/api/query';
+import type { SubscriptionPlan } from '@/lib/plans/plans';
 import type { AuthUser } from '@/lib/properties/types';
 import type {
   AdminAgreementVersion,
@@ -115,6 +116,12 @@ export const adminApi = {
   updateAmenity: (id: string, body: { name?: string; icon?: string }) =>
     apiClient.patch<AdminAmenity>(`/api/admin/amenities/${id}`, body),
   deleteAmenity: (id: string) => apiClient.delete(`/api/admin/amenities/${id}`),
+  subscriptionPlans: () => apiClient.get<SubscriptionPlan[]>('/api/admin/subscription-plans'),
+  createSubscriptionPlan: (body: Record<string, unknown>) =>
+    apiClient.post<SubscriptionPlan>('/api/admin/subscription-plans', body),
+  updateSubscriptionPlan: (id: string, body: Record<string, unknown>) =>
+    apiClient.patch<SubscriptionPlan>(`/api/admin/subscription-plans/${id}`, body),
+  deleteSubscriptionPlan: (id: string) => apiClient.delete(`/api/admin/subscription-plans/${id}`),
   reviews: (query: AdminListQuery = {}) =>
     apiClient.get<AdminList<AdminReview>>(listPath('reviews', query)),
   moderateReview: (id: string, isPublished: boolean) =>

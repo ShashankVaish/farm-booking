@@ -133,7 +133,7 @@ model User {
 
   ownerProfile           OwnerProfile?
   properties             Property[]
-  bookings               Booking[]               @relation("CustomerBookings")
+  bookings               Booking[]                 @relation("CustomerBookings")
   reviews                Review[]
   wishlistItems          WishlistItem[]
   notifications          Notification[]
@@ -197,55 +197,55 @@ model PlatformSetting {
 }
 
 model Property {
-  id                 String         @id @default(uuid())
+  id                 String       @id @default(uuid())
   ownerId            String
   title              String
-  slug               String         @unique
-  description        String         @db.Text
+  slug               String       @unique
+  description        String       @db.Text
   propertyType       PropertyType
   location           String
   city               String
   state              String
-  country            String         @default("India")
+  country            String       @default("India")
   pincode            String?
   address            String
-  latitude           Decimal        @db.Decimal(10, 7)
-  longitude          Decimal        @db.Decimal(10, 7)
+  latitude           Decimal      @db.Decimal(10, 7)
+  longitude          Decimal      @db.Decimal(10, 7)
   guestCapacity      Int
   bedrooms           Int
   bathrooms          Int
-  basePrice          Decimal        @db.Decimal(12, 2)
-  weekendPrice       Decimal?       @db.Decimal(12, 2)
-  extraGuestCharge   Decimal?       @db.Decimal(12, 2)
-  partyRules         String?        @db.Text
-  propertyRules      String?        @db.Text
-  cancellationPolicy String?        @db.Text
-  isPartyFriendly    Boolean        @default(false)
-  isAdultOnly        Boolean        @default(false)
-  isCoupleFriendly   Boolean        @default(false)
+  basePrice          Decimal      @db.Decimal(12, 2)
+  weekendPrice       Decimal?     @db.Decimal(12, 2)
+  extraGuestCharge   Decimal?     @db.Decimal(12, 2)
+  partyRules         String?      @db.Text
+  propertyRules      String?      @db.Text
+  cancellationPolicy String?      @db.Text
+  isPartyFriendly    Boolean      @default(false)
+  isAdultOnly        Boolean      @default(false)
+  isCoupleFriendly   Boolean      @default(false)
 
   // Awarded by an admin after a manual check, never set by the host. It is
   // deliberately absent from CreatePropertyDto and UpdatePropertyDto, so a host
   // sending `isTrusted` is rejected outright by the global validation pipe
   // rather than having the field quietly ignored.
-  isTrusted          Boolean        @default(false)
-  trustedAt          DateTime?
-  averageRating      Decimal        @default(0) @db.Decimal(3, 2)
-  reviewCount        Int            @default(0)
-  status             PropertyStatus @default(DRAFT)
-  deletedAt          DateTime?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  isTrusted     Boolean        @default(false)
+  trustedAt     DateTime?
+  averageRating Decimal        @default(0) @db.Decimal(3, 2)
+  reviewCount   Int            @default(0)
+  status        PropertyStatus @default(DRAFT)
+  deletedAt     DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  owner         User               @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  images        PropertyImage[]
-  amenities     PropertyAmenity[]
-  availability  Availability[]
-  bookings      Booking[]
-  reviews       Review[]
-  wishlistItems WishlistItem[]
-  documents     PropertyDocument[]
-  bookingNights BookingNight[]
+  owner                User                      @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  images               PropertyImage[]
+  amenities            PropertyAmenity[]
+  availability         Availability[]
+  bookings             Booking[]
+  reviews              Review[]
+  wishlistItems        WishlistItem[]
+  documents            PropertyDocument[]
+  bookingNights        BookingNight[]
   agreementAcceptances HostAgreementAcceptance[]
 
   @@index([city, status])
@@ -673,4 +673,28 @@ model HostAgreementAcceptance {
   @@unique([agreementId, propertyId])
   @@index([propertyId])
   @@index([userId])
+}
+
+// Monthly plans a host can subscribe to for listing properties. Admins author
+// them; the host dashboard shows the active ones as a price list. Subscribing
+// happens off-site for now (the host contacts the team), so nothing here
+// records which host picked which plan and listing creation is not limited by
+// it.
+model SubscriptionPlan {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  monthlyPrice Decimal  @db.Decimal(12, 2)
+  // Listings the plan covers; null means unlimited.
+  listingLimit Int?
+  // Shown as a bullet list on the plan card, in this order.
+  features     String[]
+  isActive     Boolean  @default(true)
+  // Highlights the card as the recommended plan.
+  isFeatured   Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
 }

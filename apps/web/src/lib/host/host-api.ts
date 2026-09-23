@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { toQueryString } from '@/lib/api/query';
+import type { SubscriptionPlan } from '@/lib/plans/plans';
 import type { AuthUser, AvailabilityDay, Paginated, ApiProperty, ApiReview } from '@/lib/properties/types';
 
 export type OwnerOverview = {
@@ -110,6 +111,7 @@ export type HostAgreementView = {
 };
 
 export const hostApi = {
+  plans: () => apiClient.get<SubscriptionPlan[]>('/api/subscription-plans', { auth: false }),
   kyc: () => apiClient.get<HostKycStatus>('/api/owner/kyc'),
   requestKycPhoneOtp: (phone: string) =>
     apiClient.post<{ sent: true; phone: string; expiresAt: string; resendAvailableAt: string }>(
