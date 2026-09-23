@@ -172,54 +172,276 @@
   color: var(--color-text-primary);
 }
 
+/*
+  The footer.
+
+  Four regions: the brand with its contact details, three groups of links, and
+  a statutory disclosure bar beneath a rule. It carries real weight — ten
+  destinations plus the business identity the law requires — so it is laid out
+  as columns rather than a single stack, and only collapses to one column when
+  there is genuinely no room.
+
+  The hairline at the top is a gradient rather than a flat border: it reads as
+  the page ending rather than as one more divider between sections.
+*/
 .footer {
-  border-top: 1px solid var(--color-border);
-  padding: var(--space-8) 0 var(--space-10);
+  position: relative;
+  margin-top: var(--space-12);
+  /*
+    The extra bottom padding clears the fixed mobile bottom nav.
+
+    `.main` already pads for it, but the footer is a SIBLING that follows
+    main — so that padding does nothing here, and the nav was sitting on top
+    of the statutory business disclosure, hiding the registered address
+    entirely on a phone. The allowance is removed at 768px, where the bottom
+    nav itself is hidden.
+  */
+  padding: var(--space-10) 0
+    calc(var(--space-10) + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(
+      120% 100% at 50% 0%,
+      color-mix(in srgb, var(--color-primary) 5%, transparent) 0%,
+      transparent 62%
+    ),
+    var(--color-background);
+}
+
+.footer::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-border) 18%,
+    color-mix(in srgb, var(--color-primary) 45%, var(--color-border)) 50%,
+    var(--color-border) 82%,
+    transparent 100%
+  );
 }
 
 .footerInner {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: var(--space-8);
+}
+
+.footerTop {
+  display: grid;
+  gap: var(--space-8);
+}
+
+/* --- Brand column --------------------------------------------------------- */
+
+.footerBrand {
+  display: grid;
   gap: var(--space-4);
+  align-content: start;
+  /* Long enough to read comfortably, short enough not to crowd the links. */
+  max-width: 24rem;
+  min-width: 0;
 }
 
-.footerNav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3) var(--space-5);
+.footerTagline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-h4);
+  line-height: var(--lh-h4);
+  color: var(--color-text-secondary);
 }
 
-/* Footer links measured 22px tall on a phone, below the 24px minimum a tap
-   target needs (WCAG 2.5.8). The row gap absorbs the extra height, so nothing
-   moves visually on desktop. */
-.footerNav a {
+.contactList {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+  Contact rows. `--color-primary` is a fill, not a text colour — as type on
+  dark it only reaches about 4:1 — so the link takes the primary TEXT token
+  and the icon takes the fill, where it is decoration rather than something to
+  read.
+*/
+.contactLink,
+.contactHours {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch);
+  font-size: var(--fs-body-small);
+  line-height: var(--lh-body);
+}
+
+.contactLink {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  transition: color 0.16s ease;
+}
+
+.contactLink:hover,
+.contactLink:focus-visible {
+  color: var(--color-primary-text);
+}
+
+.contactHours {
+  color: var(--color-text-muted);
+}
+
+.contactIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--color-primary);
+}
+
+/* --- Link groups ---------------------------------------------------------- */
+
+.footerGroups {
+  display: grid;
+  gap: var(--space-6) var(--space-5);
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  min-width: 0;
+}
+
+.footerGroup {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  min-width: 0;
+}
+
+.groupHeading {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-caption);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.groupList {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+  A link that underlines from the left on hover. The underline is a pseudo
+  element rather than text-decoration so it can animate, and it is hidden from
+  anyone who has asked for less motion.
+*/
+.groupLink {
+  position: relative;
   display: inline-flex;
   align-items: center;
   min-height: var(--touch);
   font-size: var(--fs-body-small);
   color: var(--color-text-secondary);
+  transition: color 0.16s ease;
 }
 
+.groupLink::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0.65rem;
+  height: 1px;
+  width: 100%;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.18s ease;
+}
+
+.groupLink:hover,
+.groupLink:focus-visible {
+  color: var(--color-text-primary);
+}
+
+.groupLink:hover::after,
+.groupLink:focus-visible::after {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .groupLink::after {
+    transition: none;
+  }
+}
+
+/* --- Statutory disclosure ------------------------------------------------- */
+
 /*
-  Support block. Given its own row above the fine print so the number is not
-  mistaken for another footer link, and sized as a tap target because on a
-  phone the whole point of it is that you can dial it.
+  Quiet, but legible and selectable: a reader may need to copy the GSTIN or the
+  address, and a reviewer needs to find them without hunting.
 */
-.support {
-  display: flex;
-  flex-direction: column;
+.legal {
+  display: grid;
   gap: var(--space-1);
-  padding-top: var(--space-4);
+  padding-top: var(--space-5);
   border-top: 1px solid var(--color-border);
 }
 
-.supportLink {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--touch);
-  color: var(--color-primary);
-  font-weight: var(--font-weight-medium);
-  white-space: nowrap;
+.legalLine {
+  margin: 0;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-body);
+  color: var(--color-text-secondary);
+  /* GSTIN and the address are long; let them wrap rather than overflow. */
+  overflow-wrap: anywhere;
+}
+
+/*
+  Colour, not weight. DM Serif ships a single weight, so `font-weight: 600`
+  here is a browser-synthesised bold — and at caption size the thickened
+  strokes of a serif run together and read as if the word were struck
+  through. The brand name stands out against the secondary text around it
+  without any of that.
+*/
+.legalBrand {
+  color: var(--color-text-primary);
+  font-weight: inherit;
+}
+
+.legalFine {
+  margin: 0;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-body);
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 768px) {
+  .footer {
+    /* The bottom nav is hidden from here up, so the allowance goes away. */
+    padding-bottom: var(--space-10);
+  }
+
+  .footerTop {
+    /* Brand on the left, link groups filling the rest. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+    gap: var(--space-10);
+  }
+}
+
+@media (min-width: 1024px) {
+  .footer {
+    padding: var(--space-12) 0 var(--space-10);
+  }
+
+  .footerTop {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr);
+    gap: var(--space-12);
+  }
+
+  .legal {
+    padding-top: var(--space-6);
+  }
 }
 
 .bottomNav {

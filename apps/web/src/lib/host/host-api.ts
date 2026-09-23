@@ -157,6 +157,9 @@ export const hostApi = {
   */
   agreement: (propertyId?: string) =>
     apiClient.get<HostAgreementView>(`/api/owner/agreement${toQueryString({ propertyId })}`),
+  /** The host's own signed agreement for a listing, as a PDF. */
+  agreementPdf: (propertyId: string) =>
+    apiClient.download(`/api/owner/agreement/${propertyId}/pdf`),
   signAgreement: (body: { propertyId: string; signatureName: string }) =>
     apiClient.post<{ acceptance: AgreementAcceptance; alreadySigned: boolean }>(
       '/api/owner/agreement/sign',

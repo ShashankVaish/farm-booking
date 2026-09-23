@@ -1,3 +1,4 @@
+import { addressLine, business } from '@/lib/config/business';
 import type { TermsDocument } from '@/lib/legal/terms-content';
 
 /*
@@ -155,14 +156,18 @@ export const PRIVACY_POLICY: TermsDocument = {
     {
       id: 'contact',
       number: 8,
-      title: 'Contact',
+      title: 'Who we are, and how to reach us',
       blocks: [
         {
           kind: 'list',
           items: [
+            // Naming the controller is what makes a privacy policy actionable:
+            // a reader has to know whom to make a request to.
+            `Baagly is operated by ${business.entity}, GSTIN ${business.gstin}. That business is the data controller for the personal data described in this policy.`,
+            `Address: ${addressLine()}`,
             'Email: info@baagly.com',
             'Phone: +91 99977 60912, every day 9am – 9pm IST',
-            'Questions about this policy, or about your data, can be sent to either.',
+            'Questions about this policy, or a request about your data, can be sent to either.',
           ],
         },
       ],
@@ -275,6 +280,8 @@ export const REFUND_POLICY: TermsDocument = {
         {
           kind: 'list',
           items: [
+            `Baagly is operated by ${business.entity}, GSTIN ${business.gstin}.`,
+            `Address: ${addressLine()}`,
             'Email: info@baagly.com',
             'Phone: +91 99977 60912, every day 9am – 9pm IST',
             'Please quote your booking ID, shown on your booking page and in your confirmation email.',
@@ -327,7 +334,12 @@ export const SHIPPING_AND_RETURNS: TermsDocument = {
       blocks: [
         {
           kind: 'list',
-          items: ['Email: info@baagly.com', 'Phone: +91 99977 60912, every day 9am – 9pm IST'],
+          items: [
+            `Baagly is operated by ${business.entity}, GSTIN ${business.gstin}.`,
+            `Address: ${addressLine()}`,
+            'Email: info@baagly.com',
+            'Phone: +91 99977 60912, every day 9am – 9pm IST',
+          ],
         },
       ],
     },

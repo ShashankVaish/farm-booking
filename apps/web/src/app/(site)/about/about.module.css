@@ -1,0 +1,96 @@
+.page {
+  padding: var(--space-10) 0 var(--space-16);
+  max-width: 48rem;
+}
+
+.header {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+.lead {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--color-text-secondary);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-7);
+  margin-top: var(--space-7);
+  border-top: 1px solid var(--color-border);
+}
+
+.section:first-of-type {
+  border-top: 0;
+  margin-top: 0;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: var(--fs-body-small);
+  line-height: var(--lh-body);
+  color: var(--color-text-secondary);
+}
+
+.list strong {
+  color: var(--color-text-primary);
+}
+
+/*
+  The registered-business block. Two columns where there is room, stacked on a
+  phone — a definition list rather than a table so it reflows without a
+  horizontal scroller, which is what a wide table would need at 360px.
+*/
+.details {
+  display: grid;
+  gap: 0;
+  margin: var(--space-2) 0 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.detailRow {
+  display: grid;
+  gap: 0.15rem;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.detailRow:first-child {
+  border-top: 0;
+}
+
+.detailRow dt {
+  font-size: var(--fs-caption);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.detailRow dd {
+  margin: 0;
+  font-size: var(--fs-body-small);
+  line-height: var(--lh-body);
+  color: var(--color-text-primary);
+  /* GSTIN and PAN are long unbroken strings; let them wrap on a phone. */
+  overflow-wrap: anywhere;
+}
+
+.addressLine {
+  display: block;
+}
+
+@media (min-width: 640px) {
+  .detailRow {
+    grid-template-columns: 14rem minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: baseline;
+  }
+}

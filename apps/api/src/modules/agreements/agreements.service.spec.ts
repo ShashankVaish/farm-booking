@@ -61,7 +61,11 @@ function build(
   };
   const audit = { record: jest.fn().mockResolvedValue(undefined) };
   return {
-    service: new AgreementsService(prisma as never, audit as never),
+    service: new AgreementsService(
+      prisma as never,
+      audit as never,
+      { get: () => undefined } as never,
+    ),
     prisma,
     audit,
   };
