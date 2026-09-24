@@ -54,15 +54,19 @@ export class PaymentsController {
   }
 
   /*
-    The gateway sends the guest's browser back here with a form POST after the
-    hosted checkout page, whatever the outcome. We answer with a redirect to
-    the booking page — a person should never be looking at an API response.
+    The gateway sends the guest's browser back here after the hosted checkout
+    page, whatever the outcome. We answer with a redirect to the booking page —
+    a person should never be looking at an API response.
 
     Public and unthrottled by design: it is reached from the gateway's domain
     with no session, and a legitimate guest arriving here after paying must
-    never be turned away. The body is hash-checked and the payment re-fetched
-    from the gateway before anything is settled, so there is nothing to gain
-    by posting to it.
+    never be turned away. Only the order id is read from the request; the
+    outcome is fetched from the gateway, so there is nothing to gain by
+    calling it.
+
+    PhonePe comes back with a GET and our order id in the query string. The
+    POST form is kept for a gateway that posts the browser back; the order id
+    is still read from the URL first, then from the posted body.
   */
   @Public()
   @Post('return')
@@ -70,16 +74,12 @@ export class PaymentsController {
     @Req() request: RawBodyRequest<Request>,
     @Res() response: Response,
   ) {
-    const raw = request.rawBody?.toString('utf8') ?? '';
+    const query = request.url.split('?')[1] ?? '';
+    const raw = query || (request.rawBody?.toString('utf8') ?? '');
     const { redirectTo } = await this.payments.handleReturn(raw);
     response.redirect(302, redirectTo);
   }
 
-  /*
-    Instamojo sends the browser back with a GET and the outcome in the query
-    string, so the same handler accepts that shape too. The query string is
-    passed through as the "body": it is the same urlencoded form either way.
-  */
   @Public()
   @Get('return')
   async gatewayReturnGet(@Req() request: Request, @Res() response: Response) {
@@ -88,12 +88,16 @@ export class PaymentsController {
     response.redirect(302, redirectTo);
   }
 
-  /** Server-to-server notification from the gateway. */
+  /**
+   * Server-to-server notification from the gateway. PhonePe authenticates it
+   * with a hash of the webhook username and password in `Authorization`.
+   */
   @Public()
   @Post('webhook')
   @HttpCode(200)
   webhook(
     @Req() request: RawBodyRequest<Request>,
+    @Headers('authorization') authorization?: string,
     @Headers('x-event-id') eventId?: string,
   ) {
     if (!request.rawBody?.length) {
@@ -103,6 +107,9 @@ export class PaymentsController {
       });
     }
     const raw = request.rawBody.toString('utf8');
-    return this.payments.handleWebhook(raw, eventId);
+    return this.payments.handleWebhook(raw, {
+      authorization,
+      'x-event-id': eventId,
+    });
   }
 }

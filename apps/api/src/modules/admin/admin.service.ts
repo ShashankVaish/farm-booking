@@ -224,22 +224,22 @@ export class AdminService {
 
   settings() {
     const feeBps = this.pricing.platformFeeBps();
-    const gatewayKey = this.config.get<string>('INSTAMOJO_API_KEY')?.trim();
-    const gatewayToken = this.config
-      .get<string>('INSTAMOJO_AUTH_TOKEN')
-      ?.trim();
-    const gatewaySalt = this.config.get<string>('INSTAMOJO_SALT')?.trim();
+    const read = (key: string) => this.config.get<string>(key)?.trim();
+    const gatewayId = read('PHONEPE_CLIENT_ID');
+    const gatewaySecret = read('PHONEPE_CLIENT_SECRET');
+    const webhookUser = read('PHONEPE_WEBHOOK_USERNAME');
+    const webhookPassword = read('PHONEPE_WEBHOOK_PASSWORD');
     return {
       platformFeeBps: feeBps,
       platformFeePercent: feeBps / 100,
       bookingExpireMinutes: this.platformSettings.getNumber(
         'BOOKING_EXPIRE_MINUTES',
       ),
-      paymentProvider: 'INSTAMOJO',
-      // Instamojo has no sandbox any more; every configured key is live.
-      paymentMode: 'live',
-      paymentConfigured: Boolean(gatewayKey && gatewayToken),
-      webhookVerification: Boolean(gatewaySalt),
+      paymentProvider: 'PHONEPE',
+      paymentMode:
+        read('PHONEPE_ENV')?.toUpperCase() === 'PRODUCTION' ? 'live' : 'test',
+      paymentConfigured: Boolean(gatewayId && gatewaySecret),
+      webhookVerification: Boolean(webhookUser && webhookPassword),
       smsProvider: (
         this.config.get<string>('SMS_PROVIDER') ?? 'console'
       ).toLowerCase(),

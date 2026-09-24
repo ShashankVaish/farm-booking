@@ -296,57 +296,73 @@ migrated the schema, restore the dump from step 3a instead.
 
 ---
 
-## Payments — Instamojo
+## Payments — PhonePe
 
-The API takes payments through Instamojo (API v1.1). The server creates a
-*payment request*, the guest is redirected to Instamojo's hosted page, pays,
-and is sent back to the site.
+The API takes payments through the PhonePe Payment Gateway (Standard Checkout
+v2). The server creates an *order*, the guest is redirected to PhonePe's hosted
+page, pays by UPI, card or netbanking, and is sent back to the site.
 
 ### Server configuration (`.env.production`)
 
 | Name | Value |
 | --- | --- |
-| `INSTAMOJO_API_KEY` | From Dashboard → Integrations |
-| `INSTAMOJO_AUTH_TOKEN` | Same page. 32 characters — a 33-character paste is the classic mistake and gets `Invalid Auth Token` |
-| `INSTAMOJO_SALT` | Same page ("Private Salt"). Verifies webhooks; without it every webhook is rejected |
+| `PHONEPE_ENV` | `PRODUCTION` for live credentials, `SANDBOX` for test-mode ones. Each host refuses the other's credentials |
+| `PHONEPE_CLIENT_ID` | PhonePe Business → Developer Settings |
+| `PHONEPE_CLIENT_SECRET` | Same page |
+| `PHONEPE_CLIENT_VERSION` | Same page; usually `1` |
+| `PHONEPE_WEBHOOK_USERNAME` | The username you set on the webhook (below) |
+| `PHONEPE_WEBHOOK_PASSWORD` | The password you set on the webhook. Without the pair every webhook is rejected |
 
-All three are live credentials: Instamojo no longer has a separate test host
-(`test.instamojo.com` does not resolve). Test with small amounts and refund
-them from the admin panel. Instamojo's minimum is **₹9** — a cheaper test
-listing will be refused with a readable message on the checkout page.
+PhonePe's minimum order is **₹1**. The API logs redact the client secret, the
+webhook password and the `Authorization` header.
 
-The API logs redact all three, plus the `X-Api-Key`/`X-Auth-Token` request
-headers and the webhook `mac`.
+### PhonePe dashboard — webhook
 
-### Instamojo dashboard
+Developer Settings → Webhooks → **Create Webhook**, in the same mode (live or
+test) as the credentials:
 
-Nothing to configure for URLs. Every payment request carries its own
-`redirect_url` (`${WEB_APP_URL}/api/payments/return`) and `webhook`
-(`${WEB_APP_URL}/api/payments/webhook`), both derived from `WEB_APP_URL` and
-reached through the site's `/api` proxy.
+| Field | Value |
+| --- | --- |
+| Webhook URL | `https://www.baagly.com/api/payments/webhook` |
+| Authentication type | **SHA** (username and password) |
+| Username / Password | Letters and digits only; the same values go in `PHONEPE_WEBHOOK_USERNAME` / `PHONEPE_WEBHOOK_PASSWORD` |
+| Active events | `checkout.order.completed`, `checkout.order.failed`, `pg.refund.completed`, `pg.refund.failed` |
+
+The return URL needs no dashboard setting: every order carries its own
+(`${WEB_APP_URL}/api/payments/return?order=<order id>`), derived from
+`WEB_APP_URL` and reached through the site's `/api` proxy.
 
 ### How settlement is protected
 
-The browser redirect from Instamojo is **not signed**, so it is treated only as
-a hint. Before any booking is confirmed the API fetches the payment from
-Instamojo and checks that it is credited, belongs to this payment request, and
-matches the booking total. The webhook *is* signed (HMAC-SHA1 with the salt)
-and is verified before it is acted on. A forged redirect therefore confirms
-nothing — it was tested in a browser — and a guest whose redirect arrives before
-Instamojo has recorded the payment sees "could not confirm yet" and the page
-re-checks every six seconds.
+PhonePe sends the browser back with **nothing** but the order id we put in the
+URL, so the return is never trusted for an outcome: the API asks PhonePe's
+order-status API what happened. Before any booking is confirmed the API checks
+that the order is completed, that the paying attempt belongs to this order, and
+that the amount matches the booking total. The webhook is verified by its
+`Authorization` header (SHA-256 of `username:password`) before it is acted on,
+and even then the order is re-fetched before settling. A guest who backs out of
+PhonePe's page is shown "not confirmed yet"; the order stays payable until it
+expires and the booking page re-checks every few seconds.
+
+Refunds are made against the original order under our own refund id. The
+`pg.refund.completed` / `pg.refund.failed` webhooks settle them; if one is
+missed, the admin's reconcile action on the payment asks PhonePe directly.
+
+Webhooks for orders this site did not create (PhonePe payment links or pages
+made in the dashboard) are acknowledged and ignored.
 
 ### Verify
 
 ```bash
 # the return route answers with a redirect, not an error, even for junk
-curl -s -o /dev/null -w '%{http_code} %{redirect_url}
-'   'https://api.baagly.com/api/payments/return?payment_id=x&payment_status=Credit&payment_request_id=nope'
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' \
+  'https://api.baagly.com/api/payments/return?order=nope'
 # expected: 302 https://www.baagly.com/dashboard/trips?payment=unknown
 
-# the webhook rejects an unsigned post
-curl -s -w ' %{http_code}
-' -X POST https://api.baagly.com/api/payments/webhook   -d 'payment_id=x&status=Credit&payment_request_id=y&mac=bad'
+# the webhook rejects a post without the right Authorization
+curl -s -w ' %{http_code}\n' -X POST https://api.baagly.com/api/payments/webhook \
+  -H 'Content-Type: application/json' -H 'Authorization: bad' \
+  -d '{"event":"checkout.order.completed","payload":{"merchantOrderId":"x","state":"COMPLETED"}}'
 # expected: {"success":false,...} 400
 ```
 

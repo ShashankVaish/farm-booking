@@ -21,6 +21,8 @@ export interface CreatePaymentIntentInput {
   returnUrl: string;
   /** Where the gateway posts server-to-server notifications. */
   webhookUrl: string;
+  /** How long the gateway should keep the order payable. */
+  expiresInSeconds?: number;
 }
 
 export interface CreatePaymentIntentResult {
@@ -72,6 +74,8 @@ export interface CheckoutForm {
  * gateway before touching a booking.
  */
 export interface GatewayNotification {
+  /** What the report is about. Absent means a payment. */
+  kind?: 'payment' | 'refund';
   /**
    * True when the report carried a signature we checked. A browser redirect
    * from a gateway that does not sign redirects is `false` — which is fine,
@@ -84,6 +88,12 @@ export interface GatewayNotification {
   amountPaise: number | null;
   bookingId?: string;
   reason?: string;
+  /** Set when `kind` is 'refund'. */
+  refund?: {
+    providerRefundId: string;
+    /** The gateway's own word for the refund's state, lower-cased. */
+    providerStatus: string;
+  };
 }
 
 export interface VerifyPaymentInput {
@@ -100,6 +110,10 @@ export interface VerifyPaymentResult {
 
 export interface CreateRefundInput {
   providerPaymentId: string;
+  /** The order the payment was made against; some gateways refund by order. */
+  providerOrderId?: string | null;
+  /** Our own id for this refund, used to derive the gateway's refund id. */
+  reference?: string;
   amountPaise: number;
   notes?: string;
   /** 'optimum' asks the gateway for the fastest settlement it can offer. */
@@ -140,11 +154,25 @@ export interface PaymentProvider {
    * Parses and integrity-checks a report the gateway posted to us. Returns
    * null when the body is not something this gateway would send.
    */
-  parseNotification(rawBody: string): GatewayNotification | null;
+  parseNotification(
+    rawBody: string,
+    headers?: Record<string, string | undefined>,
+  ): GatewayNotification | null;
+  /**
+   * The order id from the browser's return to the site, or null. The return
+   * is never trusted for an outcome; the caller asks the gateway.
+   */
+  parseReturn(rawQuery: string): string | null;
   verifyPayment(input: VerifyPaymentInput): Promise<VerifyPaymentResult>;
   createRefund(input: CreateRefundInput): Promise<CreateRefundResult>;
+  fetchRefund(
+    providerRefundId: string,
+  ): Promise<{ providerStatus: string; amountPaise: number | null } | null>;
   fetchOrder(providerOrderId: string): Promise<FetchOrderResult | null>;
-  fetchPayment(providerPaymentId: string): Promise<FetchPaymentResult | null>;
+  fetchPayment(
+    providerPaymentId: string,
+    providerOrderId?: string,
+  ): Promise<FetchPaymentResult | null>;
 }
 
 export const PAYMENT_PROVIDER = Symbol('PAYMENT_PROVIDER');

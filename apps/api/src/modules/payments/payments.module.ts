@@ -5,16 +5,16 @@ import { PricingModule } from '../pricing/pricing.module';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { PAYMENT_PROVIDER } from './providers/payment-provider.interface';
-import { InstamojoProvider } from './providers/instamojo.provider';
+import { PhonePeProvider } from './providers/phonepe.provider';
 
 @Module({
   imports: [NotificationsModule, AvailabilityModule, PricingModule],
   controllers: [PaymentsController],
   providers: [
-    InstamojoProvider,
+    PhonePeProvider,
     {
       provide: PAYMENT_PROVIDER,
-      useExisting: InstamojoProvider,
+      useExisting: PhonePeProvider,
     },
     PaymentsService,
   ],

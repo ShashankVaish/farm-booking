@@ -172,7 +172,7 @@ export default function AdminSettingsPage() {
                 <dd>
                   {data.paymentConfigured ? 'API key and token configured on server' : 'Not configured'}
                   {data.paymentConfigured && !data.webhookVerification
-                    ? ' · no salt, so webhooks cannot be verified'
+                    ? ' · no webhook username/password, so webhooks cannot be verified'
                     : ''}
                 </dd>
                 <dt className="t-caption">SMS provider</dt>
