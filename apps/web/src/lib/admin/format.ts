@@ -60,19 +60,19 @@ export function isPublicPaymentView(view: object) {
  *
  * Every gateway pays refunds out of the merchant balance rather than clawing
  * the money back from the original charge, so the common failure on a young
- * account is simply that the balance is lower than the refund. Instamojo says so in
+ * account is simply that the balance is lower than the refund. PhonePe says so in
  * plain words; a couple of its other phrasings are mapped here too.
  */
 export function refundFailureHint(gatewayStatus?: string | null): string | null {
   if (!gatewayStatus) return null;
   if (/balance|insufficient/i.test(gatewayStatus)) {
-    return 'Top up the Instamojo account balance, then retry the refund. Refunds are paid from the balance, not taken back from the original payment.';
+    return 'Top up the PhonePe account balance, then retry the refund. Refunds are paid from the balance, not taken back from the original payment.';
   }
   if (/already|duplicate/i.test(gatewayStatus)) {
-    return 'Instamojo already has a refund request for this payment. Check its status in the Instamojo dashboard before retrying.';
+    return 'PhonePe already has a refund request for this payment. Check its status in the PhonePe Business dashboard before retrying.';
   }
   if (/not (found|captured)|invalid/i.test(gatewayStatus)) {
-    return 'Instamojo could not match this payment. Confirm the payment shows as captured in the Instamojo dashboard.';
+    return 'PhonePe could not match this payment. Confirm the transaction shows as successful in the PhonePe Business dashboard.';
   }
   return null;
 }

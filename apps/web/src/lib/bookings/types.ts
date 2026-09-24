@@ -80,7 +80,7 @@ export const PAYMENT_OUTCOME_MESSAGE: Record<PaymentOutcome, string> = {
   failed: 'The payment was declined. You can try again without creating a new booking.',
   cancelled: 'The payment was cancelled before it completed. Your dates are still held.',
   pending:
-    'The gateway has your payment but we could not confirm it yet. This page will update on its own; if it does not, contact support with your booking ID.',
+    "We haven't had confirmation of this payment yet. If you completed it, this page updates on its own in a minute or two; if you didn't, your dates are still held and you can pay below.",
   unverified:
     'We received a response we could not verify. If you were charged, contact support with your booking ID and nothing will be lost.',
   unknown: 'We could not match that payment to a booking. Check your trips, or contact support.',

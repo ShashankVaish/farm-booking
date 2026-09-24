@@ -31,11 +31,11 @@ describe('payErrorMessage', () => {
       new ApiError(
         503,
         'PAYMENT_PROVIDER_ERROR',
-        'Payments are not enabled on the Instamojo account yet. The merchant needs to complete Instamojo KYC and activation.',
+        'Payments are not enabled on the PhonePe account yet. The merchant needs to complete PhonePe activation.',
       ),
       'fallback',
     );
-    expect(message).toContain('not enabled on the Instamojo account');
+    expect(message).toContain('not enabled on the PhonePe account');
     expect(message).toContain('Your booking is saved');
   });
 

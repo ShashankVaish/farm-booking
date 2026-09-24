@@ -130,7 +130,7 @@ describe('policy documents', () => {
     // false statement to every guest.
     const { PRIVACY_POLICY } = await import('@/lib/legal/policies-content');
     const text = JSON.stringify(PRIVACY_POLICY);
-    expect(text).toContain('Instamojo');
-    expect(text).not.toMatch(/Razorpay|PayU/);
+    expect(text).toContain('PhonePe');
+    expect(text).not.toMatch(/Razorpay|PayU|Instamojo/);
   });
 });

@@ -19,7 +19,7 @@ export function payErrorMessage(error: unknown, fallback: string): string {
     if (error.code === 'PAYMENT_PROVIDER_ERROR') {
       /*
         The API writes its gateway messages for people — "not enabled on the
-        Instamojo account yet", "rejected the server credentials", the ₹9
+        PhonePe account yet", "rejected the server credentials", the ₹1
         minimum — and each one calls for a different next step. Only a message
         that is clearly machine text (a timeout, a raw response) is replaced.
         "Try again shortly" on an unactivated account sent guests round in

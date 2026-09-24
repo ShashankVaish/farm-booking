@@ -65,9 +65,9 @@ export const PRIVACY_POLICY: TermsDocument = {
         {
           kind: 'list',
           items: [
-            'Payments are processed by Instamojo, a licensed payment gateway. When you pay, you are taken to a page operated by Instamojo, and your card, UPI or bank details are entered there.',
+            'Payments are processed by PhonePe, a licensed payment gateway. When you pay, you are taken to a page operated by PhonePe, and your card, UPI or bank details are entered there.',
             "We never receive or store your card number, CVV, UPI PIN or bank login. We receive only a payment reference, the amount, and whether the payment succeeded.",
-            "Instamojo's handling of your payment details is governed by its own privacy policy.",
+            "PhonePe's handling of your payment details is governed by its own privacy policy.",
           ],
         },
       ],
@@ -100,7 +100,7 @@ export const PRIVACY_POLICY: TermsDocument = {
             'The host of a property you book sees your name, the dates, the number of guests and the amount, so they can receive you. They do not see your payment details.',
             "A guest who books sees the host's name and, once the booking is paid, the property's exact address.",
             'Platform administrators can see account, booking and verification details in order to approve listings, resolve disputes and process refunds. Identity documents are visible only to administrators, only for verification.',
-            'Service providers who act on our behalf: the payment gateway (Instamojo), our email and SMS delivery providers, and the servers that host the Platform. Each receives only what it needs to do its job.',
+            'Service providers who act on our behalf: the payment gateway (PhonePe), our email and SMS delivery providers, and the servers that host the Platform. Each receives only what it needs to do its job.',
             'Authorities, where the law requires it.',
           ],
         },
@@ -251,7 +251,7 @@ export const REFUND_POLICY: TermsDocument = {
           kind: 'list',
           items: [
             'Refunds are always returned to the payment method you paid with. We cannot redirect a refund to a different card, account or UPI ID.',
-            'Once approved, a refund is submitted to Instamojo the same day. It typically appears in your account within five to ten working days, depending on your bank; UPI refunds are usually faster than card refunds.',
+            'Once approved, a refund is submitted to PhonePe the same day. It typically appears in your account within five to ten working days, depending on your bank; UPI refunds are usually faster than card refunds.',
             'You are notified in your account when the refund is processed. If the money has not arrived after ten working days, contact us with your booking ID and we will trace it with the gateway.',
             'Refunds are made in Indian Rupees for the amount originally paid. Any currency conversion or bank charges on your side are outside our control.',
           ],

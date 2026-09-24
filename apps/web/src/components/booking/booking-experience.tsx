@@ -64,7 +64,7 @@ function outcomeFromUrl(): PaymentOutcome | null {
  *
  * A full navigation rather than a fetch: the gateway must receive the request
  * from the browser itself so that it can later send the browser back to us.
- * Instamojo hands us a ready-made page URL, so this is a plain redirect; a
+ * PhonePe hands us a ready-made page URL, so this is a plain redirect; a
  * gateway that wants signed fields gets them posted from a form that is
  * created, submitted and never rendered.
  */
@@ -290,14 +290,14 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
         <div style={{ marginTop: 'var(--space-5)' }}>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <Button onClick={() => void pay()} disabled={busy}>
-              {busy ? 'Taking you to Instamojo…' : 'Pay now'}
+              {busy ? 'Taking you to PhonePe…' : 'Pay now'}
             </Button>
             <Button href={`/properties/${booking.property.id}`} variant="ghost">
               Back to property
             </Button>
           </div>
           <p className="t-caption" style={{ marginTop: 'var(--space-3)' }}>
-            You will be taken to Instamojo to pay securely by UPI, card or netbanking, then brought back to{' '}
+            You will be taken to PhonePe to pay securely by UPI, card or netbanking, then brought back to{' '}
             {brand.name}.
           </p>
         </div>

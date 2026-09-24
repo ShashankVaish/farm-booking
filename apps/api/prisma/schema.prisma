@@ -63,10 +63,11 @@ enum PaymentStatus {
 
 enum PaymentProviderType {
   // Earlier gateways stay so the rows written under them remain readable.
-  // New payments are INSTAMOJO.
+  // New payments are PHONEPE.
   RAZORPAY
   PAYU
   INSTAMOJO
+  PHONEPE
 }
 
 enum DiscountType {
@@ -371,7 +372,7 @@ model Booking {
 model Payment {
   id                String              @id @default(uuid())
   bookingId         String
-  provider          PaymentProviderType @default(INSTAMOJO)
+  provider          PaymentProviderType @default(PHONEPE)
   providerPaymentId String?
   providerOrderId   String?
   amount            Decimal             @db.Decimal(12, 2)

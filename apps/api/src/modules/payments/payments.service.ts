@@ -220,6 +220,8 @@ export class PaymentsService {
           receipt: `bk${booking.id.replace(/-/g, '').slice(0, 38)}`,
           returnUrl: this.returnUrl(),
           webhookUrl: this.webhookUrl(),
+          // The booking's own hold; the gateway clamps it to what it allows.
+          expiresInSeconds: this.expireMinutes() * 60,
         });
 
         if (intent.amountPaise !== amountPaise) {
@@ -330,13 +332,17 @@ export class PaymentsService {
   /**
    * A server-to-server report from the gateway (its webhook).
    *
-   * The gateway signs the body with the shared salt, which proves it sent the
-   * report — but settlement still re-fetches the payment from the gateway
-   * inside `settleCapturedPayment`, so the body is treated as a prompt to go
-   * and look, never as the truth about money.
+   * The gateway authenticates the report (PhonePe with a hash of the webhook
+   * username and password in the Authorization header), which proves it sent
+   * it — but settlement still re-fetches the order from the gateway inside
+   * `settleCapturedPayment`, so the body is treated as a prompt to go and
+   * look, never as the truth about money.
    */
-  async handleWebhook(rawBody: string, eventIdHeader?: string) {
-    const notification = this.provider.parseNotification(rawBody);
+  async handleWebhook(
+    rawBody: string,
+    headers: Record<string, string | undefined> = {},
+  ) {
+    const notification = this.provider.parseNotification(rawBody, headers);
     if (!notification) {
       throw new BadRequestException({
         errorCode: ErrorCodes.PAYMENT_NOT_VERIFIED,
@@ -351,7 +357,8 @@ export class PaymentsService {
     }
 
     const eventId =
-      eventIdHeader || createHash('sha256').update(rawBody).digest('hex');
+      headers['x-event-id'] ||
+      createHash('sha256').update(rawBody).digest('hex');
     const duplicate = await this.prisma.processedWebhookEvent.findUnique({
       where: { id: eventId },
     });
@@ -365,7 +372,10 @@ export class PaymentsService {
       .create({
         data: {
           id: eventId,
-          event: `${this.provider.name.toLowerCase()}.${notification.status.toLowerCase()}`,
+          event:
+            notification.kind === 'refund'
+              ? `${this.provider.name.toLowerCase()}.refund.${notification.refund?.providerStatus ?? 'unknown'}`
+              : `${this.provider.name.toLowerCase()}.${notification.status.toLowerCase()}`,
         },
       })
       .catch((error: Prisma.PrismaClientKnownRequestError) => {
@@ -380,64 +390,59 @@ export class PaymentsService {
   /**
    * The browser coming back from the hosted checkout page.
    *
-   * The gateway posts the outcome to us and we answer with a redirect to the
-   * booking page, so the guest never sees an API URL. The outcome is applied
-   * the same way as a webhook. Nothing here throws to the guest: whatever went
-   * wrong is folded into the redirect target, because a bare 400 page after
-   * a card payment is the worst possible thing to show someone.
+   * The return carries no verdict we can trust — PhonePe sends only the order
+   * id we put in the URL — so the outcome is asked of the gateway through
+   * `reconcile`, which settles or fails the payment exactly as a webhook
+   * would. Nothing here throws to the guest: whatever went wrong is folded
+   * into the redirect target, because a bare 400 page after a payment is the
+   * worst possible thing to show someone.
    */
-  async handleReturn(rawBody: string): Promise<{ redirectTo: string }> {
+  async handleReturn(rawQuery: string): Promise<{ redirectTo: string }> {
     const web = this.mail.webUrl();
-    const notification = this.provider.parseNotification(rawBody);
-
-    if (!notification) {
-      return { redirectTo: `${web}/dashboard/trips?payment=unknown` };
-    }
-
-    const bookingId =
-      notification.bookingId ??
-      (
-        await this.prisma.payment.findFirst({
-          where: { providerOrderId: notification.providerOrderId },
-          select: { bookingId: true },
+    const providerOrderId = this.provider.parseReturn(rawQuery);
+    const payment = providerOrderId
+      ? await this.prisma.payment.findFirst({
+          where: { providerOrderId },
+          select: { id: true, bookingId: true },
         })
-      )?.bookingId;
+      : null;
 
-    if (!bookingId) {
+    if (!payment) {
       return { redirectTo: `${web}/dashboard/trips?payment=unknown` };
     }
+    const { bookingId } = payment;
 
     try {
-      /*
-        An unsigned report is not refused here. Some gateways do not sign the
-        browser redirect at all, and even a signed one proves only who sent it.
-        What decides the money is `settleCapturedPayment`, which fetches the
-        payment from the gateway and checks amount and request before it
-        confirms anything — so a success claim is always safe to act on, and a
-        forged one confirms nothing. Only *negative* verdicts are trusted solely
-        from signed reports: an unsigned "failed" is shown, not recorded.
-      */
-      if (notification.verified || notification.status === 'SUCCESS') {
-        await this.applyNotification(notification);
-      }
-      // Read the outcome back rather than interpreting the settlement result:
-      // the booking's own status is the only thing the guest is redirected on.
-      const booking = await this.prisma.booking.findUnique({
-        where: { id: bookingId },
-        select: { status: true },
-      });
-      const settled =
+      await this.reconcile(payment.id);
+      // Redirect on what the rows now say, not on the reconcile result.
+      const [booking, current] = await Promise.all([
+        this.prisma.booking.findUnique({
+          where: { id: bookingId },
+          select: { status: true },
+        }),
+        this.prisma.payment.findUnique({
+          where: { id: payment.id },
+          select: { status: true },
+        }),
+      ]);
+      if (
         booking?.status === BookingStatus.CONFIRMED ||
-        booking?.status === BookingStatus.COMPLETED;
-      if (settled) {
+        booking?.status === BookingStatus.COMPLETED
+      ) {
         return { redirectTo: `${web}/booking/${bookingId}/confirmation` };
       }
-      const outcome =
-        notification.status === 'CANCELLED' ? 'cancelled' : 'failed';
-      return { redirectTo: `${web}/booking/${bookingId}?payment=${outcome}` };
+      if (current?.status === PaymentStatus.FAILED) {
+        return { redirectTo: `${web}/booking/${bookingId}?payment=failed` };
+      }
+      /*
+        Still open at PhonePe: either the guest backed out of the payment page
+        (the order stays payable until it expires) or a UPI payment is still
+        being processed. The booking page polls and settles it either way.
+      */
+      return { redirectTo: `${web}/booking/${bookingId}?payment=pending` };
     } catch (error: unknown) {
       this.logger.error(
-        `Could not apply the return for ${notification.providerOrderId}: ${
+        `Could not apply the return for ${providerOrderId}: ${
           error instanceof Error ? error.message : 'unknown error'
         }`,
       );
@@ -446,6 +451,26 @@ export class PaymentsService {
   }
 
   private async applyNotification(notification: GatewayNotification) {
+    if (notification.kind === 'refund') {
+      if (!notification.refund) return { ignored: true };
+      return this.completeRefundFromProvider(
+        notification.refund.providerRefundId,
+        notification.refund.providerStatus,
+      );
+    }
+    /*
+      The same PhonePe account also takes payments this site did not start —
+      payment links and pages made in the dashboard — and reports them to the
+      same webhook. They are acknowledged and ignored; answering with an error
+      would only make PhonePe retry them for days.
+    */
+    const known = await this.prisma.payment.findFirst({
+      where: { providerOrderId: notification.providerOrderId },
+      select: { id: true },
+    });
+    if (!known) {
+      return { ignored: true, reason: 'unknown-order' };
+    }
     if (notification.status === 'SUCCESS' && notification.providerPaymentId) {
       return this.settleCapturedPayment(
         notification.providerOrderId,
@@ -560,6 +585,8 @@ export class PaymentsService {
 
     const providerResult = await this.provider.createRefund({
       providerPaymentId: payment.providerPaymentId,
+      providerOrderId: payment.providerOrderId,
+      reference: refund.id,
       amountPaise: requestedPaise,
       notes: reason,
       speed,
@@ -796,7 +823,12 @@ export class PaymentsService {
     },
     providerPaymentId: string,
   ): Promise<FetchPaymentResult> {
-    const remote = await this.provider.fetchPayment(providerPaymentId);
+    const remote = payment.providerOrderId
+      ? await this.provider.fetchPayment(
+          providerPaymentId,
+          payment.providerOrderId,
+        )
+      : null;
     if (!remote) {
       throw new ServiceUnavailableException({
         errorCode: ErrorCodes.PAYMENT_PROVIDER_ERROR,
@@ -912,6 +944,7 @@ export class PaymentsService {
     });
     const refund = await this.provider.createRefund({
       providerPaymentId: remote.providerPaymentId,
+      providerOrderId: remote.providerOrderId,
       amountPaise: remote.amountPaise,
       notes: reason,
     });
@@ -931,20 +964,20 @@ export class PaymentsService {
 
   private async completeRefundFromProvider(
     providerRefundId: string,
-    providerPaymentId: string,
     providerStatus: string,
     amountPaise?: number,
   ) {
     const refund = await this.prisma.refund.findFirst({
-      where: {
-        OR: [{ providerRefundId }, { payment: { providerPaymentId } }],
-      },
+      where: { providerRefundId },
       include: { payment: true },
     });
     if (!refund) {
       return { ignored: true };
     }
-    if (refund.status === RefundStatus.COMPLETED) {
+    if (
+      refund.status === RefundStatus.COMPLETED ||
+      refund.status === RefundStatus.FAILED
+    ) {
       return { refund, idempotent: true };
     }
 
@@ -1134,11 +1167,28 @@ export class PaymentsService {
         message: 'Payment not found.',
       });
     }
+    if (payment.status === PaymentStatus.REFUND_PENDING) {
+      return this.reconcileRefunds(payment.id);
+    }
     if (
       payment.status === PaymentStatus.SUCCESS ||
-      payment.status === PaymentStatus.REFUNDED ||
-      payment.status === PaymentStatus.REFUND_PENDING
+      payment.status === PaymentStatus.REFUNDED
     ) {
+      // A partial refund leaves the payment SUCCESS while it is in flight.
+      const openRefunds =
+        payment.status === PaymentStatus.SUCCESS
+          ? await this.prisma.refund.count({
+              where: {
+                paymentId: payment.id,
+                status: {
+                  in: [RefundStatus.REQUESTED, RefundStatus.PROCESSING],
+                },
+              },
+            })
+          : 0;
+      if (openRefunds > 0) {
+        return this.reconcileRefunds(payment.id);
+      }
       return { payment, reconciled: true, idempotent: true };
     }
 
@@ -1156,6 +1206,34 @@ export class PaymentsService {
       return this.markFailed(payment.providerOrderId, 'reconciled-failed');
     }
     return { payment, remoteStatus: remote.status, reconciled: false };
+  }
+
+  /**
+   * Asks the gateway about refunds still in flight on a payment. The refund
+   * webhook normally settles them; this is the fallback for one that was
+   * missed, reached through the admin's reconcile action.
+   */
+  private async reconcileRefunds(paymentId: string) {
+    const open = await this.prisma.refund.findMany({
+      where: {
+        paymentId,
+        status: { in: [RefundStatus.REQUESTED, RefundStatus.PROCESSING] },
+        providerRefundId: { not: null },
+      },
+    });
+    for (const refund of open) {
+      const remote = await this.provider.fetchRefund(refund.providerRefundId!);
+      if (remote) {
+        await this.completeRefundFromProvider(
+          refund.providerRefundId!,
+          remote.providerStatus,
+        );
+      }
+    }
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+    return { payment, reconciled: true, refundsChecked: open.length };
   }
 
   async reconcileForUser(user: RequestUser, bookingId: string) {
@@ -1205,7 +1283,7 @@ export class PaymentsService {
   /**
    * What the checkout page needs to send the guest to the gateway. The form is
    * rebuilt on every call rather than stored: it is derived entirely from the
-   * payment row and the salt, and a stored copy would go stale the moment
+   * payment row and its metadata, and a stored copy would go stale the moment
    * either changed.
    */
   private orderPayload(

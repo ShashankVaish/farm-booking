@@ -77,27 +77,38 @@ export class EnvironmentVariables {
   LOG_LEVEL?: string;
 
   /*
-    Instamojo (API v1.1). Optional at boot so the rest of the API can run
-    without a gateway — the checkout page then reports payments as not
-    configured — but all three are needed to take a payment: key and token to
-    call the API, salt to verify webhooks.
+    PhonePe Payment Gateway (Standard Checkout v2). Optional at boot so the
+    rest of the API can run without a gateway — the checkout page then reports
+    payments as not configured — but the client id and secret are needed to
+    take a payment, and the webhook username and password to accept webhooks.
+    PHONEPE_ENV picks the host: PRODUCTION credentials are refused by the
+    sandbox and the other way round.
   */
   @IsOptional()
-  @IsString()
-  INSTAMOJO_API_KEY?: string;
+  @IsIn(['PRODUCTION', 'SANDBOX'])
+  PHONEPE_ENV?: string;
 
   @IsOptional()
   @IsString()
-  INSTAMOJO_AUTH_TOKEN?: string;
+  PHONEPE_CLIENT_ID?: string;
 
   @IsOptional()
   @IsString()
-  INSTAMOJO_SALT?: string;
+  PHONEPE_CLIENT_SECRET?: string;
 
-  /** Only for pointing at a sandbox; defaults to the live API. */
+  /** The client version shown next to the credentials; usually 1. */
   @IsOptional()
   @IsString()
-  INSTAMOJO_BASE_URL?: string;
+  PHONEPE_CLIENT_VERSION?: string;
+
+  /** The pair set on the webhook in the PhonePe dashboard. */
+  @IsOptional()
+  @IsString()
+  PHONEPE_WEBHOOK_USERNAME?: string;
+
+  @IsOptional()
+  @IsString()
+  PHONEPE_WEBHOOK_PASSWORD?: string;
 
   /**
    * Where the gateway sends the browser back after checkout, and where it
