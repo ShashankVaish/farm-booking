@@ -18,6 +18,7 @@
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:migrate": "npm run prisma:migrate --prefix apps/api",
-    "db:generate": "npm run prisma:generate --prefix apps/api"
+    "db:generate": "npm run prisma:generate --prefix apps/api",
+    "db:seed:dev": "npm run db:seed:dev --prefix apps/api"
   }
 }

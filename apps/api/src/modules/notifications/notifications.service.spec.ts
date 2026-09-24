@@ -7,6 +7,30 @@ import {
 
 /** Nothing here exercises delivery; the mail path has its own spec. */
 const mail = { sendQuietly: jest.fn().mockResolvedValue(true) };
+/** WhatsApp is switched off in these tests unless a test says otherwise. */
+/**
+ * Stands in for the Redis queue: hands each queued message straight to the
+ * mocks, so a test asserts on what was queued for whom.
+ */
+function fakeDelivery(
+  sendQuietly: (email: unknown) => unknown,
+  whatsapp: { sendTemplate: (...args: unknown[]) => unknown },
+) {
+  return {
+    enqueueEmail: jest.fn((email: unknown) => {
+      void sendQuietly(email);
+      return Promise.resolve('queued');
+    }),
+    enqueueWhatsApp: jest.fn((phone: string, template: unknown) => {
+      void whatsapp.sendTemplate(phone, template);
+      return Promise.resolve('queued');
+    }),
+  };
+}
+const noWhatsApp = {
+  isConfigured: () => false,
+  sendTemplate: jest.fn(),
+};
 
 describe('notification preferences', () => {
   it('honours preference flags for known types', () => {
@@ -20,6 +44,7 @@ describe('notification preferences', () => {
       propertyRejection: true,
       newReview: false,
       coupon: true,
+      whatsapp: false,
     };
     expect(
       isNotificationAllowed(NotificationTypes.BOOKING_CONFIRMED, off),
@@ -51,7 +76,11 @@ describe('NotificationsService', () => {
         Promise.all(ops),
       ),
     };
-    const service = new NotificationsService(prisma as never, mail as never);
+    const service = new NotificationsService(
+      prisma as never,
+      noWhatsApp as never,
+      fakeDelivery(mail.sendQuietly, noWhatsApp) as never,
+    );
     await service.list('user-1', 1, 20);
     expect(prisma.notification.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId: 'user-1' } }),
@@ -68,7 +97,11 @@ describe('NotificationsService', () => {
         findUnique: jest.fn().mockResolvedValue(null),
       },
     };
-    const service = new NotificationsService(prisma as never, mail as never);
+    const service = new NotificationsService(
+      prisma as never,
+      noWhatsApp as never,
+      fakeDelivery(mail.sendQuietly, noWhatsApp) as never,
+    );
     await expect(service.markRead('user-1', 'n1')).resolves.toBeNull();
   });
 
@@ -89,7 +122,11 @@ describe('NotificationsService', () => {
         }),
       },
     };
-    const service = new NotificationsService(prisma as never, mail as never);
+    const service = new NotificationsService(
+      prisma as never,
+      noWhatsApp as never,
+      fakeDelivery(mail.sendQuietly, noWhatsApp) as never,
+    );
     const result = await service.notify({
       userId: 'u1',
       type: NotificationTypes.BOOKING_CONFIRMED,
@@ -114,7 +151,11 @@ describe('NotificationsService', () => {
         findUnique: jest.fn().mockResolvedValue(null),
       },
     };
-    const service = new NotificationsService(prisma as never, mail as never);
+    const service = new NotificationsService(
+      prisma as never,
+      noWhatsApp as never,
+      fakeDelivery(mail.sendQuietly, noWhatsApp) as never,
+    );
     await expect(
       service.notify({
         userId: 'u1',
@@ -157,9 +198,8 @@ describe('NotificationsService email dispatch', () => {
     };
     const service = new NotificationsService(
       prisma as never,
-      {
-        sendQuietly,
-      } as never,
+      noWhatsApp as never,
+      fakeDelivery(sendQuietly, noWhatsApp) as never,
     );
     return { service, prisma, sendQuietly };
   }
@@ -174,7 +214,10 @@ describe('NotificationsService email dispatch', () => {
       email: body,
     });
 
-    expect(result).toEqual({ created: true, emailed: true });
+    expect(result).toEqual({
+      created: true,
+      queued: { email: true, whatsapp: false },
+    });
     expect(sendQuietly).toHaveBeenCalledWith({
       to: 'asha@example.com',
       ...body,
@@ -190,7 +233,10 @@ describe('NotificationsService email dispatch', () => {
       body: 'done',
     });
 
-    expect(result).toEqual({ created: true, emailed: undefined });
+    expect(result).toEqual({
+      created: true,
+      queued: { email: false, whatsapp: false },
+    });
     expect(sendQuietly).not.toHaveBeenCalled();
   });
 
@@ -259,7 +305,7 @@ describe('NotificationsService email dispatch', () => {
     });
 
     // The in-app row is still written for the audit trail.
-    expect(result).toEqual({ created: true, emailed: false });
+    expect(result).toMatchObject({ created: true });
     expect(sendQuietly).not.toHaveBeenCalled();
   });
 
@@ -273,7 +319,7 @@ describe('NotificationsService email dispatch', () => {
         body: 'done',
         email: body,
       }),
-    ).resolves.toEqual({ created: true, emailed: false });
+    ).resolves.toMatchObject({ created: true });
     expect(sendQuietly).not.toHaveBeenCalled();
   });
 
@@ -315,7 +361,8 @@ describe('NotificationsService email dispatch', () => {
     };
     const service = new NotificationsService(
       prisma as never,
-      { sendQuietly } as never,
+      noWhatsApp as never,
+      fakeDelivery(sendQuietly, noWhatsApp) as never,
     );
 
     // A guest who has paid is still confirmed whether or not Titan was up.
@@ -327,6 +374,122 @@ describe('NotificationsService email dispatch', () => {
         body: 'done',
         email: body,
       }),
-    ).resolves.toEqual({ created: true, emailed: false });
+    ).resolves.toMatchObject({ created: true });
+  });
+});
+
+describe('NotificationsService WhatsApp delivery', () => {
+  const template = { name: 'booking_confirmed', bodyParams: ['Asha'] };
+  const verifiedUser = {
+    email: 'asha@example.com',
+    name: 'Asha Rao',
+    phone: '9876543210',
+    phoneVerifiedAt: new Date('2026-09-01'),
+    isActive: true,
+  };
+
+  function build(options: {
+    optedIn?: boolean;
+    user?: Record<string, unknown> | null;
+    configured?: boolean;
+  }) {
+    const whatsapp = {
+      isConfigured: () => options.configured ?? true,
+      sendTemplate: jest.fn().mockResolvedValue(true),
+    };
+    const prisma = {
+      notification: { create: jest.fn().mockResolvedValue({ id: 'n1' }) },
+      notificationPreference: {
+        findUnique: jest.fn().mockResolvedValue(
+          options.optedIn === false
+            ? null
+            : {
+                bookingConfirmation: true,
+                paymentSuccess: true,
+                paymentFailure: true,
+                cancellation: true,
+                refund: true,
+                propertyApproval: true,
+                propertyRejection: true,
+                newReview: true,
+                coupon: true,
+                whatsapp: true,
+              },
+        ),
+      },
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue(
+            options.user === undefined ? verifiedUser : options.user,
+          ),
+      },
+    };
+    const service = new NotificationsService(
+      prisma as never,
+      whatsapp as never,
+      fakeDelivery(mail.sendQuietly, whatsapp) as never,
+    );
+    const send = (extra: Record<string, unknown> = {}) =>
+      service.notify({
+        userId: 'u1',
+        type: NotificationTypes.BOOKING_CONFIRMED,
+        title: 'Booking confirmed',
+        body: 'done',
+        whatsapp: template,
+        ...extra,
+      });
+    return { send, whatsapp };
+  }
+
+  it('sends to a verified, opted-in phone', async () => {
+    const { send, whatsapp } = build({});
+    await expect(send()).resolves.toMatchObject({
+      queued: { email: false, whatsapp: true },
+    });
+    expect(whatsapp.sendTemplate).toHaveBeenCalledWith('9876543210', template);
+  });
+
+  it('builds the template for the resolved recipient', async () => {
+    const { send, whatsapp } = build({});
+    await send({
+      whatsapp: (to: { name: string }) => ({
+        name: 'booking_confirmed',
+        bodyParams: [to.name],
+      }),
+    });
+    expect(whatsapp.sendTemplate).toHaveBeenCalledWith('9876543210', {
+      name: 'booking_confirmed',
+      bodyParams: ['Asha Rao'],
+    });
+  });
+
+  it('never sends without the WhatsApp opt-in, which is off by default', async () => {
+    const { send, whatsapp } = build({ optedIn: false });
+    await send();
+    expect(whatsapp.sendTemplate).not.toHaveBeenCalled();
+  });
+
+  it('never sends to a phone that was not verified', async () => {
+    const { send, whatsapp } = build({
+      user: { ...verifiedUser, phoneVerifiedAt: null },
+    });
+    await expect(send()).resolves.toMatchObject({ created: true });
+    expect(whatsapp.sendTemplate).not.toHaveBeenCalled();
+  });
+
+  it('never sends to a disabled account or one without a phone', async () => {
+    const disabled = build({ user: { ...verifiedUser, isActive: false } });
+    await disabled.send();
+    expect(disabled.whatsapp.sendTemplate).not.toHaveBeenCalled();
+    const noPhone = build({ user: { ...verifiedUser, phone: null } });
+    await noPhone.send();
+    expect(noPhone.whatsapp.sendTemplate).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when WhatsApp is not configured on the server', async () => {
+    const { send, whatsapp } = build({ configured: false });
+    await expect(send()).resolves.toMatchObject({ created: true });
+    expect(whatsapp.sendTemplate).not.toHaveBeenCalled();
   });
 });

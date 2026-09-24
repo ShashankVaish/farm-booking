@@ -25,16 +25,18 @@ services:
     restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6379}:6379"
-    # OTP codes are short-lived by definition, so nothing is persisted to disk:
-    # a restart should lose in-flight codes rather than resurrect them. Eviction
-    # drops whichever key is closest to expiring, which is the right victim when
-    # every key here carries a TTL.
+    # Holds OTP codes (short-lived, each with a TTL) and the email/WhatsApp
+    # delivery queue (BullMQ). Nothing is persisted to disk: a restart loses
+    # in-flight OTP codes, and any message still waiting in the queue — jobs
+    # only wait a few seconds, so that window is small. `noeviction` is what
+    # BullMQ requires: when memory is full Redis refuses new writes rather than
+    # silently deleting a queued job. At this data size memory is never close.
     command: >
       redis-server
       --save ""
       --appendonly no
       --maxmemory 256mb
-      --maxmemory-policy volatile-ttl
+      --maxmemory-policy noeviction
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

@@ -17,7 +17,10 @@ export class PasswordService {
     return bcrypt.compare(plain, hash);
   }
 
-  async compareOrDummy(plain: string, hash: string | null | undefined): Promise<boolean> {
+  async compareOrDummy(
+    plain: string,
+    hash: string | null | undefined,
+  ): Promise<boolean> {
     if (hash) {
       return this.compare(plain, hash);
     }

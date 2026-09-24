@@ -47,6 +47,12 @@ import {
   type PaymentProvider,
 } from './providers/payment-provider.interface';
 import { CreatePaymentOrderDto, VerifyPaymentDto } from './dto/payment.dto';
+import {
+  bookingConfirmedWhatsApp,
+  hostBookingConfirmedWhatsApp,
+  paymentFailedWhatsApp,
+  refundProcessedWhatsApp,
+} from '../notifications/whatsapp-templates';
 import { assertBookingTransition } from '../bookings/booking-status';
 import { bookingDetailInclude } from '../bookings/booking-include';
 import {
@@ -62,7 +68,13 @@ const paymentBookingInclude = {
   booking: {
     include: {
       nights: true,
-      property: true,
+      // The host's contact goes to the guest once the booking is confirmed.
+      // Selected field by field, so no password hash or KYC data is loaded.
+      property: {
+        include: {
+          owner: { select: { name: true, phone: true, phoneVerifiedAt: true } },
+        },
+      },
       customer: { select: { id: true, name: true, email: true } },
     },
   },
@@ -109,11 +121,17 @@ export class PaymentsService {
         country?: string | null;
         latitude?: unknown;
         longitude?: unknown;
+        owner?: {
+          name: string;
+          phone: string | null;
+          phoneVerifiedAt: Date | null;
+        } | null;
       };
     };
   }): BookingEmailData {
     const { booking } = payment;
     const { property } = booking;
+    const owner = property.owner;
     return {
       guestName: booking.customer.name,
       propertyTitle: property.title,
@@ -130,6 +148,10 @@ export class PaymentsService {
       address: formatPropertyAddress(property),
       mapUrl: mapPlaceUrl(property.latitude, property.longitude),
       directionsUrl: mapDirectionsUrl(property.latitude, property.longitude),
+      // Only a number the host proved with an OTP is handed to a guest.
+      hostContactName: owner?.name ?? null,
+      hostContactPhone:
+        owner?.phone && owner.phoneVerifiedAt ? owner.phone : null,
     };
   }
 
@@ -782,6 +804,8 @@ export class PaymentsService {
         metadata: { bookingId: payment.bookingId },
         dedupeKey: `BOOKING_CONFIRMED:${payment.bookingId}:${payment.booking.customerId}`,
         email: (to) => bookingConfirmedEmail({ ...stay, guestName: to.name }),
+        whatsapp: (to) =>
+          bookingConfirmedWhatsApp({ ...stay, guestName: to.name }),
       });
       await this.notifications.notify({
         userId: payment.booking.property.ownerId,
@@ -798,6 +822,8 @@ export class PaymentsService {
             hostName: to.name,
             bookingUrl: `${this.mail.webUrl()}/host/calendar`,
           }),
+        whatsapp: (to) =>
+          hostBookingConfirmedWhatsApp({ ...stay, hostName: to.name }),
       });
     }
 
@@ -922,6 +948,12 @@ export class PaymentsService {
       body: 'We could not complete your payment. You can retry from the same booking.',
       metadata: { bookingId: payment.bookingId },
       dedupeKey: `PAYMENT_FAILURE:${payment.id}`,
+      whatsapp: (to) =>
+        paymentFailedWhatsApp({
+          guestName: to.name,
+          propertyTitle: payment.booking.property.title,
+          bookingId: payment.bookingId,
+        }),
     });
 
     return { failed: true };
@@ -1023,7 +1055,10 @@ export class PaymentsService {
   private async finalizeRefundedPayment(paymentId: string, bookingId: string) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
-      include: { refunds: true, booking: true },
+      include: {
+        refunds: true,
+        booking: { include: { property: { select: { title: true } } } },
+      },
     });
     if (!payment?.booking) {
       return;
@@ -1057,6 +1092,12 @@ export class PaymentsService {
       body: 'A refund for your booking has been completed.',
       metadata: { bookingId, paymentId },
       dedupeKey: `REFUND:${bookingId}:${paymentId}`,
+      whatsapp: (to) =>
+        refundProcessedWhatsApp({
+          guestName: to.name,
+          amount: paiseToMoney(completed).toString(),
+          propertyTitle: payment.booking.property?.title ?? 'your stay',
+        }),
     });
   }
 

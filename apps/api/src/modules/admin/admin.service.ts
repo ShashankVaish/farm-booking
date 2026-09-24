@@ -244,6 +244,9 @@ export class AdminService {
         this.config.get<string>('SMS_PROVIDER') ?? 'console'
       ).toLowerCase(),
       smsConfigured: this.smsConfigured(),
+      whatsappConfigured: Boolean(
+        read('WHATSAPP_ACCESS_TOKEN') && read('WHATSAPP_PHONE_NUMBER_ID'),
+      ),
       // Reported the same way as SMS: a mail transport that quietly logs
       // instead of sending is exactly the failure that hid the OTP problem, so
       // it has to be visible in the panel rather than only in the boot log.

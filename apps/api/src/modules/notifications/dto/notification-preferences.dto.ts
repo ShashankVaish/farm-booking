@@ -36,4 +36,9 @@ export class UpdateNotificationPreferencesDto {
   @IsOptional()
   @IsBoolean()
   coupon?: boolean;
+
+  /** Booking updates on WhatsApp; sent only to a verified phone. */
+  @IsOptional()
+  @IsBoolean()
+  whatsapp?: boolean;
 }

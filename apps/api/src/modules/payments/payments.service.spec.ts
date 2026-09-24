@@ -212,6 +212,69 @@ describe('PaymentsService money-safety', () => {
     );
   });
 
+  it('gives the guest the host contact, but only a verified phone', async () => {
+    const confirmedEmailFor = async (owner: Record<string, unknown>) => {
+      notifications.notify.mockClear();
+      const payment = pendingPayment();
+      const withOwner = {
+        ...payment,
+        booking: {
+          ...payment.booking,
+          property: { ...payment.booking.property, owner },
+        },
+      };
+      await service(settlePrisma(withOwner)).settleCapturedPayment(
+        'order_1',
+        'pay_1',
+      );
+      const call = (
+        notifications.notify.mock.calls as Array<
+          [
+            {
+              type: string;
+              userId: string;
+              email?: unknown;
+              whatsapp?: unknown;
+            },
+          ]
+        >
+      ).find(
+        ([args]) => args.type === 'BOOKING_CONFIRMED' && args.userId === 'c1',
+      );
+      const render = call?.[0].email as (to: { name: string }) => {
+        html: string;
+      };
+      const whatsapp = call?.[0].whatsapp as (to: { name: string }) => {
+        bodyParams: string[];
+      };
+      return {
+        html: render({ name: 'Asha Rao' }).html,
+        params: whatsapp({ name: 'Asha Rao' }).bodyParams,
+      };
+    };
+
+    const verified = await confirmedEmailFor({
+      name: 'Meera Kapoor',
+      phone: '9876543210',
+      phoneVerifiedAt: new Date(),
+    });
+    expect(verified.html).toContain('Meera Kapoor');
+    expect(verified.html).toContain('tel:+919876543210');
+    expect(verified.params.slice(6)).toEqual([
+      'Meera Kapoor',
+      '+91 98765 43210',
+    ]);
+
+    const unverified = await confirmedEmailFor({
+      name: 'Meera Kapoor',
+      phone: '9876543210',
+      phoneVerifiedAt: null,
+    });
+    expect(unverified.html).toContain('Meera Kapoor');
+    expect(unverified.html).not.toContain('9876543210');
+    expect(unverified.params.join(' ')).not.toContain('98765');
+  });
+
   it('2. keeps the booking retryable when payment fails', async () => {
     const payment = pendingPayment();
     const prisma = settlePrisma(payment);

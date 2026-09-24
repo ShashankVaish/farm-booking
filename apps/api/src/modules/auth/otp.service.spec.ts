@@ -28,7 +28,13 @@ function build(options: { user?: Record<string, unknown> | null } = {}) {
 
   const user =
     options.user === undefined
-      ? { id: 'u1', email: 'a@b.com', role: 'CUSTOMER', name: 'Aisha', isActive: true }
+      ? {
+          id: 'u1',
+          email: 'a@b.com',
+          role: 'CUSTOMER',
+          name: 'Aisha',
+          isActive: true,
+        }
       : options.user;
 
   const prisma = {
@@ -44,7 +50,9 @@ function build(options: { user?: Record<string, unknown> | null } = {}) {
   } as unknown as ConfigService;
 
   const auth = {
-    issueSession: jest.fn().mockResolvedValue({ accessToken: 'at', refreshToken: 'rt' }),
+    issueSession: jest
+      .fn()
+      .mockResolvedValue({ accessToken: 'at', refreshToken: 'rt' }),
   } as unknown as AuthService;
 
   const passwords = {
@@ -78,7 +86,9 @@ describe('OtpService — requesting a code', () => {
     expect(result.sent).toBe(true);
     expect(sent).toHaveLength(1);
     expect(codeFrom(sent)).toMatch(/^\d{6}$/);
-    expect(new Date(result.resendAvailableAt).getTime()).toBeGreaterThan(Date.now());
+    expect(new Date(result.resendAvailableAt).getTime()).toBeGreaterThan(
+      Date.now(),
+    );
   });
 
   it('masks the phone number in the response', async () => {
@@ -90,7 +100,9 @@ describe('OtpService — requesting a code', () => {
   it('refuses a second request inside the cooldown', async () => {
     const { service } = build();
     await service.request({ phone: PHONE }, {});
-    await expect(service.request({ phone: PHONE }, {})).rejects.toThrow(BadRequestException);
+    await expect(service.request({ phone: PHONE }, {})).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('rate limits once the hourly send budget is spent', async () => {
@@ -129,7 +141,10 @@ describe('OtpService — verifying a code', () => {
     const { service, sent, auth } = build();
     await service.request({ phone: PHONE }, {});
 
-    const result = await service.verify({ phone: PHONE, code: codeFrom(sent) }, {});
+    const result = await service.verify(
+      { phone: PHONE, code: codeFrom(sent) },
+      {},
+    );
 
     expect(result.user.id).toBe('u1');
     expect(result.tokens.accessToken).toBe('at');
@@ -141,7 +156,9 @@ describe('OtpService — verifying a code', () => {
     await service.request({ phone: PHONE }, {});
     const wrong = codeFrom(sent) === '000000' ? '111111' : '000000';
 
-    await expect(service.verify({ phone: PHONE, code: wrong }, {})).rejects.toMatchObject({
+    await expect(
+      service.verify({ phone: PHONE, code: wrong }, {}),
+    ).rejects.toMatchObject({
       response: { errorCode: 'OTP_INVALID' },
     });
   });
@@ -153,13 +170,15 @@ describe('OtpService — verifying a code', () => {
     const wrong = correct === '000000' ? '111111' : '000000';
 
     for (let i = 0; i < SETTINGS.OTP_MAX_ATTEMPTS; i += 1) {
-      await expect(service.verify({ phone: PHONE, code: wrong }, {})).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.verify({ phone: PHONE, code: wrong }, {}),
+      ).rejects.toThrow(UnauthorizedException);
     }
 
     // Even the correct code must now fail: guessing has exhausted this challenge.
-    await expect(service.verify({ phone: PHONE, code: correct }, {})).rejects.toMatchObject({
+    await expect(
+      service.verify({ phone: PHONE, code: correct }, {}),
+    ).rejects.toMatchObject({
       response: { errorCode: 'OTP_INVALID' },
     });
   });
@@ -170,7 +189,9 @@ describe('OtpService — verifying a code', () => {
     const code = codeFrom(sent);
 
     await service.verify({ phone: PHONE, code }, {});
-    await expect(service.verify({ phone: PHONE, code }, {})).rejects.toMatchObject({
+    await expect(
+      service.verify({ phone: PHONE, code }, {}),
+    ).rejects.toMatchObject({
       response: { errorCode: 'OTP_INVALID' },
     });
   });
@@ -189,14 +210,18 @@ describe('OtpService — verifying a code', () => {
       60,
     );
 
-    await expect(service.verify({ phone: PHONE, code }, {})).rejects.toMatchObject({
+    await expect(
+      service.verify({ phone: PHONE, code }, {}),
+    ).rejects.toMatchObject({
       response: { errorCode: 'OTP_EXPIRED' },
     });
   });
 
   it('rejects verification when no code was ever requested', async () => {
     const { service } = build();
-    await expect(service.verify({ phone: PHONE, code: '123456' }, {})).rejects.toMatchObject({
+    await expect(
+      service.verify({ phone: PHONE, code: '123456' }, {}),
+    ).rejects.toMatchObject({
       response: { errorCode: 'OTP_INVALID' },
     });
   });
@@ -207,7 +232,10 @@ describe('OtpService — verifying a code', () => {
     const loginCode = codeFrom(sent);
 
     await expect(
-      service.verify({ phone: PHONE, code: loginCode, purpose: 'REGISTER', name: 'Aisha' }, {}),
+      service.verify(
+        { phone: PHONE, code: loginCode, purpose: 'REGISTER', name: 'Aisha' },
+        {},
+      ),
     ).rejects.toMatchObject({ response: { errorCode: 'OTP_INVALID' } });
   });
 });

@@ -468,7 +468,9 @@ export class AuthService {
     return this.issueTokens(user, context, rotation);
   }
 
-  async me(userId: string): Promise<RequestUser & { phone: string | null }> {
+  async me(
+    userId: string,
+  ): Promise<RequestUser & { phone: string | null; phoneVerified: boolean }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -477,6 +479,7 @@ export class AuthService {
         role: true,
         name: true,
         phone: true,
+        phoneVerifiedAt: true,
         isActive: true,
       },
     });
@@ -494,18 +497,38 @@ export class AuthService {
       role: user.role,
       name: user.name,
       phone: user.phone,
+      phoneVerified: Boolean(user.phone && user.phoneVerifiedAt),
     };
   }
 
   async updateMe(
     userId: string,
     dto: { name?: string; phone?: string },
-  ): Promise<RequestUser & { phone: string | null }> {
+  ): Promise<RequestUser & { phone: string | null; phoneVerified: boolean }> {
+    const current = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true },
+    });
+    const phoneChanged = Boolean(dto.phone && dto.phone !== current?.phone);
+    if (phoneChanged) {
+      const takenBy = await this.prisma.user.findUnique({
+        where: { phone: dto.phone },
+        select: { id: true },
+      });
+      if (takenBy && takenBy.id !== userId) {
+        throw new ConflictException({
+          errorCode: ErrorCodes.PHONE_ALREADY_REGISTERED,
+          message: 'This mobile number is already linked to another account.',
+        });
+      }
+    }
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         ...(dto.name ? { name: dto.name.trim() } : {}),
-        ...(dto.phone ? { phone: dto.phone } : {}),
+        // A new number has not been proven to be theirs: it stops receiving
+        // WhatsApp messages (and stops counting for host KYC) until verified.
+        ...(phoneChanged ? { phone: dto.phone, phoneVerifiedAt: null } : {}),
       },
     });
     return this.me(userId);

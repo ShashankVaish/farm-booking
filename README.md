@@ -74,6 +74,17 @@ npm run dev
 
 The site listens on `http://localhost:3000`. Open `/design-system` to review tokens and components.
 
+6. Optional: load sample listings for development:
+
+```powershell
+npm run db:seed:dev              # from the repo root
+npm run db:seed:dev -- --reset   # remove the sample data again
+```
+
+This adds 8 approved sample listings (Lonavala, Alibaug, Pune, Goa, Udaipur, Jaipur, Gurugram, Karjat) with placeholder photos, amenities and a few blocked dates, plus three logins, all with the password `DevPass123!`: `meera.host@dev.baagly.test` and `arjun.host@dev.baagly.test` (hosts) and `guest@dev.baagly.test` (guest). Running it again refreshes the same rows instead of duplicating them.
+
+It is development-only: the script (`apps/api/scripts/dev-seed.ts`) is not copied into the production Docker image, and it refuses to run when `NODE_ENV=production` or when `DATABASE_URL` points anywhere other than `localhost`.
+
 ## Health check
 
 ```powershell

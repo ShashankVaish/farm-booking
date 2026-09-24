@@ -42,7 +42,9 @@ describe('isAccepted', () => {
   });
 
   it('rejects explicit failures', () => {
-    expect(isAccepted('{"status":"error","message":"Invalid API key"}')).toBe(false);
+    expect(isAccepted('{"status":"error","message":"Invalid API key"}')).toBe(
+      false,
+    );
     expect(isAccepted('{"status":false}')).toBe(false);
     expect(isAccepted('{"status":0}')).toBe(false);
   });
@@ -74,12 +76,18 @@ describe('RenflairSmsProvider', () => {
       status: 200,
       text: async () => '{"status":"success","message":"sent"}',
     });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    global.fetch = fetchMock;
   });
 
   it('calls the documented endpoint with API, PHONE and OTP', async () => {
-    const provider = new RenflairSmsProvider(config({ RENFLAIR_API_KEY: 'key-123' }));
-    await provider.send({ phone: '+919876543210', message: 'ignored', code: '482913' });
+    const provider = new RenflairSmsProvider(
+      config({ RENFLAIR_API_KEY: 'key-123' }),
+    );
+    await provider.send({
+      phone: '+919876543210',
+      message: 'ignored',
+      code: '482913',
+    });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = new URL(String(fetchMock.mock.calls[0][0]));
@@ -92,8 +100,14 @@ describe('RenflairSmsProvider', () => {
   });
 
   it('ignores the rendered message, since the gateway supplies its own', async () => {
-    const provider = new RenflairSmsProvider(config({ RENFLAIR_API_KEY: 'key-123' }));
-    await provider.send({ phone: '9876543210', message: 'Your code is 111111', code: '482913' });
+    const provider = new RenflairSmsProvider(
+      config({ RENFLAIR_API_KEY: 'key-123' }),
+    );
+    await provider.send({
+      phone: '9876543210',
+      message: 'Your code is 111111',
+      code: '482913',
+    });
 
     const url = new URL(String(fetchMock.mock.calls[0][0]));
     expect(url.searchParams.get('OTP')).toBe('482913');
@@ -109,7 +123,9 @@ describe('RenflairSmsProvider', () => {
   });
 
   it('refuses a send with no code, rather than delivering an empty template', async () => {
-    const provider = new RenflairSmsProvider(config({ RENFLAIR_API_KEY: 'key-123' }));
+    const provider = new RenflairSmsProvider(
+      config({ RENFLAIR_API_KEY: 'key-123' }),
+    );
     await expect(
       provider.send({ phone: '9876543210', message: 'some text' }),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
@@ -117,7 +133,9 @@ describe('RenflairSmsProvider', () => {
   });
 
   it('refuses a non-Indian number instead of paying for a guaranteed failure', async () => {
-    const provider = new RenflairSmsProvider(config({ RENFLAIR_API_KEY: 'key-123' }));
+    const provider = new RenflairSmsProvider(
+      config({ RENFLAIR_API_KEY: 'key-123' }),
+    );
     await expect(
       provider.send({ phone: '+14155550100', message: 'x', code: '482913' }),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
@@ -130,15 +148,23 @@ describe('RenflairSmsProvider', () => {
       status: 200,
       text: async () => '{"status":"error","message":"Invalid API Key"}',
     });
-    const provider = new RenflairSmsProvider(config({ RENFLAIR_API_KEY: 'bad' }));
+    const provider = new RenflairSmsProvider(
+      config({ RENFLAIR_API_KEY: 'bad' }),
+    );
     await expect(
       provider.send({ phone: '9876543210', message: 'x', code: '482913' }),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 
   it('fails on an HTTP error', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 502, text: async () => 'Bad Gateway' });
-    const provider = new RenflairSmsProvider(config({ RENFLAIR_API_KEY: 'key-123' }));
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 502,
+      text: async () => 'Bad Gateway',
+    });
+    const provider = new RenflairSmsProvider(
+      config({ RENFLAIR_API_KEY: 'key-123' }),
+    );
     await expect(
       provider.send({ phone: '9876543210', message: 'x', code: '482913' }),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
@@ -146,20 +172,28 @@ describe('RenflairSmsProvider', () => {
 
   it('fails when the gateway times out', async () => {
     fetchMock.mockRejectedValue(new Error('The operation was aborted'));
-    const provider = new RenflairSmsProvider(config({ RENFLAIR_API_KEY: 'key-123' }));
+    const provider = new RenflairSmsProvider(
+      config({ RENFLAIR_API_KEY: 'key-123' }),
+    );
     await expect(
       provider.send({ phone: '9876543210', message: 'x', code: '482913' }),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 
   it('never puts the API key in the thrown message', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 401, text: async () => 'unauthorized' });
-    const provider = new RenflairSmsProvider(config({ RENFLAIR_API_KEY: 'super-secret-key' }));
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => 'unauthorized',
+    });
+    const provider = new RenflairSmsProvider(
+      config({ RENFLAIR_API_KEY: 'super-secret-key' }),
+    );
     await expect(
       provider.send({ phone: '9876543210', message: 'x', code: '482913' }),
     ).rejects.toThrow(
       expect.objectContaining({
-        message: expect.not.stringContaining('super-secret-key') as unknown as string,
+        message: expect.not.stringContaining('super-secret-key'),
       }),
     );
   });

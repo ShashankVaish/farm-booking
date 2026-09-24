@@ -733,3 +733,195 @@
   min-height: var(--touch);
   white-space: nowrap;
 }
+
+/* --- Sticky reserve bar (phones) -------------------------------------------
+   Rendered by the booking card so it shares the card's dates, quote and form.
+   Sits above the bottom navigation and slides up once on arrival. */
+.reserveBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--gutter);
+  background: var(--color-surface-elevated);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -8px 24px rgb(0 0 0 / 0.28);
+  animation: reserveBarIn 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (min-width: 1024px) {
+  .reserveBar {
+    display: none;
+  }
+}
+
+@keyframes reserveBarIn {
+  from {
+    transform: translateY(110%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.reserveSummary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  margin: calc(var(--space-1) * -1) calc(var(--space-2) * -1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.reserveSummary:active {
+  background: var(--color-overlay-surface);
+}
+
+.reserveSummary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Re-mounted (via `key`) whenever the total changes, so each new total pops in. */
+.reservePrice {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  animation: reservePricePop 280ms ease-out both;
+}
+
+.reservePriceLoading {
+  opacity: 0.5;
+}
+
+@keyframes reservePricePop {
+  from {
+    transform: translateY(4px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.reservePer {
+  font-size: 0.8rem;
+  font-weight: normal;
+  text-decoration: none;
+  color: var(--color-text-secondary);
+}
+
+.reserveDates {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.reserveChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-tint);
+  border: 1px solid var(--color-primary-border);
+  color: var(--color-primary-text);
+  font-size: 0.72rem;
+}
+
+.reserveButton {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 8.5rem;
+  min-height: 3.25rem;
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-press));
+  color: var(--color-on-primary);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgb(255 90 96 / 0.35);
+  transition: transform 120ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+.reserveButton:hover {
+  filter: brightness(1.06);
+}
+
+.reserveButton:active:not(:disabled) {
+  transform: scale(0.96);
+  box-shadow: 0 2px 8px rgb(255 90 96 / 0.3);
+}
+
+.reserveButton:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 3px;
+}
+
+.reserveButton:disabled {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+.reserveSpinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: reserveSpin 700ms linear infinite;
+}
+
+@keyframes reserveSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.suggestNote {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-tint);
+  border: 1px solid var(--color-primary-border);
+  color: var(--color-primary-text);
+  font-size: 0.85rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reserveBar,
+  .reservePrice {
+    animation: none;
+  }
+  .reserveButton,
+  .reserveSummary {
+    transition: none;
+  }
+}

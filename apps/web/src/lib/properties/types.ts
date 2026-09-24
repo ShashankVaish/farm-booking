@@ -117,6 +117,8 @@ export type AuthUser = {
   name: string;
   role: 'CUSTOMER' | 'OWNER' | 'ADMIN';
   phone?: string | null;
+  /** True once the current phone number was confirmed with a code. */
+  phoneVerified?: boolean;
 };
 
 export const PROPERTY_TYPE_LABEL: Record<string, string> = {

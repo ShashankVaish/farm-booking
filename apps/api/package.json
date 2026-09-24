@@ -25,6 +25,7 @@
     "prisma:migrate": "node --env-file-if-exists=../../.env ./node_modules/prisma/build/index.js migrate dev",
     "prisma:migrate:deploy": "node --env-file-if-exists=../../.env ./node_modules/prisma/build/index.js migrate deploy",
     "prisma:studio": "node --env-file-if-exists=../../.env ./node_modules/prisma/build/index.js studio",
+    "db:seed:dev": "node --env-file-if-exists=../../.env ./node_modules/ts-node/dist/bin.js --transpile-only scripts/dev-seed.ts",
     "uploads:audit": "node scripts/clean-uploads.mjs",
     "uploads:clean": "node scripts/clean-uploads.mjs --apply"
   },
@@ -40,6 +41,7 @@
     "@types/nodemailer": "^8.0.1",
     "@types/pdfkit": "^0.17.6",
     "bcryptjs": "^3.0.3",
+    "bullmq": "^6.3.8",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",

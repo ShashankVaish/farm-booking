@@ -459,6 +459,9 @@ model NotificationPreference {
   propertyRejection   Boolean  @default(true)
   newReview           Boolean  @default(true)
   coupon              Boolean  @default(true)
+  // WhatsApp needs the customer's explicit opt-in (Meta policy), so it is off
+  // until they turn it on, and only ever sent to a verified phone.
+  whatsapp            Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

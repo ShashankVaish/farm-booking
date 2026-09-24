@@ -171,3 +171,44 @@ export function monthGrid(month: Date): Array<{ date: string; inMonth: boolean }
   }
   return cells;
 }
+
+/**
+ * A one-night stay to pre-fill the booking card with, so a guest on a phone
+ * can reserve in one tap and change the date only if they want to.
+ *
+ * Picks at random among the first few free nights from tomorrow on — close
+ * enough to be a plausible plan, varied enough that every guest is not steered
+ * onto the same night. Returns null when nothing in the window is free.
+ */
+export function suggestOneNight(
+  days: Array<{ date: string; status: string }>,
+  options: { today?: string; windowDays?: number; pickFrom?: number; random?: () => number } = {},
+): { checkIn: string; checkOut: string } | null {
+  const today = options.today ?? todayIso();
+  const windowDays = options.windowDays ?? 30;
+  const pickFrom = options.pickFrom ?? 7;
+  const random = options.random ?? Math.random;
+  const status = new Map(days.map((day) => [day.date, day.status]));
+
+  const free: string[] = [];
+  for (let offset = 1; offset <= windowDays && free.length < pickFrom; offset += 1) {
+    const night = addDaysIso(today, offset);
+    if (!isUnavailableStatus(status.get(night))) free.push(night);
+  }
+  if (!free.length) return null;
+
+  const checkIn = free[Math.min(free.length - 1, Math.floor(random() * free.length))];
+  return { checkIn, checkOut: addDaysIso(checkIn, 1) };
+}
+
+/** "9–10 Oct", or "31 Oct – 1 Nov" across a month boundary. */
+export function shortStayLabel(checkIn: string, checkOut: string): string {
+  const [inYear, inMonth, inDay] = checkIn.split('-').map(Number);
+  const [outYear, outMonth, outDay] = checkOut.split('-').map(Number);
+  const month = (year: number, m: number) =>
+    new Date(year, m - 1, 1).toLocaleDateString('en-IN', { month: 'short' });
+  if (inYear === outYear && inMonth === outMonth) {
+    return `${inDay}–${outDay} ${month(inYear, inMonth)}`;
+  }
+  return `${inDay} ${month(inYear, inMonth)} – ${outDay} ${month(outYear, outMonth)}`;
+}

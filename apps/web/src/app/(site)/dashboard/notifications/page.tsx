@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { Checkbox } from '@/components/ui/forms';
 import { EmptyState, ErrorState, Spinner } from '@/components/ui/feedback';
 import { apiClient } from '@/lib/api/client';
@@ -30,6 +31,7 @@ type NotificationPrefs = {
   propertyRejection: boolean;
   newReview: boolean;
   coupon: boolean;
+  whatsapp: boolean;
 };
 
 const PREF_FIELDS: Array<{ key: keyof NotificationPrefs; label: string }> = [
@@ -105,6 +107,21 @@ export default function NotificationsPage() {
               />
             ))}
           </div>
+          <h3 className="t-h4" style={{ marginTop: 'var(--space-6)' }}>
+            WhatsApp
+          </h3>
+          <Checkbox
+            id="pref-whatsapp"
+            label="Also send booking confirmations, payment, cancellation and refund updates on WhatsApp"
+            checked={prefs.whatsapp}
+            onChange={(event) => {
+              void savePrefs({ ...prefs, whatsapp: event.target.checked });
+            }}
+          />
+          <p className="t-caption">
+            Sent only to a mobile number you have verified on your{' '}
+            <Link href="/dashboard/profile">profile</Link>.
+          </p>
         </section>
       ) : null}
       {items.length === 0 ? (

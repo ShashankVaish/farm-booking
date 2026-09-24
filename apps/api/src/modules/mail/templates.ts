@@ -243,7 +243,75 @@ export type BookingEmailData = {
   address?: string | null;
   mapUrl?: string | null;
   directionsUrl?: string | null;
+  /*
+    The host's name and verified mobile, so the guest can coordinate arrival.
+    Like the address, only ever filled in for a confirmed booking, and the
+    phone only when the host verified it with an OTP.
+  */
+  hostContactName?: string | null;
+  hostContactPhone?: string | null;
 };
+
+/** "9876543210" → "+91 98765 43210"; anything else is shown as stored. */
+export function displayIndianMobile(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  const local =
+    digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+  if (/^[6-9]\d{9}$/.test(local)) {
+    return `+91 ${local.slice(0, 5)} ${local.slice(5)}`;
+  }
+  return phone;
+}
+
+/** Digits only, with the country code, as tel: and wa.me links want them. */
+function internationalDigits(phone: string): string | null {
+  const digits = phone.replace(/\D/g, '');
+  if (/^[6-9]\d{9}$/.test(digits)) return `91${digits}`;
+  if (/^91[6-9]\d{9}$/.test(digits)) return digits;
+  return null;
+}
+
+/**
+ * The host contact block, shown only once a booking is confirmed: the name,
+ * a tap-to-call number and a WhatsApp link, which is how most guests in India
+ * actually reach a host on the day.
+ */
+function hostContactBlock(data: BookingEmailData): string {
+  const name = (data.hostContactName ?? '').trim();
+  const phone = (data.hostContactPhone ?? '').trim();
+  if (!name && !phone) return '';
+
+  const lines: string[] = [];
+  if (name) {
+    lines.push(
+      `<p style="margin:0 0 6px;color:${BRAND.ink};font-size:15px;line-height:1.6;font-weight:600;">${escapeHtml(name)}</p>`,
+    );
+  }
+  const digits = phone ? internationalDigits(phone) : null;
+  if (phone) {
+    const links = [
+      `<a href="tel:+${escapeHtml(digits ?? phone)}" style="color:${BRAND.coral};font-weight:600;text-decoration:underline;">Call ${escapeHtml(displayIndianMobile(phone))}</a>`,
+    ];
+    if (digits) {
+      links.push(
+        `<a href="https://wa.me/${digits}" style="color:${BRAND.coral};font-weight:600;text-decoration:underline;">WhatsApp</a>`,
+      );
+    }
+    lines.push(
+      `<p style="margin:0;font-size:14px;line-height:1.6;">${links.join(' &nbsp;·&nbsp; ')}</p>`,
+    );
+  }
+
+  return `
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0;">
+            <tr>
+              <td style="padding:16px 18px;background:${BRAND.cream};border-radius:12px;">
+                <p style="margin:0 0 8px;color:${BRAND.muted};font-size:12px;letter-spacing:0.08em;text-transform:uppercase;">Your host</p>
+                ${lines.join('\n                ')}
+              </td>
+            </tr>
+          </table>`;
+}
 
 /**
  * The address block, shown only once a booking is confirmed.
@@ -305,8 +373,22 @@ export function bookingConfirmedEmail(data: BookingEmailData): RenderedEmail {
           ${paragraph(`Hi ${escapeHtml(firstName(data.guestName))}, your payment went through and your stay is confirmed. The host has been told to expect you.`)}
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">${rows}</table>
           ${addressBlock(data)}
+          ${hostContactBlock(data)}
           ${button('View your booking', data.bookingUrl)}
           ${paragraph(`<span style="color:${BRAND.muted};font-size:13px;">Booking reference ${escapeHtml(shortRef(data.bookingId))}</span>`)}`;
+
+  const hostLines: string[] = [];
+  const hostName = (data.hostContactName ?? '').trim();
+  const hostPhone = (data.hostContactPhone ?? '').trim();
+  if (hostName || hostPhone) {
+    hostLines.push('', 'Your host:');
+    if (hostName) hostLines.push(`  ${hostName}`);
+    if (hostPhone) {
+      hostLines.push(`  Phone: ${displayIndianMobile(hostPhone)}`);
+      const digits = internationalDigits(hostPhone);
+      if (digits) hostLines.push(`  WhatsApp: https://wa.me/${digits}`);
+    }
+  }
 
   const addressLines: string[] = [];
   if ((data.address ?? '').trim()) {
@@ -336,6 +418,7 @@ export function bookingConfirmedEmail(data: BookingEmailData): RenderedEmail {
       `Guests:     ${data.guests}`,
       `Total paid: ${formatInr(data.total)}`,
       ...addressLines,
+      ...hostLines,
       '',
       `View your booking: ${data.bookingUrl}`,
       `Booking reference ${shortRef(data.bookingId)}`,
