@@ -98,7 +98,7 @@ export const PRIVACY_POLICY: TermsDocument = {
           kind: 'list',
           items: [
             'The host of a property you book sees your name, the dates, the number of guests and the amount, so they can receive you. They do not see your payment details.',
-            "A guest who books sees the host's name and, once the booking is paid, the property's exact address.",
+            "A guest who books sees the host's name and, once the booking is paid, the property's exact address and the host's verified mobile number, so the two can arrange arrival.",
             'Platform administrators can see account, booking and verification details in order to approve listings, resolve disputes and process refunds. Identity documents are visible only to administrators, only for verification.',
             'Service providers who act on our behalf: the payment gateway (PhonePe), our email, SMS and WhatsApp (Meta) messaging providers, and the servers that host the Platform. Each receives only what it needs to do its job.',
             'Authorities, where the law requires it.',

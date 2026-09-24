@@ -1,4 +1,5 @@
 import {
+  displayIndianMobile,
   firstName,
   formatInr,
   formatStayDate,
@@ -34,7 +35,7 @@ export const WHATSAPP_TEMPLATES = {
   bookingConfirmed: {
     name: 'booking_confirmed',
     audience: 'guest',
-    body: 'Hi {{1}}, your stay at {{2}} is confirmed. Check-in: {{3}}. Check-out: {{4}}. Guests: {{5}}. Booking ref: {{6}}. The exact address and directions are on your booking page.',
+    body: 'Hi {{1}}, your stay at {{2}} is confirmed. Check-in: {{3}}. Check-out: {{4}}. Guests: {{5}}. Booking ref: {{6}}. Your host: {{7}} ({{8}}). The exact address and directions are on your booking page.',
     examples: [
       'Asha',
       'Lake House Farm',
@@ -42,6 +43,8 @@ export const WHATSAPP_TEMPLATES = {
       'Sun, 4 Oct, 2026',
       '6',
       '3E4F5A6B',
+      'Meera Kapoor',
+      '+91 98765 43210',
     ],
     button: {
       text: 'View booking',
@@ -113,8 +116,17 @@ type Stay = {
 };
 
 export function bookingConfirmedWhatsApp(
-  data: Stay & { guestName: string },
+  data: Stay & {
+    guestName: string;
+    hostContactName?: string | null;
+    hostContactPhone?: string | null;
+  },
 ): WhatsAppTemplate {
+  // Meta refuses an empty parameter, so a missing detail gets words instead.
+  const hostName = data.hostContactName?.trim() || 'the host';
+  const hostPhone = data.hostContactPhone?.trim()
+    ? displayIndianMobile(data.hostContactPhone.trim())
+    : 'contact them from your booking page';
   return {
     name: WHATSAPP_TEMPLATES.bookingConfirmed.name,
     bodyParams: [
@@ -124,6 +136,8 @@ export function bookingConfirmedWhatsApp(
       formatStayDate(data.checkOut),
       String(data.guests),
       shortRef(data.bookingId),
+      hostName,
+      hostPhone,
     ],
     urlButtonParam: data.bookingId,
   };

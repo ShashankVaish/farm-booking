@@ -180,7 +180,17 @@ describe('WhatsApp templates', () => {
       'Sun, 4 Oct, 2026',
       '6',
       '3E4F5A6B',
+      'the host',
+      'contact them from your booking page',
     ]);
+    expect(
+      bookingConfirmedWhatsApp({
+        ...stay,
+        guestName: 'Asha Rao',
+        hostContactName: 'Meera Kapoor',
+        hostContactPhone: '9876543210',
+      }).bodyParams.slice(6),
+    ).toEqual(['Meera Kapoor', '+91 98765 43210']);
     expect(
       refundProcessedWhatsApp({
         guestName: 'Asha',

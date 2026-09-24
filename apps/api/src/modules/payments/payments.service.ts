@@ -68,7 +68,13 @@ const paymentBookingInclude = {
   booking: {
     include: {
       nights: true,
-      property: true,
+      // The host's contact goes to the guest once the booking is confirmed.
+      // Selected field by field, so no password hash or KYC data is loaded.
+      property: {
+        include: {
+          owner: { select: { name: true, phone: true, phoneVerifiedAt: true } },
+        },
+      },
       customer: { select: { id: true, name: true, email: true } },
     },
   },
@@ -115,11 +121,17 @@ export class PaymentsService {
         country?: string | null;
         latitude?: unknown;
         longitude?: unknown;
+        owner?: {
+          name: string;
+          phone: string | null;
+          phoneVerifiedAt: Date | null;
+        } | null;
       };
     };
   }): BookingEmailData {
     const { booking } = payment;
     const { property } = booking;
+    const owner = property.owner;
     return {
       guestName: booking.customer.name,
       propertyTitle: property.title,
@@ -136,6 +148,10 @@ export class PaymentsService {
       address: formatPropertyAddress(property),
       mapUrl: mapPlaceUrl(property.latitude, property.longitude),
       directionsUrl: mapDirectionsUrl(property.latitude, property.longitude),
+      // Only a number the host proved with an OTP is handed to a guest.
+      hostContactName: owner?.name ?? null,
+      hostContactPhone:
+        owner?.phone && owner.phoneVerifiedAt ? owner.phone : null,
     };
   }
 

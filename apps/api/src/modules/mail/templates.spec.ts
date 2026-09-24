@@ -1,5 +1,6 @@
 import {
   bookingConfirmedEmail,
+  displayIndianMobile,
   escapeHtml,
   firstName,
   formatInr,
@@ -336,5 +337,56 @@ describe('propertySubmittedEmail', () => {
     const email = propertySubmittedEmail(input);
     expect(email.text.length).toBeGreaterThan(0);
     expect(email.text).not.toContain('<');
+  });
+});
+
+describe('host contact in the confirmation', () => {
+  const withHost = stay({
+    hostContactName: 'Meera Kapoor',
+    hostContactPhone: '9876543210',
+  });
+
+  it('gives the guest the host name, a call link and a WhatsApp link', () => {
+    const rendered = bookingConfirmedEmail(withHost);
+    expect(rendered.html).toContain('Your host');
+    expect(rendered.html).toContain('Meera Kapoor');
+    expect(rendered.html).toContain('href="tel:+919876543210"');
+    expect(rendered.html).toContain('href="https://wa.me/919876543210"');
+    expect(rendered.text).toContain('Phone: +91 98765 43210');
+    expect(rendered.text).toContain('WhatsApp: https://wa.me/919876543210');
+  });
+
+  it('shows the name alone when the host has no verified phone', () => {
+    const rendered = bookingConfirmedEmail(
+      stay({ hostContactName: 'Meera Kapoor', hostContactPhone: null }),
+    );
+    expect(rendered.html).toContain('Meera Kapoor');
+    expect(rendered.html).not.toContain('tel:');
+    expect(rendered.html).not.toContain('wa.me');
+  });
+
+  it('leaves the block out entirely when there is no host detail', () => {
+    const rendered = bookingConfirmedEmail(stay());
+    expect(rendered.html).not.toContain('Your host');
+    expect(rendered.text).not.toContain('Your host');
+  });
+
+  it('escapes a host name so it cannot inject markup', () => {
+    const rendered = bookingConfirmedEmail(
+      stay({ hostContactName: '<img src=x onerror=alert(1)>' }),
+    );
+    expect(rendered.html).not.toContain('<img src=x');
+  });
+
+  it('never puts host contact in the payment-pending email', () => {
+    const rendered = paymentPendingEmail({ ...withHost, holdMinutes: 30 });
+    expect(rendered.html).not.toContain('9876543210');
+    expect(rendered.text).not.toContain('9876543210');
+  });
+
+  it('formats Indian mobiles for reading', () => {
+    expect(displayIndianMobile('9876543210')).toBe('+91 98765 43210');
+    expect(displayIndianMobile('+91 98765-43210')).toBe('+91 98765 43210');
+    expect(displayIndianMobile('12345')).toBe('12345');
   });
 });

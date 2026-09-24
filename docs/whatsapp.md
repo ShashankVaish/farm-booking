@@ -205,10 +205,16 @@ For each template below:
 Body:
 
 ```
-Hi {{1}}, your stay at {{2}} is confirmed. Check-in: {{3}}. Check-out: {{4}}. Guests: {{5}}. Booking ref: {{6}}. The exact address and directions are on your booking page.
+Hi {{1}}, your stay at {{2}} is confirmed. Check-in: {{3}}. Check-out: {{4}}. Guests: {{5}}. Booking ref: {{6}}. Your host: {{7}} ({{8}}). The exact address and directions are on your booking page.
 ```
 
-Samples: `Asha` · `Lake House Farm` · `Sat, 3 Oct, 2026` · `Sun, 4 Oct, 2026` · `6` · `3E4F5A6B`
+Samples: `Asha` · `Lake House Farm` · `Sat, 3 Oct, 2026` · `Sun, 4 Oct, 2026` · `6` · `3E4F5A6B` · `Meera Kapoor` · `+91 98765 43210`
+
+`{{7}}` and `{{8}}` are the host's name and mobile. The mobile is sent only if
+the host verified it with an OTP; otherwise `{{8}}` reads "contact them from
+your booking page". If this template was already approved with the older
+six-placeholder text, edit it in WhatsApp Manager and wait for re-approval:
+until then Meta refuses the message for a parameter-count mismatch (`132000`).
 
 Button: **Visit website** · text `View booking` · Dynamic URL
 `https://www.baagly.com/booking/{{1}}` · sample
