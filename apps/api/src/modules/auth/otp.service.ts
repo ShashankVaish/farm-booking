@@ -238,9 +238,13 @@ export class OtpService {
       });
     }
 
+    // The code just proved the phone is theirs.
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      data: {
+        lastLoginAt: new Date(),
+        ...(user.phoneVerifiedAt ? {} : { phoneVerifiedAt: new Date() }),
+      },
     });
 
     return {
@@ -278,6 +282,8 @@ export class OtpService {
       data: {
         email,
         phone: dto.phone,
+        // Registered by answering a code sent to this phone.
+        phoneVerifiedAt: new Date(),
         passwordHash,
         name: dto.name.trim(),
         role: UserRoles.CUSTOMER,
@@ -292,7 +298,9 @@ export class OtpService {
       sent: true as const,
       phone: maskPhone(phone),
       expiresAt: new Date(now.getTime() + this.ttlMs()).toISOString(),
-      resendAvailableAt: new Date(now.getTime() + this.resendMs()).toISOString(),
+      resendAvailableAt: new Date(
+        now.getTime() + this.resendMs(),
+      ).toISOString(),
     };
   }
 

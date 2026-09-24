@@ -36,6 +36,7 @@ import { AuditActions, AuditService } from '../../common/audit.service';
 import { bookingDetailInclude } from './booking-include';
 import { MailService } from '../mail/mail.service';
 import { paymentPendingEmail } from '../mail/templates';
+import { bookingCancelledWhatsApp } from '../notifications/whatsapp-templates';
 import { PlatformSettingsService } from '../settings/platform-settings.service';
 
 @Injectable()
@@ -363,6 +364,14 @@ export class BookingsService {
       body: `Your booking for ${booking.property.title} was cancelled.`,
       metadata: { bookingId: booking.id, reason: dto.reason },
       dedupeKey: `BOOKING_CANCELLED:${booking.id}:${booking.customerId}`,
+      whatsapp: (to) =>
+        bookingCancelledWhatsApp({
+          guestName: to.name,
+          propertyTitle: booking.property.title,
+          checkIn: booking.checkInDate,
+          checkOut: booking.checkOutDate,
+          bookingId: booking.id,
+        }),
     });
     await this.notifications.notify({
       userId: booking.property.ownerId,

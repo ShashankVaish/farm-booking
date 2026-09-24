@@ -271,6 +271,7 @@ export type AdminSettings = {
   webhookVerification: boolean;
   smsProvider: string;
   smsConfigured: boolean;
+  whatsappConfigured?: boolean;
   mailProvider: string;
   /** False when the API fell back to logging emails instead of sending them. */
   mailConfigured: boolean;

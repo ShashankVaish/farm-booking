@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { paginated } from '../../common/pagination';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { WhatsAppService, type WhatsAppTemplate } from './whatsapp.service';
 
 export const NotificationTypes = {
   BOOKING_CREATED: 'BOOKING_CREATED',
@@ -36,6 +37,8 @@ export type NotificationPreferenceFlags = {
   propertyRejection: boolean;
   newReview: boolean;
   coupon: boolean;
+  /** Channel opt-in, not an event: WhatsApp copies of the events above. */
+  whatsapp: boolean;
 };
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferenceFlags = {
@@ -48,6 +51,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferenceFlags = {
   propertyRejection: true,
   newReview: true,
   coupon: true,
+  whatsapp: false,
 };
 
 export function preferenceKeyForType(
@@ -98,6 +102,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly whatsapp: WhatsAppService,
   ) {}
 
   async notify(params: {
@@ -123,10 +128,19 @@ export class NotificationsService {
      * necessarily the one being written to.
      */
     email?: EmailBody | ((recipient: NotificationRecipient) => EmailBody);
+    /**
+     * A WhatsApp template to send alongside, under the same rules as `email`
+     * — and only to an active user who verified their phone and opted in to
+     * WhatsApp. Given a function, it is called with the resolved recipient.
+     */
+    whatsapp?:
+      | WhatsAppTemplate
+      | ((recipient: NotificationRecipient) => WhatsAppTemplate);
   }): Promise<{
     created: boolean;
     reason?: 'preference' | 'duplicate';
     emailed?: boolean;
+    whatsapped?: boolean;
   }> {
     const prefs = await this.getPreferences(params.userId);
     if (!isNotificationAllowed(params.type, prefs)) {
@@ -147,7 +161,11 @@ export class NotificationsService {
       const emailed = params.email
         ? await this.emailUser(params.userId, params.email)
         : undefined;
-      return { created: true, emailed };
+      const whatsapped =
+        params.whatsapp && prefs.whatsapp
+          ? await this.whatsappUser(params.userId, params.whatsapp)
+          : undefined;
+      return { created: true, emailed, whatsapped };
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -192,6 +210,42 @@ export class NotificationsService {
     return this.mail.sendQuietly({ to: recipient.email, ...body });
   }
 
+  /**
+   * Sends the template to the user's phone, if that phone was verified.
+   *
+   * An unverified number may belong to someone else — anyone can type any
+   * number into a profile — so it is never messaged. Like `emailUser`, this
+   * never throws.
+   */
+  private async whatsappUser(
+    userId: string,
+    template:
+      | WhatsAppTemplate
+      | ((recipient: NotificationRecipient) => WhatsAppTemplate),
+  ): Promise<boolean> {
+    if (!this.whatsapp.isConfigured()) {
+      return false;
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        name: true,
+        phone: true,
+        phoneVerifiedAt: true,
+        isActive: true,
+      },
+    });
+    if (!user?.phone || !user.phoneVerifiedAt || !user.isActive) {
+      return false;
+    }
+    const message =
+      typeof template === 'function'
+        ? template({ name: user.name, email: user.email })
+        : template;
+    return this.whatsapp.sendTemplate(user.phone, message);
+  }
+
   async getPreferences(userId: string): Promise<NotificationPreferenceFlags> {
     const row = await this.prisma.notificationPreference.findUnique({
       where: { userId },
@@ -209,6 +263,7 @@ export class NotificationsService {
       propertyRejection: row.propertyRejection,
       newReview: row.newReview,
       coupon: row.coupon,
+      whatsapp: row.whatsapp,
     };
   }
 

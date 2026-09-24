@@ -63,6 +63,7 @@ import { PrismaModule } from './prisma/prisma.module';
               'TWILIO_AUTH_TOKEN',
               'PHONEPE_CLIENT_SECRET',
               'PHONEPE_WEBHOOK_PASSWORD',
+              'WHATSAPP_ACCESS_TOKEN',
               'GOOGLE_MAPS_API_KEY',
               'ADMIN_PASSWORD',
             ],

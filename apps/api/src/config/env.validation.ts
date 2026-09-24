@@ -110,6 +110,30 @@ export class EnvironmentVariables {
   @IsString()
   PHONEPE_WEBHOOK_PASSWORD?: string;
 
+  /*
+    WhatsApp Cloud API (Meta). Optional: without the token and phone number id
+    nothing is sent on WhatsApp and every other channel works as before. Only
+    approved templates are sent, and only to users who verified their phone
+    and opted in — see docs/whatsapp.md.
+  */
+  @IsOptional()
+  @IsString()
+  WHATSAPP_ACCESS_TOKEN?: string;
+
+  @IsOptional()
+  @IsString()
+  WHATSAPP_PHONE_NUMBER_ID?: string;
+
+  /** Graph API version, e.g. v21.0. */
+  @IsOptional()
+  @IsString()
+  WHATSAPP_API_VERSION?: string;
+
+  /** The language the templates were approved in; "en" by default. */
+  @IsOptional()
+  @IsString()
+  WHATSAPP_TEMPLATE_LANGUAGE?: string;
+
   /**
    * Where the gateway sends the browser back after checkout, and where it
    * posts webhooks. Both default to routes on `${WEB_APP_URL}/api/payments/…`,

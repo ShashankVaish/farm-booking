@@ -66,7 +66,9 @@ export class RenflairSmsProvider implements SmsProvider {
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
     } catch {
-      this.logger.error(`Renflair timed out sending to ${maskPhone(input.phone)}`);
+      this.logger.error(
+        `Renflair timed out sending to ${maskPhone(input.phone)}`,
+      );
       throw new ServiceUnavailableException({
         errorCode: ErrorCodes.SMS_PROVIDER_ERROR,
         message: 'Unable to send SMS right now.',
@@ -98,11 +100,12 @@ export class RenflairSmsProvider implements SmsProvider {
  */
 export function normalizeIndianMobile(value: string): string | null {
   const digits = value.replace(/\D/g, '');
-  const local = digits.startsWith('91') && digits.length === 12
-    ? digits.slice(2)
-    : digits.startsWith('0') && digits.length === 11
-      ? digits.slice(1)
-      : digits;
+  const local =
+    digits.startsWith('91') && digits.length === 12
+      ? digits.slice(2)
+      : digits.startsWith('0') && digits.length === 11
+        ? digits.slice(1)
+        : digits;
   return /^[6-9]\d{9}$/.test(local) ? local : null;
 }
 
@@ -122,7 +125,8 @@ export function isAccepted(body: string): boolean {
     const parsed = JSON.parse(text) as { status?: unknown; message?: unknown };
     const status = String(parsed.status ?? '').toLowerCase();
     if (['success', 'true', '1', 'ok', 'sent'].includes(status)) return true;
-    if (['error', 'false', '0', 'failed', 'failure'].includes(status)) return false;
+    if (['error', 'false', '0', 'failed', 'failure'].includes(status))
+      return false;
     // Unknown status value: fall through to the text check below.
   } catch {
     // Not JSON — some gateways answer with a bare string.

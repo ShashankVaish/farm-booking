@@ -180,6 +180,12 @@ export default function AdminSettingsPage() {
                   {data.smsProvider}
                   {data.smsConfigured ? '' : ' — codes are only logged, not sent'}
                 </dd>
+                <dt className="t-caption">WhatsApp</dt>
+                <dd>
+                  {data.whatsappConfigured
+                    ? 'Meta Cloud API — sent to opted-in, verified phones'
+                    : 'Not configured — nothing is sent on WhatsApp'}
+                </dd>
                 {/*
                   A mail transport that logs instead of sending looks identical
                   to a working one from the outside, which is how OTP delivery

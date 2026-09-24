@@ -23,8 +23,13 @@ import { RequestEmailOtpDto, VerifyEmailOtpDto } from './dto/email-otp.dto';
 import { RequestOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
+import {
+  RequestPhoneVerificationDto,
+  VerifyPhoneDto,
+} from './dto/phone-verification.dto';
 import { EmailOtpService } from './email-otp.service';
 import { OtpService } from './otp.service';
+import { PhoneVerificationService } from './phone-verification.service';
 
 @Controller('auth')
 export class AuthController {
@@ -35,6 +40,7 @@ export class AuthController {
     private readonly otp: OtpService,
     private readonly emailOtp: EmailOtpService,
     private readonly config: ConfigService,
+    private readonly phoneVerification: PhoneVerificationService,
   ) {}
 
   @Public()
@@ -280,6 +286,31 @@ export class AuthController {
   @Post('email-otp/verify')
   verifyEmailOtp(@Body() dto: VerifyEmailOtpDto) {
     return this.emailOtp.verify(dto);
+  }
+
+  /*
+    A signed-in user proving they own a mobile number. A verified phone is what
+    WhatsApp booking updates are sent to; the code's purpose keeps it from ever
+    being usable at the login endpoint.
+  */
+  @SkipThrottle({ default: true })
+  @Throttle({ auth: { limit: 8, ttl: 60000 } })
+  @Post('me/phone/request')
+  requestPhoneVerification(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: RequestPhoneVerificationDto,
+    @Req() request: Request,
+  ) {
+    return this.phoneVerification.request(user.id, dto, {
+      ipAddress: request.ip,
+    });
+  }
+
+  @SkipThrottle({ default: true })
+  @Throttle({ auth: { limit: 12, ttl: 60000 } })
+  @Post('me/phone/verify')
+  verifyPhone(@CurrentUser() user: RequestUser, @Body() dto: VerifyPhoneDto) {
+    return this.phoneVerification.verify(user.id, dto);
   }
 
   @Get('me')
