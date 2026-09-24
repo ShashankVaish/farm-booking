@@ -241,6 +241,29 @@ docker compose -f docker-compose.prod.yml logs api | grep -i phonepe # payment g
 sudo journalctl -u caddy --since "1 hour ago"                        # or: -u nginx
 ```
 
+### Email and WhatsApp queue
+
+Emails and WhatsApp messages are not sent while the user waits. The request
+puts a job in Redis (BullMQ queue `delivery`) and a worker inside the API
+container sends it. A failed email is retried 5 times (after 15 s, 30 s,
+1 min, 2 min); after that it stays in the failed list. If Redis is down, the
+API sends in-process instead, without retries, so users never notice.
+
+```bash
+# on startup the API should log: "Delivery queue ready on Redis (worker running)."
+docker compose -f docker-compose.prod.yml logs api | grep -i "delivery"
+
+# how many are waiting, being sent, waiting to retry, and given up
+docker exec baagly-redis redis-cli llen bull:delivery:wait
+docker exec baagly-redis redis-cli llen bull:delivery:active
+docker exec baagly-redis redis-cli zcard bull:delivery:delayed
+docker exec baagly-redis redis-cli zcard bull:delivery:failed
+```
+
+A growing `wait` count means the worker is not running or cannot keep up.
+Restart the API. A growing `failed` count means the SMTP server is refusing
+mail: look for `failed (attempt 5/5), giving up` in the API log for the reason.
+
 ## 10. Backups
 
 The hosting provider's **Backups** add-on takes a daily snapshot of the whole

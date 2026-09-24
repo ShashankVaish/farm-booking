@@ -401,15 +401,18 @@ export default async function PropertyPage({ params }: Props) {
         </div>
       </div>
 
-      <div className={styles.mobileReserve}>
-        <span className="t-price">
-          {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(
-            Number(property.basePrice),
-          )}
-          <span className="t-caption"> / night</span>
-        </span>
-        <Button href={!isBookable ? '/explore' : '#book-in'}>{!isBookable ? 'Browse stays' : 'Check dates'}</Button>
-      </div>
+      {/* A bookable listing gets the booking card's own sticky Reserve bar. */}
+      {!isBookable ? (
+        <div className={styles.mobileReserve}>
+          <span className="t-price">
+            {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(
+              Number(property.basePrice),
+            )}
+            <span className="t-caption"> / night</span>
+          </span>
+          <Button href="/explore">Browse stays</Button>
+        </div>
+      ) : null}
     </article>
   );
 }

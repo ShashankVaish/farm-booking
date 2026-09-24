@@ -13,6 +13,7 @@ import { paginated } from '../../common/pagination';
 import { slugify } from '../../common/slug';
 import { isUuid } from '../../common/uuid';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DeliveryQueue } from '../delivery/delivery-queue.service';
 import { AgreementsService } from '../agreements/agreements.service';
 import { MailService } from '../mail/mail.service';
 import { propertySubmittedEmail } from '../mail/templates';
@@ -43,6 +44,7 @@ export class PropertiesService {
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly agreements: AgreementsService,
+    private readonly delivery: DeliveryQueue,
   ) {}
 
   async create(user: RequestUser, dto: CreatePropertyDto) {
@@ -291,6 +293,8 @@ export class PropertiesService {
     });
 
     if (submittedForReview) {
+      // Queued, not sent: the SMTP server takes seconds and the host's
+      // submission is already saved either way.
       await this.notifyAdminOfSubmission(saved.id);
     }
 
@@ -313,7 +317,7 @@ export class PropertiesService {
         This runs after the transaction has committed, so anything thrown here
         would report a failure for a submission that actually succeeded — the
         host would see an error and resubmit a listing already in the queue.
-        `sendQuietly` swallows transport failures, but the lookup and render
+        Queuing never throws on a transport failure, but the lookup and render
         above it can still throw, so the whole path is guarded rather than
         trusting one link in it.
       */
@@ -354,7 +358,7 @@ export class PropertiesService {
       brandName: this.mail.brandName(),
     });
 
-    await this.mail.sendQuietly({ to, ...email });
+    await this.delivery.enqueueEmail({ to, ...email });
   }
 
   async remove(id: string, user: RequestUser) {

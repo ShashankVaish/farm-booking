@@ -35,7 +35,8 @@ api.baagly.com {
 		read_body 120s
 	}
 
-	encode gzip
+	# zstd for clients that support it, gzip otherwise.
+	encode zstd gzip
 
 	log {
 		output file /var/log/caddy/api.baagly.com.log

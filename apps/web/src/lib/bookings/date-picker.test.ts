@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  shortStayLabel,
+  suggestOneNight,
   applyDateClick,
   isSelectableDate,
   nightsBetween,
@@ -88,5 +90,45 @@ describe('a one-night stay ending on a booked day', () => {
   it('treats a day with no availability row as free', () => {
     // Most listings have no rows at all until something is booked or blocked.
     expect(isSelectableDate('2026-09-20', { checkIn: '', checkOut: '' }, new Map(), today)).toBe(true);
+  });
+});
+
+describe('suggestOneNight', () => {
+  const today = '2026-10-08';
+
+  it('suggests a single night starting no earlier than tomorrow', () => {
+    const stay = suggestOneNight([], { today, random: () => 0 });
+    expect(stay).toEqual({ checkIn: '2026-10-09', checkOut: '2026-10-10' });
+  });
+
+  it('skips booked and blocked nights', () => {
+    const stay = suggestOneNight(
+      [
+        { date: '2026-10-09', status: 'BOOKED' },
+        { date: '2026-10-10', status: 'BLOCKED' },
+      ],
+      { today, random: () => 0 },
+    );
+    expect(stay).toEqual({ checkIn: '2026-10-11', checkOut: '2026-10-12' });
+  });
+
+  it('picks at random among the first few free nights only', () => {
+    const stay = suggestOneNight([], { today, pickFrom: 7, random: () => 0.999 });
+    expect(stay).toEqual({ checkIn: '2026-10-15', checkOut: '2026-10-16' });
+  });
+
+  it('returns null when the whole window is taken', () => {
+    const days = Array.from({ length: 3 }, (_, i) => ({
+      date: `2026-10-${String(9 + i).padStart(2, '0')}`,
+      status: 'BOOKED',
+    }));
+    expect(suggestOneNight(days, { today, windowDays: 3 })).toBeNull();
+  });
+});
+
+describe('shortStayLabel', () => {
+  it('reads like a compact date range', () => {
+    expect(shortStayLabel('2026-10-09', '2026-10-10')).toBe('9–10 Oct');
+    expect(shortStayLabel('2026-10-31', '2026-11-01')).toBe('31 Oct – 1 Nov');
   });
 });

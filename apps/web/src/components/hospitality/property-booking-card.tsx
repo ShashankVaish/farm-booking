@@ -8,8 +8,18 @@ import { memoryTokenStore } from '@/lib/api/token-store';
 import { ApiError, NetworkError } from '@/lib/api/errors';
 import { bookingApi } from '@/lib/bookings/api';
 import { openBookingKey } from '@/lib/bookings/types';
+import { handOffBooking } from '@/lib/bookings/booking-handoff';
 import type { PriceQuote } from '@/lib/bookings/types';
 import type { ApiProperty } from '@/lib/properties/types';
+import { getAvailability } from '@/lib/properties/api';
+import {
+  addDaysIso,
+  nightsBetween,
+  shortStayLabel,
+  suggestOneNight,
+  todayIso,
+} from '@/lib/bookings/date-picker';
+import { cn } from '@/lib/cn';
 import { PriceBreakdown } from './price-breakdown';
 import { StayDatePicker } from './stay-date-picker';
 import styles from './hospitality.module.css';
@@ -32,7 +42,46 @@ export function PropertyBookingCard({
   const [error, setError] = useState<string | null>(null);
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // True while the dates are the ones we picked, not the guest.
+  const [suggested, setSuggested] = useState(false);
   const submitting = useRef(false);
+  const guestPicked = useRef(false);
+
+  /*
+    Load the checkout page's code while the guest is still reading the
+    listing, so Reserve navigates without waiting for it. The page renders the
+    same shell for any id (the booking itself comes from the client), so a
+    placeholder id warms exactly what the real navigation will need.
+  */
+  useEffect(() => {
+    if (bookable) router.prefetch('/booking/00000000-0000-4000-8000-000000000000');
+  }, [bookable, router]);
+
+  /*
+    Pre-fill one free night so a guest on a phone can reserve in one tap from
+    the sticky bar. Only ever fills an empty card: if the guest has already
+    touched the calendar by the time availability arrives, their choice stands.
+  */
+  useEffect(() => {
+    if (!bookable) return;
+    let cancelled = false;
+    const today = todayIso();
+    getAvailability(property.id, today, addDaysIso(today, 32))
+      .then((days) => {
+        if (cancelled || guestPicked.current) return;
+        const stay = suggestOneNight(days, { today });
+        if (!stay) return;
+        setCheckIn(stay.checkIn);
+        setCheckOut(stay.checkOut);
+        setSuggested(true);
+      })
+      .catch(() => {
+        // No suggestion is fine; the guest picks from the calendar.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bookable, property.id]);
 
   useEffect(() => {
     if (!bookable || !checkIn || !checkOut) {
@@ -109,16 +158,27 @@ export function PropertyBookingCard({
         couponCode: appliedCoupon || undefined,
       });
       sessionStorage.setItem(storedKey, result.booking.id);
+      handOffBooking(result.booking);
       router.push(`/booking/${result.booking.id}`);
+      // Stay on "Reserving…" until the checkout page replaces this one;
+      // resetting here flashed "Reserve" again during the navigation, which
+      // read as if the tap had not worked.
     } catch (err) {
       setError(err instanceof ApiError || err instanceof NetworkError ? err.message : 'Could not start this booking.');
-    } finally {
       submitting.current = false;
       setBusy(false);
     }
   }
 
   const nightly = Number(property.basePrice);
+  const inr = (amount: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
+  const nights = checkIn && checkOut && checkOut > checkIn ? nightsBetween(checkIn, checkOut).length : 0;
+  const barTotal = quote ? Number(quote.totalAmount) : nights ? nightly * nights : nightly;
+
+  function showCard() {
+    document.getElementById('book-in')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   if (!bookable) {
     return (
@@ -147,7 +207,7 @@ export function PropertyBookingCard({
         {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(nightly)}{' '}
         <span className="t-caption">/ night</span>
       </p>
-      <form onSubmit={onReserve}>
+      <form id="book-form" onSubmit={onReserve}>
         <StayDatePicker
           propertyId={property.id}
           checkIn={checkIn}
@@ -155,6 +215,8 @@ export function PropertyBookingCard({
           basePrice={Number(property.basePrice) || 0}
           weekendPrice={property.weekendPrice ? Number(property.weekendPrice) : null}
           onChange={(next) => {
+            guestPicked.current = true;
+            setSuggested(false);
             setCheckIn(next.checkIn);
             setCheckOut(next.checkOut);
             if (next.error) setError(next.error);
@@ -198,10 +260,58 @@ export function PropertyBookingCard({
             {error}
           </p>
         ) : null}
+        {suggested && nights ? (
+          <p className={styles.suggestNote} role="status">
+            We picked {shortStayLabel(checkIn, checkOut)} for you — tap any other date to change it.
+          </p>
+        ) : null}
         <Button type="submit" block loading={busy} disabled={busy || quoting || !checkIn || !checkOut}>
           {busy ? 'Reserving…' : 'Reserve'}
         </Button>
       </form>
+
+      {/*
+        Phones only (hidden from 1024px up, where the card itself is sticky).
+        Tapping the summary scrolls to the calendar to change the date; Reserve
+        submits the card's own form, so both paths share one set of checks.
+      */}
+      <div className={styles.reserveBar} role="region" aria-label="Reserve this stay">
+        <button type="button" className={styles.reserveSummary} onClick={showCard}>
+          <span key={barTotal} className={cn(styles.reservePrice, quoting && styles.reservePriceLoading)}>
+            {inr(barTotal)}
+            {!nights ? <span className={styles.reservePer}> / night</span> : null}
+          </span>
+          <span className={styles.reserveDates}>
+            {nights
+              ? `For ${nights} ${nights === 1 ? 'night' : 'nights'} · ${shortStayLabel(checkIn, checkOut)}`
+              : 'Add dates to see the total'}
+          </span>
+          <span className={styles.reserveChip}>
+            <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            {suggested ? 'Suggested · change' : nights ? 'Change dates' : 'Pick dates'}
+          </span>
+        </button>
+        {nights ? (
+          <button
+            type="submit"
+            form="book-form"
+            className={styles.reserveButton}
+            disabled={busy || quoting}
+            aria-busy={busy || undefined}
+            onClick={() => navigator.vibrate?.(10)}
+          >
+            {busy ? <span className={styles.reserveSpinner} aria-hidden="true" /> : null}
+            {busy ? 'Reserving' : 'Reserve'}
+          </button>
+        ) : (
+          <button type="button" className={styles.reserveButton} onClick={showCard}>
+            Check dates
+          </button>
+        )}
+      </div>
     </aside>
   );
 }

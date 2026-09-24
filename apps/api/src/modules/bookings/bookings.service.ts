@@ -160,6 +160,10 @@ export class BookingsService {
               })),
             },
           },
+          // The same shape as GET /bookings/:id, so the checkout page can draw
+          // the booking straight from this response instead of fetching it
+          // again right after the guest taps Reserve.
+          include: bookingDetailInclude,
         });
 
         if (coupon) {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState, Spinner } from '@/components/ui/feedback';
 import { PriceBreakdown } from '@/components/hospitality/price-breakdown';
+import { peekHandedOffBooking } from '@/lib/bookings/booking-handoff';
 import { bookingApi } from '@/lib/bookings/api';
 import { payErrorMessage } from '@/lib/bookings/payment-errors';
 import {
@@ -90,7 +91,9 @@ function submitCheckout(checkout: CheckoutForm): void {
 
 export function BookingExperience({ bookingId, confirmation }: { bookingId: string; confirmation?: boolean }) {
   const router = useRouter();
-  const [booking, setBooking] = useState<CustomerBooking | null>(null);
+  // Drawn at once from what Reserve just returned, when there is one; `load`
+  // below still refreshes it from the server.
+  const [booking, setBooking] = useState<CustomerBooking | null>(() => peekHandedOffBooking(bookingId));
   const [error, setError] = useState<string | null>(null);
   /*
     The gateway's verdict, kept apart from `error`. `load()` clears `error`
@@ -104,7 +107,7 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
     every background refresh, which swapped the whole page for a spinner and
     back — the flicker. Only the very first load is allowed to blank the page.
   */
-  const [initialLoading, setInitialLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(() => !peekHandedOffBooking(bookingId));
   const [busy, setBusy] = useState(false);
   const paying = useRef(false);
 

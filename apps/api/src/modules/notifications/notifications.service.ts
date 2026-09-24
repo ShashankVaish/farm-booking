@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { paginated } from '../../common/pagination';
 import { PrismaService } from '../../prisma/prisma.service';
-import { MailService } from '../mail/mail.service';
+import { DeliveryQueue } from '../delivery/delivery-queue.service';
 import { WhatsAppService, type WhatsAppTemplate } from './whatsapp.service';
 
 export const NotificationTypes = {
@@ -101,8 +101,8 @@ export class NotificationsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mail: MailService,
     private readonly whatsapp: WhatsAppService,
+    private readonly delivery: DeliveryQueue,
   ) {}
 
   async notify(params: {
@@ -139,8 +139,8 @@ export class NotificationsService {
   }): Promise<{
     created: boolean;
     reason?: 'preference' | 'duplicate';
-    emailed?: boolean;
-    whatsapped?: boolean;
+    /** Which deliveries were handed to the background after the row was written. */
+    queued?: { email: boolean; whatsapp: boolean };
   }> {
     const prefs = await this.getPreferences(params.userId);
     if (!isNotificationAllowed(params.type, prefs)) {
@@ -158,14 +158,31 @@ export class NotificationsService {
           dedupeKey: params.dedupeKey,
         },
       });
-      const emailed = params.email
-        ? await this.emailUser(params.userId, params.email)
-        : undefined;
-      const whatsapped =
-        params.whatsapp && prefs.whatsapp
-          ? await this.whatsappUser(params.userId, params.whatsapp)
-          : undefined;
-      return { created: true, emailed, whatsapped };
+      /*
+        Messages are queued, not sent: the SMTP server takes seconds to accept
+        an email, and the request that triggered this (a booking, a payment
+        return) must not wait on it. Queuing is a Redis write of about a
+        millisecond; a worker does the sending and retries failures. The row
+        above is what the page reads, and it is already written.
+      */
+      const { email, whatsapp } = params;
+      const sendWhatsApp = Boolean(whatsapp && prefs.whatsapp);
+      const queued = { email: false, whatsapp: false };
+      try {
+        if (email) queued.email = await this.emailUser(params.userId, email);
+        if (whatsapp && sendWhatsApp) {
+          queued.whatsapp = await this.whatsappUser(params.userId, whatsapp);
+        }
+      } catch (error: unknown) {
+        // The notification exists; a failed lookup must not report otherwise.
+        this.logger.warn({
+          err: error instanceof Error ? error.message : 'unknown',
+          userId: params.userId,
+          type: params.type,
+          msg: 'Could not queue delivery',
+        });
+      }
+      return { created: true, queued };
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -183,11 +200,9 @@ export class NotificationsService {
   }
 
   /**
-   * Looks the address up and hands it to the mail service.
-   *
-   * Never throws: the booking, payment or refund that triggered this has
-   * already happened, so a mail failure must not turn a successful request into
-   * an error. `sendQuietly` logs it instead.
+   * Looks the address up and queues the email. Returns whether it was queued.
+   * Delivery failures are the queue's to retry and log; they never reach the
+   * request that triggered this.
    */
   private async emailUser(
     userId: string,
@@ -207,15 +222,15 @@ export class NotificationsService {
       email: user.email,
     };
     const body = typeof email === 'function' ? email(recipient) : email;
-    return this.mail.sendQuietly({ to: recipient.email, ...body });
+    await this.delivery.enqueueEmail({ to: recipient.email, ...body });
+    return true;
   }
 
   /**
-   * Sends the template to the user's phone, if that phone was verified.
+   * Queues the template for the user's phone, if that phone was verified.
    *
    * An unverified number may belong to someone else — anyone can type any
-   * number into a profile — so it is never messaged. Like `emailUser`, this
-   * never throws.
+   * number into a profile — so it is never messaged.
    */
   private async whatsappUser(
     userId: string,
@@ -243,7 +258,8 @@ export class NotificationsService {
       typeof template === 'function'
         ? template({ name: user.name, email: user.email })
         : template;
-    return this.whatsapp.sendTemplate(user.phone, message);
+    await this.delivery.enqueueWhatsApp(user.phone, message);
+    return true;
   }
 
   async getPreferences(userId: string): Promise<NotificationPreferenceFlags> {

@@ -27,6 +27,16 @@ function mailStub() {
   };
 }
 
+/** Stands in for the Redis queue, passing queued emails to the mail stub. */
+function deliveryFor(mail: { sendQuietly: (email: unknown) => unknown }) {
+  return {
+    enqueueEmail: jest.fn(async (email: unknown) => {
+      await mail.sendQuietly(email);
+      return 'queued';
+    }),
+  };
+}
+
 describe('property ownership authorization', () => {
   const owner: RequestUser = {
     id: 'owner-1',
@@ -76,6 +86,7 @@ describe('property ownership authorization', () => {
       prisma as never,
       mailStub() as never,
       agreementsStub() as never,
+      deliveryFor(mailStub()) as never,
     );
     await expect(service.getById(id, customer)).rejects.toBeInstanceOf(
       NotFoundException,
@@ -100,6 +111,7 @@ describe('property ownership authorization', () => {
       prisma as never,
       mailStub() as never,
       agreementsStub() as never,
+      deliveryFor(mailStub()) as never,
     );
     await expect(
       service.getById('courtyard-lonavala', customer),
@@ -115,6 +127,7 @@ describe('property ownership authorization', () => {
       {} as never,
       mailStub() as never,
       agreementsStub() as never,
+      deliveryFor(mailStub()) as never,
     );
     await expect(
       service.create(owner, {
@@ -194,6 +207,7 @@ describe('submitting a listing for review', () => {
         prisma as never,
         mail as never,
         agreements as never,
+        deliveryFor(mail) as never,
       ),
       mail,
       prisma,

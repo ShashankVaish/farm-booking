@@ -177,10 +177,21 @@ export class EnvironmentVariables {
   @IsString()
   WEB_APP_URL?: string;
 
-  /** Redis connection for OTP state. Falls back to an in-memory store if unset. */
+  /**
+   * Redis, for OTP state and the email/WhatsApp delivery queue. Unset, OTPs
+   * use an in-memory store and messages are sent in-process without retries.
+   */
   @IsOptional()
   @IsString()
   REDIS_URL?: string;
+
+  /**
+   * "off" stops this process from sending queued messages (it still queues
+   * them). Only for running several API instances with one sender.
+   */
+  @IsOptional()
+  @IsIn(['on', 'off'])
+  DELIVERY_WORKER?: string;
 
   @IsOptional()
   @IsString()
