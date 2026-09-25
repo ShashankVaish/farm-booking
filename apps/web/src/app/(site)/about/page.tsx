@@ -6,7 +6,7 @@ import styles from './about.module.css';
 
 export const metadata = buildPageMetadata({
   title: 'About us',
-  description: `${brand.name} is an online marketplace for booking private farmhouses, villas and party venues across India, operated by ${business.entity}.`,
+  description: `${brand.name} is an online platform for booking private farmhouses, villas and party venues across India, operated by ${business.entity}.`,
   path: '/about',
 });
 
@@ -27,7 +27,7 @@ export default function AboutPage() {
         <p className="t-label">About</p>
         <h1 className="t-h1">About {brand.name}</h1>
         <p className={styles.lead}>
-          {brand.name} is an online marketplace for booking private farmhouses, villas and party
+          {brand.name} is an online platform for booking private farmhouses, villas and party
           venues across India — places to celebrate a birthday, host a family weekend or take a
           quiet few days away, booked at a transparent price with verified hosts.
         </p>
@@ -47,7 +47,7 @@ export default function AboutPage() {
           payment the booking is confirmed by email and the property&apos;s exact address is shared.
         </p>
         <p className="t-body">
-          We are a technology marketplace. We do not own or operate the properties listed. The stay
+          We are a technology platform. We do not own or operate the properties listed. The stay
           itself is provided by the host; we list it, take the booking, collect the payment on the
           host&apos;s behalf and settle it to them after the stay.
         </p>

@@ -1,6 +1,6 @@
 # Farmhouse Party Booking Platform
 
-Indian marketplace for discovering and booking farmhouses, private villas, party houses, pool properties, weekend stays, and event venues.
+Indian platform for discovering and booking farmhouses, private villas, party houses, pool properties, weekend stays, and event venues.
 
 Phase 1 delivers the backend foundation. Phase 2 adds the Next.js customer shell, design tokens, and reusable UI. Search, maps, booking, and dashboards are still later phases.
 
