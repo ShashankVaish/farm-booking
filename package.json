@@ -1,7 +1,7 @@
 {
   "name": "farmhouse-party-booking",
   "private": true,
-  "description": "Indian marketplace for discovering and booking farmhouses, villas, and party venues.",
+  "description": "Indian platform for discovering and booking farmhouses, villas, and party venues.",
   "scripts": {
     "dev": "npm run dev --prefix apps/web",
     "dev:web": "npm run dev --prefix apps/web",

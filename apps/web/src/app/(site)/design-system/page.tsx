@@ -49,7 +49,7 @@ export default function DesignSystemPage() {
         <p className="t-label">Internal</p>
         <h1 className="t-h1">Design foundation</h1>
         <p className="t-body">
-          Tokens, type, and components for a hospitality marketplace. Brand name and palette can change without
+          Tokens, type, and components for a hospitality booking site. Brand name and palette can change without
           restructuring screens.
         </p>
       </header>
