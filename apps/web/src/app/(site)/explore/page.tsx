@@ -5,6 +5,7 @@ import { safeSearch } from '@/lib/properties/api';
 import { toPropertyCard } from '@/lib/properties/map-property';
 import type { ApiAmenity, SearchFilters } from '@/lib/properties/types';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
+import { positiveInt, positiveNumber } from '@/lib/properties/search-params';
 
 export const metadata = buildPageMetadata({
   title: 'Explore stays',
@@ -46,16 +47,19 @@ export default async function ExplorePage({
     city: query.city,
     checkIn: query.checkIn,
     checkOut: query.checkOut,
-    guests: query.guests ? Number(query.guests) : undefined,
-    minPrice: query.minPrice ? Number(query.minPrice) : undefined,
-    maxPrice: query.maxPrice ? Number(query.maxPrice) : undefined,
-    bedrooms: query.bedrooms ? Number(query.bedrooms) : undefined,
-    bathrooms: query.bathrooms ? Number(query.bathrooms) : undefined,
+    // A hand-edited or stale link ("guests=0", "guests=abc") used to reach the
+    // API as-is; it refused the whole search and the page showed no stays.
+    // Anything that is not a positive whole number is dropped instead.
+    guests: positiveInt(query.guests),
+    minPrice: positiveInt(query.minPrice),
+    maxPrice: positiveInt(query.maxPrice),
+    bedrooms: positiveInt(query.bedrooms),
+    bathrooms: positiveInt(query.bathrooms),
     // Must stay undefined when unchecked. `false` survives toQueryString and
     // reaches the API as `pool=false`, which excludes every stay.
     pool: query.pool === 'true' ? true : undefined,
     partyAllowed: query.partyAllowed === 'true' ? true : undefined,
-    minRating: query.minRating ? Number(query.minRating) : undefined,
+    minRating: positiveNumber(query.minRating),
     sort: query.sort,
     propertyType: query.propertyType,
     amenities: query.amenities,
@@ -65,7 +69,11 @@ export default async function ExplorePage({
 
   const [result, amenities] = await Promise.all([
     safeSearch(filters),
-    apiClient.get<ApiAmenity[]>('/api/amenities', { auth: false }).catch(() => [] as ApiAmenity[]),
+    // The amenity list changes only when an admin edits it; no need to fetch
+    // it again on every search.
+    apiClient
+      .get<ApiAmenity[]>('/api/amenities', { auth: false, next: { revalidate: 600 } })
+      .catch(() => [] as ApiAmenity[]),
   ]);
 
   return (

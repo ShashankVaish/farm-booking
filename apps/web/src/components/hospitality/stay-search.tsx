@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { FormEvent, useState, useTransition } from 'react';
+import { FormEvent, useEffect, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/forms';
 import { toQueryString } from '@/lib/api/query';
@@ -14,6 +14,14 @@ function todayKey(): string {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   return `${now.getFullYear()}-${month}-${day}`;
+}
+
+/** The ISO date after `iso`, computed in local time to match the date inputs. */
+export function nextDay(iso: string): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  const next = new Date(year, month - 1, day + 1);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`;
 }
 
 export function StaySearch({
@@ -36,6 +44,12 @@ export function StaySearch({
 
   const minDate = todayKey();
 
+  // Load the Explore page's code while the guest fills the form, so Search
+  // only waits for the results themselves.
+  useEffect(() => {
+    router.prefetch('/explore');
+  }, [router]);
+
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (checkIn && checkOut && checkOut <= checkIn) {
@@ -43,10 +57,16 @@ export function StaySearch({
       return;
     }
     setError(null);
+    /*
+      A check-in with no check-out used to be sent as-is, and the API ignores a
+      half range — so the results included stays already booked that night.
+      One night is what a guest who picked only a check-in almost always means.
+    */
+    const stayOut = checkIn && !checkOut ? nextDay(checkIn) : checkOut;
     const query = toQueryString({
       location: location.trim() || undefined,
       checkIn: checkIn || undefined,
-      checkOut: checkOut || undefined,
+      checkOut: stayOut || undefined,
       guests: guests > 0 ? guests : undefined,
     });
     startTransition(() => router.push(`/explore${query}`));

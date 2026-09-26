@@ -15,6 +15,24 @@ function isEnvelope(value: unknown): value is ApiEnvelope<unknown> {
 
 const REFRESH_PATH = '/api/auth/refresh';
 
+/*
+  A server-side render waits for every fetch it makes. With no limit, an API
+  that is down or stuck held the whole page — the Explore page behind the
+  Search button — until the connection gave up, which on some networks is
+  minutes. The browser has its own limits and a visible page, so this default
+  applies on the server only.
+*/
+const SERVER_TIMEOUT_MS = 10_000;
+
+function timeoutSignal(requestOptions: RequestOptions): AbortSignal | undefined {
+  if (requestOptions.signal) return requestOptions.signal;
+  const ms =
+    requestOptions.timeoutMs ?? (typeof window === 'undefined' ? SERVER_TIMEOUT_MS : undefined);
+  return ms && typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
+    ? AbortSignal.timeout(ms)
+    : undefined;
+}
+
 export function createApiClient(options: ClientOptions = {}) {
   const tokenStore = options.tokenStore ?? memoryTokenStore;
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -93,8 +111,9 @@ export function createApiClient(options: ClientOptions = {}) {
             : isFormData
               ? (requestOptions.body as FormData)
               : JSON.stringify(requestOptions.body),
-        signal: requestOptions.signal,
-      });
+        signal: timeoutSignal(requestOptions),
+        ...(requestOptions.next ? { next: requestOptions.next } : {}),
+      } as RequestInit);
     } catch {
       throw new NetworkError();
     }

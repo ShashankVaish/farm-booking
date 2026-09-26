@@ -81,3 +81,47 @@ describe('createApiClient', () => {
     expect(options.body).toBe(body);
   });
 });
+
+describe('createApiClient timeouts and caching', () => {
+  function client(fetchImpl: ReturnType<typeof vi.fn>) {
+    return createApiClient({
+      getBaseUrl: () => 'http://api.test',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      tokenStore: { getAccessToken: () => null },
+    });
+  }
+
+  const ok = () =>
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: [] }) });
+
+  it('gives a request a deadline, so a stuck API cannot hold a page forever', async () => {
+    const fetchImpl = ok();
+    await client(fetchImpl).get('/api/search', { timeoutMs: 5000 });
+    const init = fetchImpl.mock.calls[0][1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('reports a timed-out request as a network error', async () => {
+    const fetchImpl = vi.fn((_url: string, init: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(new DOMException('timeout', 'TimeoutError')));
+      });
+    });
+    await expect(client(fetchImpl).get('/api/search', { timeoutMs: 20 })).rejects.toBeInstanceOf(
+      NetworkError,
+    );
+  });
+
+  it("keeps the caller's own abort signal", async () => {
+    const fetchImpl = ok();
+    const controller = new AbortController();
+    await client(fetchImpl).get('/api/search', { signal: controller.signal, timeoutMs: 5000 });
+    expect((fetchImpl.mock.calls[0][1] as RequestInit).signal).toBe(controller.signal);
+  });
+
+  it('passes Next cache hints through to fetch', async () => {
+    const fetchImpl = ok();
+    await client(fetchImpl).get('/api/amenities', { next: { revalidate: 600 } });
+    expect(fetchImpl.mock.calls[0][1]).toMatchObject({ next: { revalidate: 600 } });
+  });
+});
