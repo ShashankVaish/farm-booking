@@ -511,3 +511,20 @@
 .help a {
   color: var(--color-primary-text);
 }
+
+/* An inline text button, e.g. "Change number" under the phone field. */
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary-text);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.linkButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

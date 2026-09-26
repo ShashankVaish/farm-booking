@@ -24,9 +24,12 @@ import { RequestOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import {
+  RequestEmailVerificationDto,
   RequestPhoneVerificationDto,
+  VerifyEmailDto,
   VerifyPhoneDto,
 } from './dto/phone-verification.dto';
+import { EmailVerificationService } from './email-verification.service';
 import { EmailOtpService } from './email-otp.service';
 import { OtpService } from './otp.service';
 import { PhoneVerificationService } from './phone-verification.service';
@@ -41,6 +44,7 @@ export class AuthController {
     private readonly emailOtp: EmailOtpService,
     private readonly config: ConfigService,
     private readonly phoneVerification: PhoneVerificationService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   @Public()
@@ -313,6 +317,28 @@ export class AuthController {
   @Post('me/phone/verify')
   verifyPhone(@CurrentUser() user: RequestUser, @Body() dto: VerifyPhoneDto) {
     return this.phoneVerification.verify(user.id, dto);
+  }
+
+  /*
+    A signed-in user adding and confirming an email for their account. Phone
+    sign-ups do this before their first booking, so confirmations and refund
+    notices have somewhere to go.
+  */
+  @SkipThrottle({ default: true })
+  @Throttle({ auth: { limit: 8, ttl: 60000 } })
+  @Post('me/email/request')
+  requestEmailVerification(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: RequestEmailVerificationDto,
+  ) {
+    return this.emailVerification.request(user.id, dto.email);
+  }
+
+  @SkipThrottle({ default: true })
+  @Throttle({ auth: { limit: 12, ttl: 60000 } })
+  @Post('me/email/verify')
+  verifyEmail(@CurrentUser() user: RequestUser, @Body() dto: VerifyEmailDto) {
+    return this.emailVerification.verify(user.id, dto.email, dto.code);
   }
 
   @Get('me')

@@ -12,7 +12,9 @@ export type OtpPurpose =
   | 'REGISTER'
   | 'VERIFY_PHONE'
   /** Email confirmation before a password signup; keyed by email, not phone. */
-  | 'VERIFY_EMAIL';
+  | 'VERIFY_EMAIL'
+  /** A signed-in user confirming an address for their account (e.g. before booking). */
+  | 'ACCOUNT_EMAIL';
 
 export class RequestOtpDto {
   @IsString()

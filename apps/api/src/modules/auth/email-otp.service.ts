@@ -87,7 +87,26 @@ export class EmailOtpService {
       return this.opaqueResult(email, now);
     }
 
-    if (await this.store.isCoolingDown(email, PURPOSE)) {
+    return this.sendCode(email, PURPOSE);
+  }
+
+  /**
+   * Issues and emails a code for `purpose`, under the same cooldown, hourly cap
+   * and delivery-failure handling as signup. Shared with verifying the address
+   * of an existing account (EmailVerificationService), which uses its own
+   * purpose so its codes can never be spent on signup, or the other way round.
+   */
+  async sendCode(
+    email: string,
+    purpose: OtpPurpose,
+  ): Promise<{
+    sent: true;
+    email: string;
+    expiresAt: string;
+    resendAvailableAt: string;
+  }> {
+    const now = new Date();
+    if (await this.store.isCoolingDown(email, purpose)) {
       throw new BadRequestException({
         errorCode: ErrorCodes.OTP_COOLDOWN,
         message: 'Please wait before requesting another code.',
@@ -96,7 +115,7 @@ export class EmailOtpService {
 
     const sends = await this.store.countSends(
       email,
-      PURPOSE,
+      purpose,
       this.sendWindowSeconds(),
       now.getTime(),
     );
@@ -113,7 +132,7 @@ export class EmailOtpService {
 
     await this.store.putChallenge(
       email,
-      PURPOSE,
+      purpose,
       {
         codeHash: this.hashCode(email, code),
         attemptCount: 0,
@@ -123,11 +142,11 @@ export class EmailOtpService {
     );
     await this.store.recordSend(
       email,
-      PURPOSE,
+      purpose,
       this.sendWindowSeconds(),
       now.getTime(),
     );
-    await this.store.startCooldown(email, PURPOSE, this.resendSeconds());
+    await this.store.startCooldown(email, purpose, this.resendSeconds());
 
     // This one surfaces failure: the code is the entire point of the request,
     // so reporting success when nothing was delivered would leave the caller
@@ -138,6 +157,7 @@ export class EmailOtpService {
       code,
       ttlMinutes: Math.max(1, Math.round(ttlSeconds / 60)),
       brandName: this.mail.brandName(),
+      context: purpose === 'ACCOUNT_EMAIL' ? 'account' : 'signup',
     });
     try {
       await this.mail.send({ to: email, ...message });
@@ -174,50 +194,7 @@ export class EmailOtpService {
     expiresAt: string;
   }> {
     const email = EmailOtpService.normalize(dto.email);
-    const now = Date.now();
-    const challenge = await this.store.getChallenge(email, PURPOSE);
-
-    if (!challenge) {
-      throw new UnauthorizedException({
-        errorCode: ErrorCodes.OTP_INVALID,
-        message: 'No active code was found. Request a new one.',
-      });
-    }
-
-    if (challenge.expiresAt <= now) {
-      await this.store.consumeChallenge(email, PURPOSE);
-      throw new UnauthorizedException({
-        errorCode: ErrorCodes.OTP_EXPIRED,
-        message: 'This code has expired.',
-      });
-    }
-
-    if (challenge.attemptCount >= this.maxAttempts()) {
-      await this.store.consumeChallenge(email, PURPOSE);
-      throw new UnauthorizedException({
-        errorCode: ErrorCodes.OTP_LOCKED,
-        message: 'Too many incorrect attempts. Request a new code.',
-      });
-    }
-
-    if (!this.safeEqual(this.hashCode(email, dto.code), challenge.codeHash)) {
-      const attempts = await this.store.incrementAttempts(email, PURPOSE);
-      if (attempts >= this.maxAttempts()) {
-        await this.store.consumeChallenge(email, PURPOSE);
-      }
-      throw new UnauthorizedException({
-        errorCode: ErrorCodes.OTP_INVALID,
-        message: 'The code is incorrect.',
-      });
-    }
-
-    const claimed = await this.store.consumeChallenge(email, PURPOSE);
-    if (!claimed) {
-      throw new UnauthorizedException({
-        errorCode: ErrorCodes.OTP_INVALID,
-        message: 'This code has already been used.',
-      });
-    }
+    await this.checkCode(email, dto.code, PURPOSE);
 
     await this.store.markVerified(email, PURPOSE, VERIFIED_TTL_SECONDS);
 
@@ -228,6 +205,61 @@ export class EmailOtpService {
         Date.now() + VERIFIED_TTL_SECONDS * 1000,
       ).toISOString(),
     };
+  }
+
+  /**
+   * Checks and burns a code for `purpose`: expiry, attempt limit, a
+   * constant-time comparison, and single use. Throws on anything but a match.
+   */
+  async checkCode(
+    email: string,
+    code: string,
+    purpose: OtpPurpose,
+  ): Promise<void> {
+    const now = Date.now();
+    const challenge = await this.store.getChallenge(email, purpose);
+
+    if (!challenge) {
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.OTP_INVALID,
+        message: 'No active code was found. Request a new one.',
+      });
+    }
+
+    if (challenge.expiresAt <= now) {
+      await this.store.consumeChallenge(email, purpose);
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.OTP_EXPIRED,
+        message: 'This code has expired.',
+      });
+    }
+
+    if (challenge.attemptCount >= this.maxAttempts()) {
+      await this.store.consumeChallenge(email, purpose);
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.OTP_LOCKED,
+        message: 'Too many incorrect attempts. Request a new code.',
+      });
+    }
+
+    if (!this.safeEqual(this.hashCode(email, code), challenge.codeHash)) {
+      const attempts = await this.store.incrementAttempts(email, purpose);
+      if (attempts >= this.maxAttempts()) {
+        await this.store.consumeChallenge(email, purpose);
+      }
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.OTP_INVALID,
+        message: 'The code is incorrect.',
+      });
+    }
+
+    const claimed = await this.store.consumeChallenge(email, purpose);
+    if (!claimed) {
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.OTP_INVALID,
+        message: 'This code has already been used.',
+      });
+    }
   }
 
   /**
