@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
-import { DM_Serif_Display, DM_Serif_Text } from 'next/font/google';
+import { DM_Serif_Display, DM_Serif_Text, Shantell_Sans } from 'next/font/google';
 import { AppProviders } from '@/components/providers/app-providers';
+import { themeScript } from '@/components/theme/theme-script';
 import { brand } from '@/lib/config/brand';
 import { buildPageMetadata } from '@/lib/seo/build-metadata';
 import './globals.css';
@@ -36,6 +37,19 @@ const display = DM_Serif_Display({
   display: 'swap',
 });
 
+/*
+  Shantell Sans for the big headings only: page titles, section titles and the
+  hero. A rounded, hand-drawn marker face at heavy weight, used as an accent
+  against the DM Serif body. Card titles, buttons, prices and the wordmark stay
+  in DM Serif.
+*/
+const heading = Shantell_Sans({
+  subsets: ['latin'],
+  weight: ['700', '800'],
+  variable: '--font-heading-family',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   ...buildPageMetadata({
     title: brand.name,
@@ -59,7 +73,18 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       last item in the UA's serif fallback — the whole site rendered in Times
       New Roman, which is why no font change appeared to take effect.
     */
-    <html lang="en-IN" className={`${sans.variable} ${display.variable}`}>
+    // suppressHydrationWarning: the theme script sets data-theme on <html>
+    // before React loads, so the server's markup differs by that one attribute.
+    <html
+      lang="en-IN"
+      className={`${sans.variable} ${display.variable} ${heading.variable}`}
+      data-theme="dark"
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Applies the saved or system theme before first paint: no flash. */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
         <AppProviders>{children}</AppProviders>
       </body>

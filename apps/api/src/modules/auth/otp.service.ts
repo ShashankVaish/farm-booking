@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   BadRequestException,
   ConflictException,
   Inject,
@@ -76,17 +77,29 @@ export class OtpService {
     const purpose: OtpPurpose = purposeOverride ?? dto.purpose ?? 'LOGIN';
     const now = new Date();
 
-    if (purpose === 'LOGIN') {
-      const user = await this.prisma.user.findUnique({ where: { phone } });
-      if (!user || !user.isActive) {
-        return this.opaqueRequestResult(phone, now);
-      }
-    }
+    /*
+      Every valid number gets a code, whether or not it has an account yet:
+      phone sign-in doubles as sign-up, and verifying the code either logs in
+      the account that owns the number or creates one (see `verify`).
 
-    if (purpose === 'REGISTER') {
-      const existing = await this.prisma.user.findUnique({ where: { phone } });
-      if (existing) {
-        return this.opaqueRequestResult(phone, now);
+      This used to send only to numbers that already had an account and answer
+      "sent" to everyone else without sending anything — so a new visitor
+      waited for a code that was never coming. What stops the form being used
+      to spam SMS is the per-number cooldown and hourly cap below, plus the
+      per-IP throttle on the route, not silence.
+
+      A disabled account is told plainly, and no SMS is spent on it.
+    */
+    if (purpose === 'LOGIN' || purpose === 'REGISTER') {
+      const existing = await this.prisma.user.findUnique({
+        where: { phone },
+        select: { isActive: true },
+      });
+      if (existing && !existing.isActive) {
+        throw new ForbiddenException({
+          errorCode: ErrorCodes.ACCOUNT_DISABLED,
+          message: 'This account has been disabled. Contact support for help.',
+        });
       }
     }
 
@@ -126,6 +139,26 @@ export class OtpService {
       },
       Math.ceil(this.ttlMs() / 1000),
     );
+
+    /*
+      Send before starting the cooldown or counting the send. If the gateway
+      fails (no credit, a timeout, a bad key) the code never reached anyone:
+      the challenge is withdrawn and the user can try again straight away,
+      instead of being locked out for a minute and charged one of their
+      hourly sends for an SMS that was never delivered.
+    */
+    try {
+      await this.sms.send({
+        phone,
+        message: `Your verification code is ${code}. It expires in ${Math.floor(this.ttlMs() / 1000)} seconds.`,
+        // OTP-only gateways render their own template and need the bare code.
+        code,
+      });
+    } catch (error) {
+      await this.store.consumeChallenge(phone, purpose).catch(() => false);
+      throw error;
+    }
+
     await this.store.recordSend(
       phone,
       purpose,
@@ -137,13 +170,6 @@ export class OtpService {
       purpose,
       Math.ceil(this.resendMs() / 1000),
     );
-
-    await this.sms.send({
-      phone,
-      message: `Your verification code is ${code}. It expires in ${Math.floor(this.ttlMs() / 1000)} seconds.`,
-      // OTP-only gateways render their own template and need the bare code.
-      code,
-    });
 
     return {
       sent: true,
@@ -158,17 +184,22 @@ export class OtpService {
   async verify(
     dto: VerifyOtpDto,
     context: { userAgent?: string; ipAddress?: string },
-  ): Promise<{ user: RequestUser; tokens: AuthTokens }> {
+  ): Promise<{ user: RequestUser; tokens: AuthTokens; isNewUser: boolean }> {
     const purpose = dto.purpose ?? 'LOGIN';
     await this.consumeChallenge(dto.phone, purpose, dto.code);
 
-    const user =
-      purpose === 'REGISTER'
-        ? await this.registerFromOtp(dto)
-        : await this.loginFromOtp(dto.phone);
+    // The code proved the number is theirs. Whichever form they came from,
+    // an existing account is signed in and a new number gets an account.
+    const existing = await this.prisma.user.findUnique({
+      where: { phone: dto.phone },
+      select: { id: true },
+    });
+    const user = existing
+      ? await this.loginFromOtp(dto.phone)
+      : await this.registerFromOtp(dto);
 
     const tokens = await this.auth.issueSession(user, context);
-    return { user, tokens };
+    return { user, tokens, isNewUser: !existing };
   }
 
   private async consumeChallenge(
@@ -256,12 +287,9 @@ export class OtpService {
   }
 
   private async registerFromOtp(dto: VerifyOtpDto): Promise<RequestUser> {
-    if (!dto.name) {
-      throw new BadRequestException({
-        errorCode: ErrorCodes.VALIDATION_ERROR,
-        message: 'Name is required to register with OTP.',
-      });
-    }
+    // Someone signing in by phone for the first time has not given a name;
+    // the site asks for it straight after, and "Guest" stands in until then.
+    const name = dto.name?.trim() || 'Guest';
 
     const email =
       dto.email?.trim().toLowerCase() || `phone-${dto.phone}@otp.local`;
@@ -285,23 +313,12 @@ export class OtpService {
         // Registered by answering a code sent to this phone.
         phoneVerifiedAt: new Date(),
         passwordHash,
-        name: dto.name.trim(),
+        name,
         role: UserRoles.CUSTOMER,
       },
       select: { id: true, email: true, role: true, name: true },
     });
     return created;
-  }
-
-  private opaqueRequestResult(phone: string, now: Date) {
-    return {
-      sent: true as const,
-      phone: maskPhone(phone),
-      expiresAt: new Date(now.getTime() + this.ttlMs()).toISOString(),
-      resendAvailableAt: new Date(
-        now.getTime() + this.resendMs(),
-      ).toISOString(),
-    };
   }
 
   private hashCode(phone: string, code: string): string {

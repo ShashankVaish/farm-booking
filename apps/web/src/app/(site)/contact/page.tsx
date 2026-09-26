@@ -31,7 +31,7 @@ export default function ContactPage() {
         </p>
       </header>
 
-      <section className={styles.section}>
+      <section className={styles.section} data-reveal>
         <h2 className="t-h3">Talk to us</h2>
         <dl className={styles.details}>
           <div className={styles.detailRow}>
@@ -64,7 +64,7 @@ export default function ContactPage() {
         </dl>
       </section>
 
-      <section className={styles.section}>
+      <section className={styles.section} data-reveal>
         <h2 className="t-h3">What to contact us about</h2>
         <ul className={styles.list}>
           <li>
@@ -88,7 +88,7 @@ export default function ContactPage() {
         </ul>
       </section>
 
-      <section className={styles.section}>
+      <section className={styles.section} data-reveal>
         <h2 className="t-h3">Registered business</h2>
         <dl className={styles.details}>
           <div className={styles.detailRow}>

@@ -66,7 +66,7 @@ function build(options: { user?: Record<string, unknown> | null } = {}) {
   } as unknown as SmsProvider;
 
   const service = new OtpService(prisma, config, auth, passwords, sms, store);
-  return { service, store, sent, prisma, auth };
+  return { service, store, sent, prisma, auth, sms };
 }
 
 /** Pulls the six-digit code out of the message the fake SMS provider captured. */
@@ -118,25 +118,100 @@ describe('OtpService — requesting a code', () => {
     });
   });
 
-  it('does not reveal whether a phone is registered', async () => {
+  it('sends a code to a number that has no account yet', async () => {
+    // Phone sign-in doubles as sign-up: a new visitor must actually get a code.
     const { service, sent } = build({ user: null });
     const result = await service.request({ phone: PHONE }, {});
-
-    // Looks exactly like a successful send, but nothing was actually sent.
     expect(result.sent).toBe(true);
-    expect(result.expiresAt).toBeTruthy();
+    expect(sent).toHaveLength(1);
+  });
+
+  it('sends a sign-up code even when the number already has an account', async () => {
+    const { service, sent } = build();
+    await service.request({ phone: PHONE }, {}, 'REGISTER');
+    expect(sent).toHaveLength(1);
+  });
+
+  it('refuses a disabled account without spending an SMS', async () => {
+    const { service, sent } = build({
+      user: { id: 'u1', isActive: false },
+    });
+    await expect(service.request({ phone: PHONE }, {})).rejects.toMatchObject({
+      response: expect.objectContaining({ errorCode: 'ACCOUNT_DISABLED' }),
+    });
     expect(sent).toHaveLength(0);
   });
 
-  it('does not reveal that a phone is already taken when registering', async () => {
-    const { service, sent } = build();
-    const result = await service.request({ phone: PHONE }, {}, 'REGISTER');
-    expect(result.sent).toBe(true);
-    expect(sent).toHaveLength(0);
+  it('does not lock the user out when the SMS gateway fails', async () => {
+    const { service, sent, sms } = build();
+    (sms.send as jest.Mock).mockRejectedValueOnce(new Error('No credit'));
+
+    await expect(service.request({ phone: PHONE }, {})).rejects.toThrow(
+      'No credit',
+    );
+    // No cooldown and no send counted: retrying at once works.
+    await expect(service.request({ phone: PHONE }, {})).resolves.toMatchObject({
+      sent: true,
+    });
+    expect(sent).toHaveLength(1);
+  });
+
+  it('withdraws the code when the SMS gateway fails', async () => {
+    const { service, store, sms } = build();
+    (sms.send as jest.Mock).mockRejectedValueOnce(new Error('Timeout'));
+    await expect(service.request({ phone: PHONE }, {})).rejects.toThrow();
+    await expect(store.getChallenge(PHONE, 'LOGIN')).resolves.toBeNull();
   });
 });
 
 describe('OtpService — verifying a code', () => {
+  it('creates an account when a new number verifies from the sign-in form', async () => {
+    const { service, sent, prisma } = build({ user: null });
+    (prisma.user.create as jest.Mock).mockResolvedValue({
+      id: 'new',
+      email: `phone-${PHONE}@otp.local`,
+      role: 'CUSTOMER',
+      name: 'Guest',
+    });
+    await service.request({ phone: PHONE }, {});
+
+    const result = await service.verify(
+      { phone: PHONE, code: codeFrom(sent) },
+      {},
+    );
+
+    expect(result.isNewUser).toBe(true);
+    expect(result.user.id).toBe('new');
+    expect(prisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          phone: PHONE,
+          name: 'Guest',
+          phoneVerifiedAt: expect.any(Date),
+        }),
+      }),
+    );
+  });
+
+  it('signs in the existing account when its number verifies from the sign-up form', async () => {
+    const { service, sent, prisma } = build();
+    await service.request({ phone: PHONE }, {}, 'REGISTER');
+
+    const result = await service.verify(
+      {
+        phone: PHONE,
+        code: codeFrom(sent),
+        purpose: 'REGISTER',
+        name: 'Aisha',
+      },
+      {},
+    );
+
+    expect(result.isNewUser).toBe(false);
+    expect(result.user.id).toBe('u1');
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
   it('accepts the correct code and issues a session', async () => {
     const { service, sent, auth } = build();
     await service.request({ phone: PHONE }, {});

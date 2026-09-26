@@ -33,7 +33,7 @@ export default function AboutPage() {
         </p>
       </header>
 
-      <section className={styles.section}>
+      <section className={styles.section} data-reveal>
         <h2 className="t-h3">What we do</h2>
         <p className="t-body">
           Property owners list their farmhouse, villa or event venue with photographs, capacity,
@@ -53,7 +53,7 @@ export default function AboutPage() {
         </p>
       </section>
 
-      <section className={styles.section}>
+      <section className={styles.section} data-reveal>
         <h2 className="t-h3">What you pay for</h2>
         <ul className={styles.list}>
           <li>
@@ -76,7 +76,7 @@ export default function AboutPage() {
         </p>
       </section>
 
-      <section className={styles.section}>
+      <section className={styles.section} data-reveal>
         <h2 className="t-h3">Business details</h2>
         <p className="t-body-small">
           {brand.name} is a brand operated by the registered business below.
@@ -123,7 +123,7 @@ export default function AboutPage() {
         </dl>
       </section>
 
-      <section className={styles.section}>
+      <section className={styles.section} data-reveal>
         <h2 className="t-h3">Contact us</h2>
         <p className="t-body">
           Call or message us on{' '}
@@ -136,7 +136,7 @@ export default function AboutPage() {
         </p>
       </section>
 
-      <section className={styles.section}>
+      <section className={styles.section} data-reveal>
         <h2 className="t-h3">Policies</h2>
         <ul className={styles.list}>
           <li>

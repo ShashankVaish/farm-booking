@@ -34,13 +34,38 @@
 }
 
 .primary {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   background: var(--color-primary);
   color: var(--color-on-primary);
+}
+
+/* A band of light sweeps across on hover. */
+.primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.28) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 700ms var(--easing-emphasis, ease);
 }
 
 .primary:hover:not(:disabled) {
   background: var(--color-primary-hover);
   color: var(--color-on-primary);
+  box-shadow: var(--shadow-accent);
+  transform: translateY(-1px);
+}
+
+.primary:hover:not(:disabled)::after {
+  transform: translateX(120%);
+}
+
+.primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
 }
 
 .secondary {

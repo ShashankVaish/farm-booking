@@ -33,6 +33,7 @@ import { cn } from '@/lib/cn';
 import { LocationStep } from './location-step';
 import { VerificationStep } from './verification-step';
 import styles from './host.module.css';
+import { shownNumber, wholeNumber } from '@/lib/host/whole-number';
 
 const EXTRA_AMENITIES = [
   { slug: 'music', label: 'Music system' },
@@ -336,10 +337,10 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
 
       {step === 2 ? (
         <div className={`${styles.panel} ${styles.twoCol}`}>
-          <Input id="guests" label="Guests" type="number" min={1} step={1} value={draft.guestCapacity} onChange={(e) => setDraft({ ...draft, guestCapacity: Math.max(0, Number(e.target.value) || 0) })} />
-          <Input id="bedrooms" label="Bedrooms" type="number" min={1} step={1} value={draft.bedrooms} onChange={(e) => setDraft({ ...draft, bedrooms: Math.max(0, Number(e.target.value) || 0) })} />
-          <Input id="bathrooms" label="Bathrooms" type="number" min={1} step={1} value={draft.bathrooms} onChange={(e) => setDraft({ ...draft, bathrooms: Math.max(0, Number(e.target.value) || 0) })} />
-          <Input id="beds" label="Beds" type="number" min={1} step={1} value={draft.meta.beds} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, beds: Math.max(0, Number(e.target.value) || 0) } })} />
+          <Input id="guests" label="Guests" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.guestCapacity)} onChange={(e) => setDraft({ ...draft, guestCapacity: wholeNumber(e.target.value) })} />
+          <Input id="bedrooms" label="Bedrooms" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.bedrooms)} onChange={(e) => setDraft({ ...draft, bedrooms: wholeNumber(e.target.value) })} />
+          <Input id="bathrooms" label="Bathrooms" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.bathrooms)} onChange={(e) => setDraft({ ...draft, bathrooms: wholeNumber(e.target.value) })} />
+          <Input id="beds" label="Beds" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.meta.beds)} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, beds: wholeNumber(e.target.value) } })} />
         </div>
       ) : null}
 
@@ -462,10 +463,10 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
 
       {step === 5 ? (
         <div className={`${styles.panel} ${styles.twoCol}`}>
-          <Input id="weekday" label="Weekday price (₹)" type="number" inputMode="numeric" min={0} step={1} value={draft.weekdayPrice} onChange={(e) => setDraft({ ...draft, weekdayPrice: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} />
-          <Input id="weekend" label="Weekend price (₹)" type="number" inputMode="numeric" min={0} step={1} value={draft.weekendPrice} onChange={(e) => setDraft({ ...draft, weekendPrice: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} />
-          <Input id="extra" label="Extra guest charge (₹)" type="number" inputMode="numeric" min={0} step={1} value={draft.extraGuestCharge} onChange={(e) => setDraft({ ...draft, extraGuestCharge: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} />
-          <Input id="minstay" label="Minimum stay (nights)" type="number" inputMode="numeric" min={1} step={1} value={draft.meta.minStay} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, minStay: Math.max(0, Math.trunc(Number(e.target.value) || 0)) } })} />
+          <Input id="weekday" label="Weekday price (₹)" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.weekdayPrice)} onChange={(e) => setDraft({ ...draft, weekdayPrice: wholeNumber(e.target.value) })} />
+          <Input id="weekend" label="Weekend price (₹)" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.weekendPrice)} onChange={(e) => setDraft({ ...draft, weekendPrice: wholeNumber(e.target.value) })} />
+          <Input id="extra" label="Extra guest charge (₹)" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.extraGuestCharge)} onChange={(e) => setDraft({ ...draft, extraGuestCharge: wholeNumber(e.target.value) })} />
+          <Input id="minstay" label="Minimum stay (nights)" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.meta.minStay)} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, minStay: wholeNumber(e.target.value) } })} />
           <Textarea
             id="seasonal"
             label="Seasonal pricing (optional)"

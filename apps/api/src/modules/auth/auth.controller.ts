@@ -264,6 +264,8 @@ export class AuthController {
     return {
       user: result.user,
       accessToken: result.tokens.accessToken,
+      // Lets the site ask a first-time phone user for their name.
+      isNewUser: result.isNewUser,
     };
   }
 

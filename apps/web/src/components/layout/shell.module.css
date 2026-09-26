@@ -24,9 +24,19 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  background: color-mix(in srgb, var(--color-background) 88%, transparent);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-background) 72%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid transparent;
+  transition:
+    background var(--duration-slow) var(--easing-standard),
+    border-color var(--duration-slow) var(--easing-standard),
+    box-shadow var(--duration-slow) var(--easing-standard);
+}
+
+.header[data-scrolled] {
+  background: color-mix(in srgb, var(--color-background) 92%, transparent);
+  border-bottom-color: var(--color-border);
+  box-shadow: var(--shadow-md);
 }
 
 .headerInner {
@@ -50,6 +60,7 @@
 }
 
 .navLink {
+  position: relative;
   display: inline-flex;
   align-items: center;
   min-height: var(--touch);
@@ -57,12 +68,31 @@
   color: var(--color-text-secondary);
   padding: 0;
   border-bottom: 1px solid transparent;
+  transition: color var(--duration-base) var(--easing-standard);
+}
+
+/* An underline that grows from the centre on hover and marks the current page. */
+.navLink::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.55rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-primary);
+  transform: scaleX(0);
+  transition: transform var(--duration-slow) var(--easing-emphasis);
+}
+
+.navLink:hover::after,
+.navLinkActive::after {
+  transform: scaleX(1);
 }
 
 .navLink:hover,
 .navLinkActive {
   color: var(--color-text-primary);
-  border-bottom-color: var(--color-accent);
 }
 
 .headerActions {
@@ -146,6 +176,14 @@
 
 .brand:hover {
   color: inherit;
+}
+
+.mark {
+  transition: transform var(--duration-slow) var(--easing-emphasis);
+}
+
+.brand:hover .mark {
+  transform: rotate(-8deg) scale(1.06);
 }
 
 .mark {

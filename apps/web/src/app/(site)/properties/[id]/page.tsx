@@ -267,7 +267,7 @@ export default async function PropertyPage({ params }: Props) {
 
       <div className={styles.detailGrid} style={{ marginTop: 'var(--space-8)', paddingBottom: '5.5rem' }}>
         <div className={styles.propertyCopy}>
-          <section className={page.section}>
+          <section className={page.section} data-reveal>
             <div className={page.highlights}>
               <Highlight icon={<GuestsIcon />} value={property.guestCapacity} label="guests" />
               <Highlight icon={<BedroomIcon />} value={property.bedrooms} label={property.bedrooms === 1 ? 'bedroom' : 'bedrooms'} />
@@ -278,7 +278,7 @@ export default async function PropertyPage({ params }: Props) {
           </section>
 
           {amenities.length > 0 ? (
-            <section className={page.section}>
+            <section className={page.section} data-reveal>
               <h2 className={page.sectionTitle}>What this place offers</h2>
               <div className={page.amenities}>
                 {amenities.map((name) => (
@@ -289,7 +289,7 @@ export default async function PropertyPage({ params }: Props) {
           ) : null}
 
           {slots.length > 0 ? (
-            <section className={page.section}>
+            <section className={page.section} data-reveal>
               <h2 className={page.sectionTitle}>How you can book it</h2>
               <ul className={page.slots}>
                 {slots.map((slot) => (
@@ -307,7 +307,7 @@ export default async function PropertyPage({ params }: Props) {
             </section>
           ) : null}
 
-          <section className={page.section}>
+          <section className={page.section} data-reveal>
             <h2 className={page.sectionTitle}>Good to know</h2>
             <dl className={page.facts}>
               <Fact label="Check-in" value={`After ${meta.checkIn}`} />
@@ -339,21 +339,21 @@ export default async function PropertyPage({ params }: Props) {
           </section>
 
           {houseRules ? (
-            <section className={page.section}>
+            <section className={page.section} data-reveal>
               <h2 className={page.sectionTitle}>House rules</h2>
               <p className={page.prose}>{houseRules}</p>
             </section>
           ) : null}
 
           {property.partyRules ? (
-            <section className={page.section}>
+            <section className={page.section} data-reveal>
               <h2 className={page.sectionTitle}>Party rules</h2>
               <p className={page.prose}>{property.partyRules}</p>
             </section>
           ) : null}
 
           {property.cancellationPolicy ? (
-            <section className={page.section}>
+            <section className={page.section} data-reveal>
               <h2 className={page.sectionTitle}>Cancellation</h2>
               <p className={page.prose}>{property.cancellationPolicy}</p>
             </section>
@@ -365,7 +365,7 @@ export default async function PropertyPage({ params }: Props) {
         </div>
 
         <div className={styles.propertyMore}>
-          <section className={page.section}>
+          <section className={page.section} data-reveal>
             <h2 className={page.sectionTitle}>Where you will be</h2>
             <p className={page.prose}>{locationName || 'India'}</p>
             {mapSrc ? (

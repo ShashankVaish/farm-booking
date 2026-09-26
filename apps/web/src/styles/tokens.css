@@ -20,6 +20,9 @@
   --brand-cream: #f1e5dd;
   --brand-base: #0d0c10;
 
+  /* Dark is the default; the light theme below switches this too. */
+  color-scheme: dark;
+
   /* --- Background layers ---------------------------------------------------
      Four depths. Each step is a small lift in lightness with a trace of the
      cream's warmth, so panels separate without borders doing all the work. */
@@ -104,6 +107,8 @@
      alike. */
   --font-sans: var(--font-sans-family), Georgia, 'Times New Roman', serif;
   --font-display: var(--font-display-family), Georgia, 'Times New Roman', serif;
+  /* Big headings only (display, h1, h2, the hero); see app/layout.tsx. */
+  --font-heading: var(--font-heading-family), 'Trebuchet MS', system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --font-weight-regular: 400;
@@ -230,6 +235,67 @@
   --bp-1280: 1280px;
   --bp-1440: 1440px;
   --bp-1920: 1920px;
+}
+
+/* ===========================================================================
+   Light theme
+   -----------------------------------------------------------------------------
+   Set by `data-theme="light"` on <html> (see components/theme/theme-script.ts,
+   which applies the visitor's saved choice, or their system setting, before
+   first paint). Warm paper instead of near-black; the coral fill and the dark
+   ink on it are unchanged. Every text pairing meets WCAG AA on white and on
+   the page ground, checked by tokens.contrast.test.ts.
+   =========================================================================== */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --color-background: #f7f3ef;
+  --color-sunken: #efe9e4;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #fcfaf8;
+  --color-overlay-surface: #ffffff;
+  --color-overlay: rgb(22 16 18 / 0.45);
+
+  --color-text-primary: #1d1719; /* 17:1 on white */
+  --color-text-secondary: #4f4548; /* 9:1 */
+  --color-text-muted: #6d6265; /* 5.6:1 */
+  --color-text-disabled: #a39a9c;
+
+  /* A touch deeper than the logo coral: #FF5A60 is only 2.8:1 against the
+     paper ground, and a button fill should stand out at 3:1. */
+  --color-primary: #ef5157;
+  --color-primary-hover: #ea4c53; /* light UI reads darker as "pressed in" */
+  --color-primary-press: #e5474e;
+  --color-primary-text: #c2303a; /* coral AS TEXT on white: 5.4:1 */
+  --color-primary-tint: #fdeceb;
+  --color-primary-border: #f3c4c6;
+  --color-on-primary: #2a0c0f;
+
+  --color-success: #146b43;
+  --color-success-tint: #e3f4ec;
+  --color-warning: #8a5a00;
+  --color-warning-tint: #fcf2da;
+  --color-error: #bf2560;
+  --color-error-tint: #fce8ef;
+  --color-info: #255fa3;
+  --color-info-tint: #e7eef8;
+
+  --color-border-subtle: #efe8e3;
+  --color-border: #e3dad4;
+  --color-border-strong: #cdc2bb;
+  --color-border-control: #857a7e; /* 4.1:1 on white — form fields */
+
+  --color-focus: #c2303a;
+  --color-focus-on-primary: #2a0c0f;
+
+  --color-inverse: #1d1719;
+
+  --shadow-xs: 0 1px 2px rgb(60 30 30 / 0.08);
+  --shadow-sm: 0 4px 16px rgb(60 30 30 / 0.08);
+  --shadow-md: 0 12px 32px rgb(60 30 30 / 0.12);
+  --shadow-lg: 0 24px 64px rgb(60 30 30 / 0.16);
+  --shadow-accent: 0 8px 24px rgb(255 90 96 / 0.3);
+  --highlight-top: inset 0 1px 0 rgb(255 255 255 / 0.7);
 }
 
 /* Small phones: shrink display type and gutters before anything can overflow. */
