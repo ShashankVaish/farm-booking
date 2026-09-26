@@ -16,6 +16,7 @@ import { RegisterDto } from './dto/register.dto';
 import { EmailOtpService } from './email-otp.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
+import { needsEmailVerification } from './email-verification.service';
 
 const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -110,6 +111,8 @@ export class AuthService {
           name: dto.name.trim(),
           phone: dto.phone,
           role,
+          // Registration only proceeds once the address passed its code.
+          emailVerifiedAt: new Date(),
         },
         select: {
           id: true,
@@ -283,6 +286,8 @@ export class AuthService {
             randomBytes(32).toString('hex'),
           ),
           role: UserRoles.CUSTOMER,
+          // Google only signs in with an address it has verified.
+          emailVerifiedAt: new Date(),
         },
         select: {
           id: true,
@@ -468,9 +473,13 @@ export class AuthService {
     return this.issueTokens(user, context, rotation);
   }
 
-  async me(
-    userId: string,
-  ): Promise<RequestUser & { phone: string | null; phoneVerified: boolean }> {
+  async me(userId: string): Promise<
+    RequestUser & {
+      phone: string | null;
+      phoneVerified: boolean;
+      needsEmail: boolean;
+    }
+  > {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -480,6 +489,7 @@ export class AuthService {
         name: true,
         phone: true,
         phoneVerifiedAt: true,
+        emailVerifiedAt: true,
         isActive: true,
       },
     });
@@ -498,13 +508,22 @@ export class AuthService {
       name: user.name,
       phone: user.phone,
       phoneVerified: Boolean(user.phone && user.phoneVerifiedAt),
+      // A phone sign-up with only a placeholder address: asked for a real,
+      // confirmed email before booking.
+      needsEmail: needsEmailVerification(user),
     };
   }
 
   async updateMe(
     userId: string,
     dto: { name?: string; phone?: string },
-  ): Promise<RequestUser & { phone: string | null; phoneVerified: boolean }> {
+  ): Promise<
+    RequestUser & {
+      phone: string | null;
+      phoneVerified: boolean;
+      needsEmail: boolean;
+    }
+  > {
     const current = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { phone: true },

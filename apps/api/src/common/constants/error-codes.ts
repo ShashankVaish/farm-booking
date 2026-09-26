@@ -8,6 +8,7 @@ export const ErrorCodes = {
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
   EMAIL_ALREADY_REGISTERED: 'EMAIL_ALREADY_REGISTERED',
+  EMAIL_VERIFICATION_REQUIRED: 'EMAIL_VERIFICATION_REQUIRED',
   /** Signup was attempted before the emailed code was confirmed. */
   EMAIL_NOT_VERIFIED: 'EMAIL_NOT_VERIFIED',
   /** The mail server refused or could not be reached. */

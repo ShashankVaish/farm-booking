@@ -38,6 +38,7 @@ import { MailService } from '../mail/mail.service';
 import { paymentPendingEmail } from '../mail/templates';
 import { bookingCancelledWhatsApp } from '../notifications/whatsapp-templates';
 import { PlatformSettingsService } from '../settings/platform-settings.service';
+import { needsEmailVerification } from '../auth/email-verification.service';
 
 @Injectable()
 export class BookingsService {
@@ -72,6 +73,7 @@ export class BookingsService {
   }
 
   async create(user: RequestUser, dto: CreateBookingDto) {
+    await this.assertBookableAccount(user.id);
     const property = await this.requireApprovedProperty(dto.propertyId);
 
     /*
@@ -387,6 +389,26 @@ export class BookingsService {
     });
 
     return { booking: updated, refund };
+  }
+
+  /**
+   * A phone sign-up must confirm a real email before booking: the
+   * confirmation, the exact address, receipts and refund notices all go by
+   * email. The site asks for it at Reserve; this is the check that holds when
+   * the site is bypassed.
+   */
+  private async assertBookableAccount(userId: string) {
+    const account = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, emailVerifiedAt: true },
+    });
+    if (account && needsEmailVerification(account)) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.EMAIL_VERIFICATION_REQUIRED,
+        message:
+          'Add and confirm your email before booking, so we can send your confirmation.',
+      });
+    }
   }
 
   async complete(id: string, user: RequestUser) {

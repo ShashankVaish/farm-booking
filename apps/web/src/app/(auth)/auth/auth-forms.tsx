@@ -92,6 +92,15 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
   const [code, setCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [seconds, setSeconds] = useState(0);
+
+  // Back to the number field, so a mistyped number can be replaced. The code
+  // sent to the old number simply expires unused.
+  function changeNumber() {
+    setOtpSent(false);
+    setCode('');
+    setSeconds(0);
+    setError(null);
+  }
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Set after a first-time phone sign-in: the account exists, but as "Guest".
@@ -232,15 +241,13 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
           autoFocus
           minLength={2}
           maxLength={120}
+          required
           placeholder="Your name"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
         <Button className={styles.submit} type="submit" block disabled={busy} loading={busy}>
           {busy ? 'Saving…' : 'Continue'}
-        </Button>
-        <Button type="button" variant="ghost" block disabled={busy} onClick={finishSignIn}>
-          Skip for now
         </Button>
       </form>
     </>
@@ -296,8 +303,17 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
             placeholder="10-digit Indian mobile"
             required
             value={phone}
+            readOnly={otpSent}
             onChange={(e) => setPhone(e.target.value)}
           />
+          {otpSent ? (
+            <p className="t-caption" style={{ marginTop: 'calc(var(--space-2) * -1)' }}>
+              Code sent to +91 {phone.replace(/\D/g, '').slice(-10)}.{' '}
+              <button type="button" className={styles.linkButton} onClick={changeNumber} disabled={busy}>
+                Change number
+              </button>
+            </p>
+          ) : null}
           {otpSent ? (
             <Input
               id="otp"
@@ -306,8 +322,9 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
               autoComplete="one-time-code"
               pattern="[0-9]{6}"
               required
+              maxLength={6}
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
             />
           ) : null}
           <Button className={styles.submit} type="submit" block disabled={busy} loading={busy}>
@@ -388,6 +405,15 @@ export function RegisterForm() {
   const [code, setCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [seconds, setSeconds] = useState(0);
+
+  // Back to the number field, so a mistyped number can be replaced. The code
+  // sent to the old number simply expires unused.
+  function changeNumber() {
+    setOtpSent(false);
+    setCode('');
+    setSeconds(0);
+    setError(null);
+  }
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   /*
@@ -733,8 +759,17 @@ export function RegisterForm() {
             pattern="[6-9][0-9]{9}"
             placeholder="10-digit Indian mobile"
             value={phone}
+            readOnly={otpSent}
             onChange={(e) => setPhone(e.target.value)}
           />
+          {otpSent ? (
+            <p className="t-caption" style={{ marginTop: 'calc(var(--space-2) * -1)' }}>
+              Code sent to +91 {phone.replace(/\D/g, '').slice(-10)}.{' '}
+              <button type="button" className={styles.linkButton} onClick={changeNumber} disabled={busy}>
+                Change number
+              </button>
+            </p>
+          ) : null}
           {otpSent ? (
             <Input
               id="otp-code"
@@ -742,8 +777,9 @@ export function RegisterForm() {
               required
               inputMode="numeric"
               autoComplete="one-time-code"
+              maxLength={6}
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
             />
           ) : null}
           <Button className={styles.submit} type="submit" block disabled={busy} loading={busy}>

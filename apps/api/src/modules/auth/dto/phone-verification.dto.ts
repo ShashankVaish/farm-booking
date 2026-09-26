@@ -1,4 +1,11 @@
-import { IsBoolean, IsOptional, IsString, Matches } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 export class RequestPhoneVerificationDto {
   @IsString()
@@ -23,4 +30,20 @@ export class VerifyPhoneDto {
   @IsOptional()
   @IsBoolean()
   whatsappOptIn?: boolean;
+}
+
+export class RequestEmailVerificationDto {
+  @IsEmail({}, { message: 'Enter a valid email address.' })
+  @MaxLength(254)
+  email!: string;
+}
+
+export class VerifyEmailDto {
+  @IsEmail({}, { message: 'Enter a valid email address.' })
+  @MaxLength(254)
+  email!: string;
+
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'The code has 6 digits.' })
+  code!: string;
 }

@@ -9,6 +9,7 @@ import { ApiError, NetworkError } from '@/lib/api/errors';
 import { bookingApi } from '@/lib/bookings/api';
 import { openBookingKey } from '@/lib/bookings/types';
 import { handOffBooking } from '@/lib/bookings/booking-handoff';
+import { EmailGate } from '@/components/booking/email-gate';
 import type { PriceQuote } from '@/lib/bookings/types';
 import type { ApiProperty } from '@/lib/properties/types';
 import { getAvailability } from '@/lib/properties/api';
@@ -44,6 +45,8 @@ export function PropertyBookingCard({
   const [busy, setBusy] = useState(false);
   // True while the dates are the ones we picked, not the guest.
   const [suggested, setSuggested] = useState(false);
+  // Phone sign-ups confirm an email before their first booking.
+  const [emailGateOpen, setEmailGateOpen] = useState(false);
   const submitting = useRef(false);
   const guestPicked = useRef(false);
 
@@ -164,10 +167,26 @@ export function PropertyBookingCard({
       // resetting here flashed "Reserve" again during the navigation, which
       // read as if the tap had not worked.
     } catch (err) {
-      setError(err instanceof ApiError || err instanceof NetworkError ? err.message : 'Could not start this booking.');
       submitting.current = false;
       setBusy(false);
+      /*
+        The server refuses a booking from an account with no confirmed email
+        (a phone sign-up). Asking it here, only when needed, costs everyone
+        else nothing: no extra request before every Reserve.
+      */
+      if (err instanceof ApiError && err.code === 'EMAIL_VERIFICATION_REQUIRED') {
+        setError(null);
+        setEmailGateOpen(true);
+        return;
+      }
+      setError(err instanceof ApiError || err instanceof NetworkError ? err.message : 'Could not start this booking.');
     }
+  }
+
+  function afterEmailVerified() {
+    setEmailGateOpen(false);
+    // Carry on with the booking the guest was making.
+    (document.getElementById('book-form') as HTMLFormElement | null)?.requestSubmit();
   }
 
   const nightly = Number(property.basePrice);
@@ -269,6 +288,8 @@ export function PropertyBookingCard({
           {busy ? 'Reserving…' : 'Reserve'}
         </Button>
       </form>
+
+      <EmailGate open={emailGateOpen} onClose={() => setEmailGateOpen(false)} onVerified={afterEmailVerified} />
 
       {/*
         Phones only (hidden from 1024px up, where the card itself is sticky).

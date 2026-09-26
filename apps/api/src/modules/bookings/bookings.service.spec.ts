@@ -70,6 +70,13 @@ describe('BookingsService', () => {
 
     const prisma = {
       property: { findUnique: jest.fn().mockResolvedValue(property) },
+      // A guest who has confirmed an email; phone-only accounts are refused.
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          email: 'guest@example.com',
+          emailVerifiedAt: new Date(),
+        }),
+      },
       booking: {
         findUnique: jest.fn(),
         findFirst: jest.fn().mockResolvedValue(null),
@@ -137,6 +144,27 @@ describe('BookingsService', () => {
     });
     expect(result.pricing.totalAmount).toBe('1050.00');
     expect(prisma.$transaction).toHaveBeenCalled();
+  });
+
+  it('refuses a phone-only account until it confirms an email', async () => {
+    const { service, prisma } = setup();
+    prisma.user.findUnique.mockResolvedValue({
+      email: 'phone-9876543210@otp.local',
+      emailVerifiedAt: null,
+    });
+    await expect(
+      service.create(customer, {
+        propertyId: 'prop-1',
+        checkInDate: '2026-10-01',
+        checkOutDate: '2026-10-02',
+        guestCount: 2,
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        errorCode: 'EMAIL_VERIFICATION_REQUIRED',
+      }),
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('rejects a concurrent double-booking uniqueness failure', async () => {

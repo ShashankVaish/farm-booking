@@ -146,16 +146,25 @@ export function signupOtpEmail(input: {
   code: string;
   ttlMinutes: number;
   brandName: string;
+  /** 'account': confirming an email for an existing account, e.g. before booking. */
+  context?: 'signup' | 'account';
 }): RenderedEmail {
+  const forAccount = input.context === 'account';
+  const intro = forAccount
+    ? 'Use this code to confirm this email address for your account. Your booking confirmations and receipts will be sent here.'
+    : 'Use this code to confirm your email address and finish creating your account.';
+  const ignore = forAccount
+    ? 'If you did not ask for this, ignore this email.</strong> The address is not added to any account unless the code is entered.'
+    : 'If you did not try to sign up, ignore this email.</strong> Nobody can use this code without access to your inbox, and no account is created until it is entered.';
   const body = `
-          ${paragraph('Use this code to confirm your email address and finish creating your account.')}
+          ${paragraph(intro)}
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0;">
             <tr>
               <td style="padding:18px 30px;background:${BRAND.cream};border-radius:12px;color:${BRAND.ink};font-size:32px;font-weight:700;letter-spacing:0.32em;font-family:'SFMono-Regular',Consolas,monospace;">${escapeHtml(input.code)}</td>
             </tr>
           </table>
           ${paragraph(`The code expires in ${input.ttlMinutes} minute${input.ttlMinutes === 1 ? '' : 's'}.`)}
-          ${paragraph(`<strong style="color:${BRAND.ink};">If you did not try to sign up, ignore this email.</strong> Nobody can use this code without access to your inbox, and no account is created until it is entered.`)}`;
+          ${paragraph(`<strong style="color:${BRAND.ink};">${ignore}`)}`;
 
   return {
     subject: `${input.code} is your ${input.brandName} verification code`,
@@ -171,7 +180,9 @@ export function signupOtpEmail(input: {
       `Your ${input.brandName} verification code is ${input.code}.`,
       `It expires in ${input.ttlMinutes} minute${input.ttlMinutes === 1 ? '' : 's'}.`,
       '',
-      'If you did not try to sign up, ignore this email. No account is created until the code is entered.',
+      forAccount
+        ? 'If you did not ask for this, ignore this email. The address is not added to any account unless the code is entered.'
+        : 'If you did not try to sign up, ignore this email. No account is created until the code is entered.',
     ].join('\n'),
   };
 }

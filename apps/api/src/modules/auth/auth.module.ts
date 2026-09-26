@@ -16,6 +16,7 @@ import { RenflairSmsProvider } from './providers/renflair-sms.provider';
 import { TwilioSmsProvider } from './providers/twilio-sms.provider';
 import { TokenService } from './token.service';
 import { PhoneVerificationService } from './phone-verification.service';
+import { EmailVerificationService } from './email-verification.service';
 import { MemoryOtpStore } from './otp/memory-otp.store';
 import { OTP_STORE } from './otp/otp-store';
 import { RedisOtpStore } from './otp/redis-otp.store';
@@ -40,6 +41,7 @@ import { RedisOtpStore } from './otp/redis-otp.store';
     AuthService,
     EmailOtpService,
     PhoneVerificationService,
+    EmailVerificationService,
     AdminBootstrapService,
     PasswordService,
     TokenService,
