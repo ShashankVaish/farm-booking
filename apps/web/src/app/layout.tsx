@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { DM_Serif_Display, DM_Serif_Text, Shantell_Sans } from 'next/font/google';
+import { DM_Serif_Display, DM_Serif_Text } from 'next/font/google';
+import localFont from 'next/font/local';
 import { AppProviders } from '@/components/providers/app-providers';
 import { themeScript } from '@/components/theme/theme-script';
 import { brand } from '@/lib/config/brand';
@@ -43,9 +44,15 @@ const display = DM_Serif_Display({
   against the DM Serif body. Card titles, buttons, prices and the wordmark stay
   in DM Serif.
 */
-const heading = Shantell_Sans({
-  subsets: ['latin'],
-  weight: ['700', '800'],
+const heading = localFont({
+  /*
+    Bundled rather than fetched through next/font/google: Google serves this
+    family from a multi-parameter "kit" URL that Turbopack's dev server cannot
+    resolve, which failed every page with a 500 under `next dev --turbopack`.
+    One variable file covers every weight used. Licence: fonts/OFL-NOTICE.txt.
+  */
+  src: './fonts/shantell-sans-latin.woff2',
+  weight: '300 800',
   variable: '--font-heading-family',
   display: 'swap',
 });
