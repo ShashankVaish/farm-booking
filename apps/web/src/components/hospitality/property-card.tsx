@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { AmenityItem, PriceDisplay, PropertyBadge, TrustedBadge } from '@/components/hospitality/atoms';
 import { WishlistButton } from '@/components/hospitality/wishlist-button';
@@ -22,11 +23,12 @@ export type PropertyCardModel = {
   imageTone?: 'default' | 'pool' | 'lawn' | 'night';
 };
 
-export function PropertyCard({ property }: { property: PropertyCardModel }) {
+export function PropertyCard({ property, index = 0 }: { property: PropertyCardModel; index?: number }) {
   const href = property.href ?? `/properties/${property.id}`;
 
   return (
-    <article className={styles.card}>
+    // `data-reveal` + `--reveal-i`: cards rise in one after another on scroll.
+    <article className={styles.card} data-reveal style={{ '--reveal-i': index } as CSSProperties}>
       <div className={styles.mediaWrap}>
         <MediaImage
           asset={property.image}
@@ -82,8 +84,8 @@ export function PropertyGrid({ properties }: { properties: PropertyCardModel[] }
 
   return (
     <div className={styles.grid}>
-      {properties.map((property) => (
-        <PropertyCard key={property.id} property={property} />
+      {properties.map((property, index) => (
+        <PropertyCard key={property.id} property={property} index={index} />
       ))}
     </div>
   );

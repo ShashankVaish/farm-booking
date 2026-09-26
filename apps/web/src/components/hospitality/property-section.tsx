@@ -16,7 +16,7 @@ export function PropertySection({
 }) {
   return (
     <section style={{ padding: 'var(--space-10) 0' }}>
-      <div className={styles.sectionHead}>
+      <div className={styles.sectionHead} data-reveal>
         <div>
           {kicker ? <p className="t-label">{kicker}</p> : null}
           <h2 className="t-h2">{title}</h2>

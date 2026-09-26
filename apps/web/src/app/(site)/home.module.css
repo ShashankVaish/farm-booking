@@ -1,9 +1,78 @@
 .hero {
+  position: relative;
   padding: 0 0 var(--space-8);
+}
+
+/*
+  The glow sits in its own clipped box. Clipping the hero itself would cut off
+  the search panel's date picker and suggestions, which open below it.
+*/
+.aurora {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* Fade the box out at its edges, so the clipped glow never shows a line. */
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 55% 45%, #000 45%, transparent 100%);
+  mask-image: radial-gradient(ellipse 75% 70% at 55% 45%, #000 45%, transparent 100%);
+}
+
+.auroraOne,
+.auroraTwo {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(72px);
+  opacity: 0.55;
+  animation: drift 18s ease-in-out infinite;
+}
+
+.auroraOne {
+  top: -12%;
+  right: -6%;
+  width: min(40rem, 70vw);
+  height: min(40rem, 70vw);
+  background: radial-gradient(circle, rgb(255 90 96 / 0.35), transparent 65%);
+}
+
+.auroraTwo {
+  bottom: 4%;
+  left: -10%;
+  width: min(34rem, 80vw);
+  height: min(34rem, 80vw);
+  background: radial-gradient(circle, rgb(143 184 232 / 0.12), transparent 65%);
+  animation-duration: 24s;
+  animation-direction: reverse;
+}
+
+/* Hero lines arrive one after another on first paint; pure CSS, no script. */
+.enter {
+  animation: rise-in 760ms var(--easing-emphasis) both;
+  animation-delay: calc(var(--enter-i, 0) * 110ms + 80ms);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.liveDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-success);
+  animation: pulse-dot 2.2s ease-out infinite;
 }
 
 .heroPanel {
   position: relative;
+  z-index: 1;
   padding: clamp(3.5rem, 9vw, 6.5rem) 0 clamp(2.5rem, 5vw, 3.5rem);
   border-bottom: 1px solid var(--color-border);
 }
@@ -11,8 +80,12 @@
 .hero h1 {
   margin-top: var(--space-4);
   max-width: 18ch;
-  font-family: var(--font-display);
-  font-weight: var(--font-weight-semibold);
+  background: linear-gradient(100deg, var(--color-text-primary) 40%, var(--color-primary-text) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: var(--font-heading);
+  font-weight: 800;
   font-size: clamp(2.25rem, 5vw, 3.75rem);
   line-height: 1.08;
   letter-spacing: -0.03em;
@@ -29,6 +102,69 @@
   z-index: 2;
   margin-top: clamp(2.5rem, 7vw, 5rem);
   max-width: 52rem;
+  border-radius: var(--radius-lg);
+  transition:
+    box-shadow var(--duration-slow) var(--easing-standard),
+    transform var(--duration-slow) var(--easing-standard);
+}
+
+/* The search panel lifts and glows while the guest is typing in it. */
+.searchWrap:focus-within {
+  box-shadow: 0 0 0 1px var(--color-primary-border), 0 18px 48px rgb(255 90 96 / 0.16);
+}
+
+@media (hover: hover) {
+  .searchWrap:hover {
+    transform: translateY(-2px);
+  }
+}
+
+.quickLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+.quickLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.5rem;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+  text-decoration: none;
+  transition:
+    color var(--duration-base) var(--easing-standard),
+    border-color var(--duration-base) var(--easing-standard),
+    background var(--duration-base) var(--easing-standard),
+    transform var(--duration-base) var(--easing-standard);
+}
+
+.quickLink svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-primary-text);
+  transition: transform var(--duration-slow) var(--easing-emphasis);
+}
+
+.quickLink:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-tint);
+  transform: translateY(-2px);
+}
+
+.quickLink:hover svg {
+  transform: scale(1.15) rotate(-6deg);
+}
+
+.quickLink:active {
+  transform: scale(0.97);
 }
 
 .destGrid {
@@ -62,10 +198,38 @@
 }
 
 .reason {
-  padding: var(--space-5);
-  background: var(--color-surface);
+  position: relative;
+  padding: var(--space-6) var(--space-5);
+  background: linear-gradient(160deg, var(--color-surface-elevated), var(--color-surface) 60%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  transition:
+    transform var(--duration-slow) var(--easing-emphasis),
+    border-color var(--duration-slow) var(--easing-standard),
+    box-shadow var(--duration-slow) var(--easing-standard);
+}
+
+.reason:hover {
+  transform: translateY(-6px);
+  border-color: var(--color-primary-border);
+  box-shadow: var(--shadow-md);
+}
+
+.reasonIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-tint);
+  border: 1px solid var(--color-primary-border);
+  color: var(--color-primary-text);
+  transition: transform var(--duration-slow) var(--easing-emphasis);
+}
+
+.reason:hover .reasonIcon {
+  transform: scale(1.08) rotate(-4deg);
 }
 
 .reason p {
@@ -74,14 +238,40 @@
 }
 
 .ownerCta {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: var(--space-8) var(--space-6);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-primary);
-  border-radius: var(--radius-md);
+  padding: var(--space-10) var(--space-6);
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgb(255 90 96 / 0.16), transparent 55%),
+    var(--color-surface);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* A slowly turning coral edge, drawn with a masked conic gradient. */
+.ownerCta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--glow-angle),
+    var(--color-border) 0deg,
+    var(--color-primary) 60deg,
+    var(--color-border) 140deg,
+    var(--color-border) 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: glow-spin 6s linear infinite;
 }
 
 .ownerCta p {

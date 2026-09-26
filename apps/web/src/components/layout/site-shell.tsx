@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { SiteHeader } from '@/components/layout/site-header';
+import { RevealObserver } from '@/components/motion/reveal-observer';
 import styles from './shell.module.css';
 
 export function SiteShell({
@@ -22,6 +23,7 @@ export function SiteShell({
       </main>
       <SiteFooter />
       {variant === 'default' ? <MobileBottomNav /> : null}
+      <RevealObserver />
     </div>
   );
 }

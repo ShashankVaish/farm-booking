@@ -58,6 +58,8 @@ function otpMessage(code: string, fallback: string) {
   if (code === 'OTP_COOLDOWN') return 'Please wait before requesting another code.';
   if (code === 'OTP_LOCKED') return 'Too many attempts. Request a new code.';
   if (code === 'OTP_RATE_LIMITED') return 'Too many OTP requests. Try again later.';
+  if (code === 'SMS_PROVIDER_ERROR') return 'We could not send the SMS just now. Please try again in a moment.';
+  if (code === 'ACCOUNT_DISABLED') return 'This account has been disabled. Contact support for help.';
   return fallback;
 }
 
@@ -92,6 +94,33 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Set after a first-time phone sign-in: the account exists, but as "Guest".
+  const [askName, setAskName] = useState(false);
+  const [name, setName] = useState('');
+
+  function finishSignIn() {
+    onAuthenticated?.();
+    router.push(next);
+    router.refresh();
+  }
+
+  async function saveName(event: FormEvent) {
+    event.preventDefault();
+    const trimmed = name.trim();
+    if (trimmed.length < 2) {
+      setError('Enter at least 2 characters, or skip for now.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await apiClient.patch('/api/auth/me', { name: trimmed });
+      finishSignIn();
+    } catch (err) {
+      setError(authErrorMessage(err, 'Could not save your name. You can add it later from your profile.'));
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (seconds <= 0) return;
@@ -164,7 +193,7 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
         setError('Enter a valid 10-digit Indian mobile number.');
         return;
       }
-      const result = await apiClient.post<{ user: AuthUser; accessToken: string }>(
+      const result = await apiClient.post<{ user: AuthUser; accessToken: string; isNewUser?: boolean }>(
         '/api/auth/otp/verify',
         { phone: mobile, code: code.trim(), purpose: 'LOGIN' },
         { auth: false },
@@ -175,9 +204,13 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
         return;
       }
       memoryTokenStore.setAccessToken(result.accessToken);
-      onAuthenticated?.();
-      router.push(next);
-      router.refresh();
+      // A number with no account was just given one. Ask what to call them
+      // before moving on; the account works either way.
+      if (result.isNewUser && !adminOnly) {
+        setAskName(true);
+        return;
+      }
+      finishSignIn();
     } catch (err) {
       setError(err instanceof ApiError ? otpMessage(err.code, err.message) : authErrorMessage(err, 'Could not verify OTP.'));
     } finally {
@@ -187,13 +220,42 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
 
   const canResend = seconds === 0;
 
-  const body = (
+  const body = askName ? (
+    <>
+      <Notice>Welcome! Your account is ready.</Notice>
+      {error ? <Alert>{error}</Alert> : null}
+      <form className={styles.stack} onSubmit={saveName} style={{ marginTop: 'var(--space-5)' }}>
+        <Input
+          id="new-name"
+          label="What should we call you?"
+          autoComplete="name"
+          autoFocus
+          minLength={2}
+          maxLength={120}
+          placeholder="Your name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <Button className={styles.submit} type="submit" block disabled={busy} loading={busy}>
+          {busy ? 'Saving…' : 'Continue'}
+        </Button>
+        <Button type="button" variant="ghost" block disabled={busy} onClick={finishSignIn}>
+          Skip for now
+        </Button>
+      </form>
+    </>
+  ) : (
     <>
       <Segmented label="Sign-in method" value={mode} options={METHODS} onChange={setMode} />
 
       {error ? <Alert>{error}</Alert> : null}
       {otpSent && mode === 'otp' && !error ? (
         <Notice>Code sent. Enter it below to continue.</Notice>
+      ) : null}
+      {mode === 'otp' && !otpSent && !adminOnly ? (
+        <p className="t-caption" style={{ marginTop: 'var(--space-3)' }}>
+          New here? Just enter your number: we&apos;ll create your account when you verify the code.
+        </p>
       ) : null}
 
       {mode === 'email' ? (

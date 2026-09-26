@@ -147,3 +147,67 @@ describe('focus and control borders meet non-text contrast', () => {
     }
   });
 });
+
+/*
+  The light theme: the same rules, read from the `:root[data-theme='light']`
+  block. Tokens the block does not override (the brand constants) are not
+  looked up here.
+*/
+const lightBlock = (() => {
+  const start = css.indexOf(":root[data-theme='light']");
+  if (start < 0) throw new Error('Light theme block not found');
+  return css.slice(start, css.indexOf('}', start));
+})();
+
+function light(name: string): string {
+  const match = lightBlock.match(new RegExp(`\\s${name}:\\s*(#[0-9a-fA-F]{6})\\s*;`));
+  if (!match) throw new Error(`Light token ${name} not found or not a plain hex value`);
+  return match[1];
+}
+
+describe('light theme', () => {
+  for (const tier of ['--color-text-primary', '--color-text-secondary', '--color-text-muted']) {
+    for (const layer of LAYERS) {
+      it(`${tier} clears AA on ${layer}`, () => {
+        expect(contrast(light(tier), light(layer))).toBeGreaterThanOrEqual(AA_TEXT);
+      });
+    }
+  }
+
+  it('coral text and semantic colours clear AA on the main layers', () => {
+    for (const name of [
+      '--color-primary-text',
+      '--color-success',
+      '--color-warning',
+      '--color-error',
+      '--color-info',
+    ]) {
+      for (const layer of LAYERS.slice(0, 4)) {
+        expect(contrast(light(name), light(layer))).toBeGreaterThanOrEqual(AA_TEXT);
+      }
+    }
+  });
+
+  it('keeps the dark ink legible on every coral fill', () => {
+    for (const fill of ['--color-primary', '--color-primary-hover', '--color-primary-press']) {
+      expect(contrast(light('--color-on-primary'), light(fill))).toBeGreaterThanOrEqual(AA_TEXT);
+    }
+  });
+
+  it('makes the coral fill stand out against the paper ground', () => {
+    for (const fill of ['--color-primary', '--color-primary-hover', '--color-primary-press']) {
+      expect(contrast(light(fill), light('--color-background'))).toBeGreaterThanOrEqual(AA_NON_TEXT);
+    }
+  });
+
+  it('shows focus rings and control outlines at 3:1 on every layer', () => {
+    for (const layer of LAYERS) {
+      expect(contrast(light('--color-focus'), light(layer))).toBeGreaterThanOrEqual(AA_NON_TEXT);
+    }
+    for (const layer of LAYERS.slice(0, 4)) {
+      expect(contrast(light('--color-border-control'), light(layer))).toBeGreaterThanOrEqual(
+        AA_NON_TEXT,
+      );
+    }
+  });
+});

@@ -54,11 +54,16 @@ a:hover {
   color: var(--color-primary);
 }
 
+/* Native controls (date pickers, scrollbars) follow the active theme. */
 button,
 input,
 select,
 textarea {
   color-scheme: dark;
+}
+
+:root[data-theme='light'] :is(button, input, select, textarea) {
+  color-scheme: light;
 }
 
 ::selection {
@@ -126,6 +131,15 @@ textarea {
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
   margin: 0;
+}
+
+/* The big headings take the rounded marker face, heavy and slightly tight. */
+.t-display,
+.t-h1,
+.t-h2 {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .t-display {
@@ -214,4 +228,177 @@ textarea {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* =============================================================================
+   Motion
+   -----------------------------------------------------------------------------
+   Shared animations for the whole site. Everything here is switched off by the
+   `prefers-reduced-motion` rule above (durations drop to ~0), and reveal only
+   hides content once <RevealObserver> has added `motion-ready` to <html>, so a
+   page without JavaScript shows everything.
+   ========================================================================== */
+
+:root {
+  --motion-reveal: 640ms;
+  --motion-stagger: 70ms;
+  --easing-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*
+  Scroll reveal: `data-reveal` on any element; `--reveal-i` staggers a grid.
+
+  A keyframe animation with `backwards` fill rather than a transition: a
+  transition's stagger delay would also apply to the element's own hover
+  effects (a card lifting 400 ms late), and a `forwards` fill would pin
+  `transform` and cancel them. With `backwards`, the element is held at the
+  start frame during its delay and hands back to its normal styles at the end.
+*/
+.motion-ready [data-reveal]:not(.is-visible) {
+  opacity: 0;
+}
+
+.motion-ready [data-reveal].is-visible {
+  animation: rise-in var(--motion-reveal) var(--easing-emphasis) backwards;
+  animation-delay: calc(min(var(--reveal-i, 0), 8) * var(--motion-stagger));
+}
+
+/* Already on screen at first paint: shown as rendered, no entrance. */
+.motion-ready [data-reveal].is-visible.reveal-instant {
+  animation: none;
+}
+
+.motion-ready [data-reveal='fade'].is-visible {
+  animation-name: page-enter;
+}
+
+.motion-ready [data-reveal='scale'].is-visible {
+  animation-name: scale-in;
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+  A new page fades in on every navigation (see (site)/template.tsx). Opacity
+  only: a transform on this wrapper would, while it ran, become the containing
+  block for every `position: fixed` element inside the page — the phone
+  Reserve bar would jump for the length of the animation.
+*/
+.page-enter {
+  animation: page-enter 360ms var(--easing-emphasis) both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pulse-dot {
+  0% {
+    box-shadow: 0 0 0 0 rgb(111 211 163 / 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgb(111 211 163 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(111 211 163 / 0);
+  }
+}
+
+@keyframes drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, -6%, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes heart-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.35);
+  }
+  60% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes glow-spin {
+  to {
+    --glow-angle: 360deg;
+  }
+}
+
+@property --glow-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* Loading placeholder with a moving highlight. */
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 0%,
+    var(--color-surface-elevated) 50%,
+    var(--color-surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* A short cross-fade while the theme switches, removed again by ThemeToggle. */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 320ms ease,
+    border-color 320ms ease,
+    color 320ms ease,
+    fill 320ms ease,
+    box-shadow 320ms ease !important;
 }

@@ -27,15 +27,32 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
-  transition: border-color var(--duration-fast) var(--easing-standard);
+  transition:
+    border-color var(--duration-slow) var(--easing-standard),
+    box-shadow var(--duration-slow) var(--easing-standard),
+    transform var(--duration-slow) var(--easing-emphasis);
 }
 
-.card:hover {
-  border-color: var(--color-text-muted);
+/* Lift and glow on hover; the photo drifts closer. Pointer devices only, so a
+   tap on a phone does not leave a card stuck in its hover state. */
+@media (hover: hover) {
+  .card:hover {
+    transform: translateY(-6px);
+    border-color: var(--color-primary-border);
+    box-shadow: var(--shadow-md), 0 0 0 1px rgb(255 90 96 / 0.08);
+  }
+
+  .card:hover .mediaWrap img {
+    transform: scale(1.06);
+  }
 }
 
-.card:hover .mediaWrap img {
-  transform: scale(1.03);
+.card:active {
+  transform: scale(0.985);
+}
+
+.card:focus-within {
+  border-color: var(--color-primary-border);
 }
 
 .mediaWrap {
@@ -46,7 +63,25 @@
 }
 
 .mediaWrap img {
-  transition: transform var(--duration-slow) var(--easing-standard);
+  transition: transform 900ms var(--easing-emphasis);
+}
+
+/* A soft shade at the foot of the photo, so badges read on bright images. */
+.mediaWrap::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 40%;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.35), transparent);
+  pointer-events: none;
+  opacity: 0.7;
+  transition: opacity var(--duration-slow) var(--easing-standard);
+}
+
+@media (hover: hover) {
+  .card:hover .mediaWrap::after {
+    opacity: 1;
+  }
 }
 
 .wish {
@@ -58,9 +93,11 @@
   height: var(--touch);
   border: 0;
   border-radius: var(--radius-full);
-  background: var(--color-overlay);
-  color: var(--color-text-primary);
+  /* Always a dark disc with a light heart: it sits on a photo, whatever the theme. */
+  background: rgb(10 8 12 / 0.55);
+  color: #ffffff;
   cursor: pointer;
+  transition: transform var(--duration-fast) var(--easing-standard);
 }
 
 .badgeRow {
@@ -313,7 +350,17 @@
 }
 
 .wish[aria-pressed='true'] {
-  color: var(--color-accent);
+  /* Fixed light coral: the disc behind it is dark in both themes. */
+  color: #ff9aa0;
+}
+
+/* The heart pops the moment it is saved. */
+.wish[aria-pressed='true'] svg {
+  animation: heart-pop 420ms var(--easing-emphasis);
+}
+
+.wish:active {
+  transform: scale(0.9);
 }
 
 .detailGrid {
@@ -750,7 +797,7 @@
   padding: var(--space-3) var(--gutter);
   background: var(--color-surface-elevated);
   border-top: 1px solid var(--color-border);
-  box-shadow: 0 -8px 24px rgb(0 0 0 / 0.28);
+  box-shadow: 0 -8px 24px color-mix(in srgb, var(--color-text-primary) 12%, transparent);
   animation: reserveBarIn 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 

@@ -89,7 +89,13 @@ export class RenflairSmsProvider implements SmsProvider {
       });
     }
 
-    this.logger.log(`OTP sent to ${maskPhone(input.phone)} via ${this.name}`);
+    // Renflair's own words go in the log (they never contain the code), so a
+    // guest who says no SMS arrived can be traced: an accepted send here means
+    // the gateway took it, and a missing SMS is then a delivery problem on the
+    // carrier side, not in this code.
+    this.logger.log(
+      `OTP sent to ${maskPhone(input.phone)} via ${this.name}: ${body.trim().slice(0, 200)}`,
+    );
   }
 }
 

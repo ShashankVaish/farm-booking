@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { BrandMark } from '@/components/layout/brand-mark';
+import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 import { apiClient } from '@/lib/api/client';
@@ -54,6 +55,15 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
   const [user, setUser] = useState<AuthUser | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  // Deepens the bar once the page scrolls under it.
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -113,7 +123,7 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
       the page behind it.
     */
     <>
-    <header className={styles.header}>
+    <header className={styles.header} data-scrolled={scrolled || undefined}>
       <div className={`container ${styles.headerInner}`}>
         <div className={styles.headerStart}>
           {variant === 'default' ? (
@@ -151,6 +161,7 @@ export function SiteHeader({ variant = 'default' }: { variant?: 'default' | 'min
         )}
 
         <div className={styles.headerActions}>
+          <ThemeToggle className={styles.iconButton} />
           <Link href="/dashboard/wishlist" className={styles.iconButton} aria-label="Wishlist">
             <HeartIcon />
           </Link>
