@@ -225,8 +225,10 @@ export function VerificationStep({
 
   const phoneVerified = Boolean(status?.phoneVerified);
   const docsDone = status?.kycStatus === 'SUBMITTED' || status?.kycStatus === 'VERIFIED';
+  // The admin can make identity documents optional (Admin → Settings).
+  const docsOptional = status?.documentsRequired === false;
   const bankSaved = Boolean(status?.bankAccountSaved);
-  const allDone = phoneVerified && docsDone && bankSaved;
+  const allDone = phoneVerified && (docsDone || docsOptional) && bankSaved;
 
   // Nothing here changes from one property to the next, so a host who has
   // already been through it should not be shown the forms a second time.
@@ -346,7 +348,7 @@ export function VerificationStep({
       {/* Step 2 — documents ---------------------------------------------- */}
       <section className={styles.verifyBlock}>
         <div className={styles.verifyHead}>
-          <h3 className="t-h4">2. Identity documents</h3>
+          <h3 className="t-h4">2. Identity documents{docsOptional ? ' (optional)' : ''}</h3>
           <span className={docsDone ? styles.verifyDone : styles.verifyPending}>
             {status?.kycStatus === 'VERIFIED'
               ? 'Verified'
@@ -357,6 +359,12 @@ export function VerificationStep({
                   : 'Not submitted'}
           </span>
         </div>
+        {docsOptional && !docsDone ? (
+          <p className="t-body-small" style={{ marginTop: 'var(--space-2)' }}>
+            Not required right now: you can submit listings without them. Adding your Aadhaar and PAN
+            still helps, because the team can then mark your account as verified.
+          </p>
+        ) : null}
 
         {status?.kycStatus === 'REJECTED' && status.kycRejectionReason ? (
           <p className="t-body-small" role="alert" style={{ color: 'var(--color-error)' }}>

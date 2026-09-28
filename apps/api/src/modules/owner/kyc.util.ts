@@ -71,7 +71,9 @@ export function aadhaarLast4(value: string): string {
  * ever retaining the raw value.
  */
 export function hashAadhaar(value: string, pepper: string): string {
-  return createHmac('sha256', pepper).update(normalizeAadhaar(value)).digest('hex');
+  return createHmac('sha256', pepper)
+    .update(normalizeAadhaar(value))
+    .digest('hex');
 }
 
 export function maskAadhaar(last4: string | null | undefined): string {

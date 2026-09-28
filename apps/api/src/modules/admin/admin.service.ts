@@ -235,6 +235,7 @@ export class AdminService {
       bookingExpireMinutes: this.platformSettings.getNumber(
         'BOOKING_EXPIRE_MINUTES',
       ),
+      hostKycRequired: this.platformSettings.hostKycRequired(),
       paymentProvider: 'PHONEPE',
       paymentMode:
         read('PHONEPE_ENV')?.toUpperCase() === 'PRODUCTION' ? 'live' : 'test',
@@ -841,10 +842,17 @@ export class AdminService {
    * settings payload is environment-derived and read-only.
    */
   async updateSettings(
-    dto: { platformFeeBps?: number; bookingExpireMinutes?: number },
+    dto: {
+      platformFeeBps?: number;
+      bookingExpireMinutes?: number;
+      hostKycRequired?: boolean;
+    },
     actorId: string,
   ) {
     const updates: Array<[EditableSettingKey, number]> = [];
+    if (dto.hostKycRequired !== undefined) {
+      updates.push(['HOST_KYC_REQUIRED', dto.hostKycRequired ? 1 : 0]);
+    }
     if (dto.platformFeeBps !== undefined) {
       updates.push(['PLATFORM_FEE_BPS', dto.platformFeeBps]);
     }

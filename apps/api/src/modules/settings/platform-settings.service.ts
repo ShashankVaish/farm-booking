@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuditService } from '../../common/audit.service';
 import { ErrorCodes } from '../../common/constants/error-codes';
@@ -21,6 +26,17 @@ export const EDITABLE_SETTINGS = {
     min: 5,
     max: 1440,
     fallback: 30,
+  },
+  /*
+    Whether a host must submit Aadhaar and PAN before a listing can go to
+    review. 1 = required (the default), 0 = optional. Stored as a number so it
+    fits the same bounded, audited update path as the other settings.
+  */
+  HOST_KYC_REQUIRED: {
+    label: 'Host identity verification',
+    min: 0,
+    max: 1,
+    fallback: 1,
   },
 } as const;
 
@@ -63,6 +79,11 @@ export class PlatformSettingsService implements OnModuleInit {
         }`,
       );
     }
+  }
+
+  /** True when the admin requires hosts to submit Aadhaar and PAN. */
+  hostKycRequired(): boolean {
+    return this.getNumber('HOST_KYC_REQUIRED') !== 0;
   }
 
   /** Stored override, else the environment value, else the built-in default. */

@@ -160,4 +160,9 @@ export class UpdatePlatformSettingsDto {
   @IsInt()
   @Min(5)
   bookingExpireMinutes?: number;
+
+  /** Whether hosts must submit Aadhaar and PAN before listing. */
+  @IsOptional()
+  @IsBoolean()
+  hostKycRequired?: boolean;
 }

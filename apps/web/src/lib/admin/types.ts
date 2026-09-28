@@ -265,6 +265,8 @@ export type AdminSettings = {
   platformFeeBps: number;
   platformFeePercent: number;
   bookingExpireMinutes: number;
+  /** Whether hosts must submit Aadhaar and PAN before listing. */
+  hostKycRequired?: boolean;
   paymentProvider: string;
   paymentMode: 'test' | 'live';
   paymentConfigured: boolean;

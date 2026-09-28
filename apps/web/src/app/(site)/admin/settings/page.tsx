@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/forms';
+import { Switch } from '@/components/ui/switch';
 import { adminUi } from '@/components/admin/admin-kit';
 import { QueryGate, useAdminQuery } from '@/components/admin/use-admin-query';
 import { useToast } from '@/components/providers/toast-provider';
@@ -26,6 +27,26 @@ export default function AdminSettingsPage() {
   const [holdMinutes, setHoldMinutes] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [kycBusy, setKycBusy] = useState(false);
+
+  // Saved on its own, the moment it is switched: it is a policy decision, not
+  // a number to fine-tune alongside the others.
+  async function setKycRequired(required: boolean) {
+    setKycBusy(true);
+    try {
+      const next = await adminApi.updateSettings({ hostKycRequired: required });
+      setData(next);
+      notify(
+        required
+          ? 'Hosts must now submit Aadhaar and PAN before listing. This is audited.'
+          : 'Aadhaar and PAN are now optional for hosts. This is audited.',
+      );
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'Could not change the setting.', 'error');
+    } finally {
+      setKycBusy(false);
+    }
+  }
 
   // Seed the inputs once the current values arrive.
   useEffect(() => {
@@ -154,6 +175,32 @@ export default function AdminSettingsPage() {
                   Reset
                 </Button>
               </div>
+            </section>
+
+            <section
+              className={adminUi.panel}
+              style={{ marginTop: 'var(--space-5)', maxWidth: '40rem' }}
+            >
+              <h2 className="t-h4" style={{ marginBottom: 'var(--space-2)' }}>
+                Host verification
+              </h2>
+              <p className="t-body-small" style={{ marginBottom: 'var(--space-4)' }}>
+                When on, a host must submit their Aadhaar and PAN before a listing can be sent for
+                review. When off, the documents are optional; hosts can still add them, and a
+                verified mobile number is always required. Changes apply immediately and are recorded
+                in the audit log.
+              </p>
+              <Switch
+                label="Require Aadhaar and PAN from hosts"
+                checked={data.hostKycRequired !== false}
+                disabled={kycBusy}
+                onCheckedChange={(checked) => void setKycRequired(checked)}
+              />
+              <p className="t-caption" style={{ marginTop: 'var(--space-2)' }}>
+                {data.hostKycRequired !== false
+                  ? 'Required: listings cannot be submitted without them.'
+                  : 'Optional: hosts can list without submitting them.'}
+              </p>
             </section>
 
             <section

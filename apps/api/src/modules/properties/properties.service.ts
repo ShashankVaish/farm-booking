@@ -14,6 +14,7 @@ import { slugify } from '../../common/slug';
 import { isUuid } from '../../common/uuid';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DeliveryQueue } from '../delivery/delivery-queue.service';
+import { PlatformSettingsService } from '../settings/platform-settings.service';
 import { AgreementsService } from '../agreements/agreements.service';
 import { MailService } from '../mail/mail.service';
 import { propertySubmittedEmail } from '../mail/templates';
@@ -45,6 +46,7 @@ export class PropertiesService {
     private readonly mail: MailService,
     private readonly agreements: AgreementsService,
     private readonly delivery: DeliveryQueue,
+    private readonly settings: PlatformSettingsService,
   ) {}
 
   async create(user: RequestUser, dto: CreatePropertyDto) {
@@ -180,6 +182,12 @@ export class PropertiesService {
         message:
           'Verify your mobile number before submitting a listing for review.',
       });
+    }
+
+    // The admin decides whether identity documents are required at all
+    // (Admin → Settings). The verified mobile above is always required.
+    if (!this.settings.hostKycRequired()) {
+      return;
     }
 
     const kycStatus = owner.ownerProfile?.kycStatus;
