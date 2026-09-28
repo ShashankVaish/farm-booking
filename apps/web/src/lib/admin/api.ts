@@ -56,7 +56,7 @@ export const adminApi = {
   agreementPdf: (propertyId: string) =>
     apiClient.download(`/api/admin/agreement/property/${propertyId}/pdf`),
   settings: () => apiClient.get<AdminSettings>('/api/admin/settings'),
-  updateSettings: (body: { platformFeeBps?: number; bookingExpireMinutes?: number }) =>
+  updateSettings: (body: { platformFeeBps?: number; bookingExpireMinutes?: number; hostKycRequired?: boolean }) =>
     apiClient.patch<AdminSettings>('/api/admin/settings', body),
   users: (query: AdminListQuery = {}) => apiClient.get<AdminList<AdminUser>>(listPath('users', query)),
   owners: (query: AdminListQuery = {}) => apiClient.get<AdminList<AdminUser>>(listPath('owners', query)),

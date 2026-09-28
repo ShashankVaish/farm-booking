@@ -27,6 +27,11 @@ function mailStub() {
   };
 }
 
+/** Admin settings; identity documents required unless a test says otherwise. */
+function settingsStub(kycRequired = true) {
+  return { hostKycRequired: jest.fn().mockReturnValue(kycRequired) };
+}
+
 /** Stands in for the Redis queue, passing queued emails to the mail stub. */
 function deliveryFor(mail: { sendQuietly: (email: unknown) => unknown }) {
   return {
@@ -87,6 +92,7 @@ describe('property ownership authorization', () => {
       mailStub() as never,
       agreementsStub() as never,
       deliveryFor(mailStub()) as never,
+      settingsStub() as never,
     );
     await expect(service.getById(id, customer)).rejects.toBeInstanceOf(
       NotFoundException,
@@ -112,6 +118,7 @@ describe('property ownership authorization', () => {
       mailStub() as never,
       agreementsStub() as never,
       deliveryFor(mailStub()) as never,
+      settingsStub() as never,
     );
     await expect(
       service.getById('courtyard-lonavala', customer),
@@ -128,6 +135,7 @@ describe('property ownership authorization', () => {
       mailStub() as never,
       agreementsStub() as never,
       deliveryFor(mailStub()) as never,
+      settingsStub() as never,
     );
     await expect(
       service.create(owner, {
@@ -202,16 +210,19 @@ describe('submitting a listing for review', () => {
     };
     const mail = mailStub();
     const agreements = agreementsStub(signed);
+    const settings = settingsStub();
     return {
       service: new PropertiesService(
         prisma as never,
         mail as never,
         agreements as never,
         deliveryFor(mail) as never,
+        settings as never,
       ),
       mail,
       prisma,
       agreements,
+      settings,
     };
   }
 
@@ -303,5 +314,76 @@ describe('submitting a listing for review', () => {
     mail.adminAddress.mockReturnValue(null);
     await service.update('p1', owner, submit);
     expect(mail.sendQuietly).not.toHaveBeenCalled();
+  });
+});
+
+describe('identity documents at submission, as the admin sets them', () => {
+  const submit = { status: 'PENDING_APPROVAL' } as never;
+  const owner = {
+    id: 'owner-1',
+    email: 'host@example.com',
+    role: 'OWNER',
+    name: 'Host',
+  } as never;
+
+  function hostWithoutDocuments(kycRequired: boolean) {
+    const tx = {
+      property: {
+        update: jest
+          .fn()
+          .mockResolvedValue({ id: 'p1', status: 'PENDING_APPROVAL' }),
+      },
+    };
+    const prisma = {
+      property: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'p1',
+          ownerId: 'owner-1',
+          status: 'DRAFT',
+          deletedAt: null,
+          latitude: 18.5,
+          longitude: 73.8,
+          title: 'Lake House',
+          city: 'Lonavala',
+          state: 'Maharashtra',
+          location: 'Lonavala',
+          updatedAt: new Date(),
+          owner: { name: 'Host', email: 'host@example.com' },
+        }),
+        update: tx.property.update,
+      },
+      propertyImage: { count: jest.fn().mockResolvedValue(1) },
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          phoneVerifiedAt: new Date(),
+          ownerProfile: { kycStatus: 'NOT_SUBMITTED' },
+        }),
+      },
+      $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
+    };
+    const mail = mailStub();
+    return new PropertiesService(
+      prisma as never,
+      mail as never,
+      agreementsStub(true) as never,
+      deliveryFor(mail) as never,
+      settingsStub(kycRequired) as never,
+    );
+  }
+
+  it('refuses a host with no Aadhaar and PAN while the admin requires them', async () => {
+    await expect(
+      hostWithoutDocuments(true).update('p1', owner, submit),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        message: expect.stringContaining('Aadhaar and PAN'),
+      }),
+    });
+  });
+
+  it('lets the same host submit once the admin makes documents optional', async () => {
+    await expect(
+      hostWithoutDocuments(false).update('p1', owner, submit),
+    ).resolves.toBeDefined();
   });
 });

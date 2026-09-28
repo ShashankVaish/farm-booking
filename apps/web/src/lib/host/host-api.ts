@@ -95,6 +95,8 @@ export type HostKycStatus = {
   bankIfsc: string | null;
   bankName: string | null;
   bankAccountSaved: boolean;
+  /** Set by the admin: whether Aadhaar and PAN are required to list. */
+  documentsRequired?: boolean;
   canSubmitListing: boolean;
 };
 

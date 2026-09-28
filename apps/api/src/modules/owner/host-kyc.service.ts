@@ -31,6 +31,7 @@ import {
   normalizeIfsc,
   normalizePan,
 } from './kyc.util';
+import { PlatformSettingsService } from '../settings/platform-settings.service';
 
 @Injectable()
 export class HostKycService {
@@ -39,6 +40,7 @@ export class HostKycService {
     private readonly otp: OtpService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly settings: PlatformSettingsService,
   ) {}
 
   /** Everything the host wizard needs to render the verification step. */
@@ -80,6 +82,7 @@ export class HostKycService {
     const phoneVerified = Boolean(user.phoneVerifiedAt);
     const documentsSubmitted =
       kycStatus === KycStatus.SUBMITTED || kycStatus === KycStatus.VERIFIED;
+    const documentsRequired = this.settings.hostKycRequired();
 
     return {
       phone: user.phone,
@@ -101,8 +104,11 @@ export class HostKycService {
       bankIfsc: profile?.bankIfsc ?? null,
       bankName: profile?.bankName ?? null,
       bankAccountSaved: Boolean(profile?.bankAccountLast4),
-      /** A listing may only be submitted for review once both of these hold. */
-      canSubmitListing: phoneVerified && documentsSubmitted,
+      /** Set by the admin: whether Aadhaar and PAN are required to list. */
+      documentsRequired,
+      /** A verified mobile always; identity documents only when required. */
+      canSubmitListing:
+        phoneVerified && (documentsSubmitted || !documentsRequired),
     };
   }
 
@@ -182,7 +188,10 @@ export class HostKycService {
       });
     }
 
-    if (!this.isStoredMedia(dto.aadhaarImageUrl) || !this.isStoredMedia(dto.panImageUrl)) {
+    if (
+      !this.isStoredMedia(dto.aadhaarImageUrl) ||
+      !this.isStoredMedia(dto.panImageUrl)
+    ) {
       throw new BadRequestException({
         errorCode: ErrorCodes.VALIDATION_ERROR,
         message: 'Upload both document photos before submitting.',
@@ -269,7 +278,8 @@ export class HostKycService {
     if (holder.length < 3) {
       throw new BadRequestException({
         errorCode: ErrorCodes.VALIDATION_ERROR,
-        message: "Enter the account holder's full name as it appears on the account.",
+        message:
+          "Enter the account holder's full name as it appears on the account.",
       });
     }
 
