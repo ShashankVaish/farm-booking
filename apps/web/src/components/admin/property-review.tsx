@@ -168,6 +168,10 @@ export function PropertyReview({ propertyId }: { propertyId: string }) {
               {data.isTrusted ? ' This listing carries the Trusted property badge.' : ''}
             </p>
             <div className={styles.actionButtons}>
+              {/* Admins can correct any detail of a host's listing; the host is told. */}
+              <Button size="sm" variant="secondary" href={`/admin/properties/${data.id}/edit`}>
+                Edit details
+              </Button>
               {data.status === 'APPROVED' ? (
                 <Button size="sm" variant="ghost" href={`/properties/${data.id}`}>
                   View public page

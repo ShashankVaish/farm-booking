@@ -30,6 +30,11 @@ import {
   assertPropertyStatusTransition,
   canManageProperty,
 } from './property-status';
+import { AuditActions, AuditService } from '../../common/audit.service';
+import {
+  NotificationTypes,
+  NotificationsService,
+} from '../notifications/notifications.service';
 
 const publicInclude = {
   images: { orderBy: { sortOrder: 'asc' as const } },
@@ -47,13 +52,23 @@ export class PropertiesService {
     private readonly agreements: AgreementsService,
     private readonly delivery: DeliveryQueue,
     private readonly settings: PlatformSettingsService,
+    private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
   ) {}
 
   async create(user: RequestUser, dto: CreatePropertyDto) {
-    if (user.role !== UserRoles.OWNER && user.role !== UserRoles.ADMIN) {
+    /*
+      Hosts create listings; admins only edit them. A listing created by an
+      admin would belong to the admin account — no host, no payout
+      destination, no agreement — so it is refused rather than half-owned.
+    */
+    if (user.role !== UserRoles.OWNER) {
       throw new ForbiddenException({
         errorCode: ErrorCodes.FORBIDDEN,
-        message: 'Only owners can create properties.',
+        message:
+          user.role === UserRoles.ADMIN
+            ? 'Admins can edit listings but not create them. Listings are created by hosts.'
+            : 'Only hosts can create properties.',
       });
     }
 
@@ -61,7 +76,7 @@ export class PropertiesService {
 
     return this.prisma.property.create({
       data: {
-        ownerId: user.role === UserRoles.ADMIN ? user.id : user.id,
+        ownerId: user.id,
         title: dto.title.trim(),
         slug: slugify(dto.title),
         description: dto.description.trim(),
@@ -306,7 +321,39 @@ export class PropertiesService {
       await this.notifyAdminOfSubmission(saved.id);
     }
 
+    if (user.role === UserRoles.ADMIN && property.ownerId !== user.id) {
+      await this.recordAdminEdit(user.id, property, dto);
+    }
+
     return saved;
+  }
+
+  /**
+   * An admin changed a host's listing: the change is audited with which parts
+   * were touched, and the host is told, so an edit is never silent.
+   */
+  private async recordAdminEdit(
+    adminId: string,
+    property: { id: string; ownerId: string; title: string },
+    dto: UpdatePropertyDto,
+  ): Promise<void> {
+    const changed = Object.keys(dto).filter(
+      (key) => dto[key as keyof UpdatePropertyDto] !== undefined,
+    );
+    await this.audit.record({
+      actorId: adminId,
+      action: AuditActions.PROPERTY_EDITED_BY_ADMIN,
+      entityType: 'Property',
+      entityId: property.id,
+      metadata: { ownerId: property.ownerId, changed },
+    });
+    await this.notifications.notify({
+      userId: property.ownerId,
+      type: NotificationTypes.PROPERTY_EDITED,
+      title: 'Your listing was updated',
+      body: `Our team updated the details of "${property.title}". Open the listing to review the changes.`,
+      metadata: { propertyId: property.id, changed },
+    });
   }
 
   /**

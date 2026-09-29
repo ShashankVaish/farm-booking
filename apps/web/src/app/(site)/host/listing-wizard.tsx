@@ -84,9 +84,24 @@ function draftAsProperty(draft: ListingDraft): ApiProperty {
   };
 }
 
-export function ListingWizard({ propertyId }: { propertyId?: string }) {
+export function ListingWizard({
+  propertyId,
+  mode = 'host',
+}: {
+  propertyId?: string;
+  /**
+   * 'admin': an admin editing a host's listing from the admin panel. Only the
+   * listing details are shown; the host-only steps (identity verification and
+   * signing the host agreement) are left out, and saving keeps the listing's
+   * status as it is.
+   */
+  mode?: 'host' | 'admin';
+}) {
   const router = useRouter();
   const { notify } = useToast();
+  const isAdmin = mode === 'admin';
+  // An admin stops at Preview; Verification and Submit are the host's own.
+  const lastStep = isAdmin ? WIZARD_STEPS.indexOf('Preview') : WIZARD_STEPS.length - 1;
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<ListingDraft>(emptyListing);
   const [amenities, setAmenities] = useState<AmenityRecord[]>([]);
@@ -155,10 +170,31 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
       if (step >= 2 && (draft.location.confirmed || draft.id)) {
         await persist();
       }
-      setStep((value) => Math.min(value + 1, WIZARD_STEPS.length - 1));
+      setStep((value) => Math.min(value + 1, lastStep));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not save this listing.');
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveAdminChanges() {
+    for (let index = 0; index < lastStep; index += 1) {
+      const stepErrors = validateStep(index, draft);
+      if (Object.keys(stepErrors).length > 0) {
+        setStep(index);
+        setError(Object.values(stepErrors)[0]);
+        return;
+      }
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const saved = await persist();
+      notify('Listing updated. The host has been notified. This is audited.');
+      router.push(`/admin/properties/${saved.id ?? propertyId}`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not save this listing.');
       setBusy(false);
     }
   }
@@ -281,10 +317,16 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
 
   return (
     <div>
-      <p className="t-label">Listing wizard</p>
+      <p className="t-label">{isAdmin ? 'Admin · edit listing' : 'Listing wizard'}</p>
       <h1 className="t-h2">{draft.id ? 'Edit listing' : 'New listing'}</h1>
+      {isAdmin ? (
+        <p className="t-body-small" role="note" style={{ marginTop: 'var(--space-2)', maxWidth: '46rem' }}>
+          You are editing a host&apos;s listing as an admin. Change any detail and press Save changes; the
+          listing keeps its current status, the host is notified, and the edit is recorded in the audit log.
+        </p>
+      ) : null}
       <div className={styles.steps} role="tablist" aria-label="Listing steps">
-        {WIZARD_STEPS.map((label, index) => (
+        {WIZARD_STEPS.slice(0, lastStep + 1).map((label, index) => (
           <button
             key={label}
             type="button"
@@ -669,14 +711,22 @@ export function ListingWizard({ propertyId }: { propertyId?: string }) {
         <Button variant="ghost" disabled={step === 0} onClick={() => setStep((value) => Math.max(0, value - 1))}>
           Back
         </Button>
-        {step < WIZARD_STEPS.length - 1 ? (
-          <Button onClick={() => void goNext()} disabled={busy}>
+        {step < lastStep ? (
+          <Button onClick={() => void goNext()} disabled={busy} variant={isAdmin ? 'secondary' : 'primary'}>
             {busy ? 'Saving…' : 'Continue'}
           </Button>
         ) : null}
-        <Button variant="secondary" onClick={() => void saveDraft()} disabled={busy || !draft.location.confirmed}>
-          Save draft
-        </Button>
+        {isAdmin ? (
+          // Available from every step: an admin fixing one field should not
+          // have to walk through the rest.
+          <Button onClick={() => void saveAdminChanges()} disabled={busy} loading={busy}>
+            {busy ? 'Saving…' : 'Save changes'}
+          </Button>
+        ) : (
+          <Button variant="secondary" onClick={() => void saveDraft()} disabled={busy || !draft.location.confirmed}>
+            Save draft
+          </Button>
+        )}
       </div>
     </div>
   );

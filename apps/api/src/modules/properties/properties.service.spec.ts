@@ -93,6 +93,8 @@ describe('property ownership authorization', () => {
       agreementsStub() as never,
       deliveryFor(mailStub()) as never,
       settingsStub() as never,
+      { notify: jest.fn() } as never,
+      { record: jest.fn() } as never,
     );
     await expect(service.getById(id, customer)).rejects.toBeInstanceOf(
       NotFoundException,
@@ -119,6 +121,8 @@ describe('property ownership authorization', () => {
       agreementsStub() as never,
       deliveryFor(mailStub()) as never,
       settingsStub() as never,
+      { notify: jest.fn() } as never,
+      { record: jest.fn() } as never,
     );
     await expect(
       service.getById('courtyard-lonavala', customer),
@@ -136,6 +140,8 @@ describe('property ownership authorization', () => {
       agreementsStub() as never,
       deliveryFor(mailStub()) as never,
       settingsStub() as never,
+      { notify: jest.fn() } as never,
+      { record: jest.fn() } as never,
     );
     await expect(
       service.create(owner, {
@@ -211,6 +217,8 @@ describe('submitting a listing for review', () => {
     const mail = mailStub();
     const agreements = agreementsStub(signed);
     const settings = settingsStub();
+    const notifications = { notify: jest.fn() };
+    const audit = { record: jest.fn() };
     return {
       service: new PropertiesService(
         prisma as never,
@@ -218,11 +226,15 @@ describe('submitting a listing for review', () => {
         agreements as never,
         deliveryFor(mail) as never,
         settings as never,
+        notifications as never,
+        audit as never,
       ),
       mail,
       prisma,
       agreements,
       settings,
+      notifications,
+      audit,
     };
   }
 
@@ -368,6 +380,8 @@ describe('identity documents at submission, as the admin sets them', () => {
       agreementsStub(true) as never,
       deliveryFor(mail) as never,
       settingsStub(kycRequired) as never,
+      { notify: jest.fn() } as never,
+      { record: jest.fn() } as never,
     );
   }
 
@@ -385,5 +399,106 @@ describe('identity documents at submission, as the admin sets them', () => {
     await expect(
       hostWithoutDocuments(false).update('p1', owner, submit),
     ).resolves.toBeDefined();
+  });
+});
+
+describe('admins edit listings but do not create them', () => {
+  const admin = {
+    id: 'admin-1',
+    email: 'admin',
+    role: 'ADMIN',
+    name: 'Admin',
+  } as never;
+  const host = {
+    id: 'owner-1',
+    email: 'host@example.com',
+    role: 'OWNER',
+    name: 'Host',
+  } as never;
+
+  function build() {
+    const listing = {
+      id: 'p1',
+      ownerId: 'owner-1',
+      title: 'Lake House',
+      status: 'APPROVED',
+      deletedAt: null,
+      latitude: 18.5,
+      longitude: 73.8,
+    };
+    const tx = {
+      property: {
+        update: jest.fn().mockResolvedValue({ ...listing, basePrice: 9000 }),
+      },
+    };
+    const prisma = {
+      property: {
+        findUnique: jest.fn().mockResolvedValue(listing),
+        create: jest.fn(),
+      },
+      $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
+    };
+    const notifications = { notify: jest.fn() };
+    const audit = { record: jest.fn() };
+    const mail = mailStub();
+    const service = new PropertiesService(
+      prisma as never,
+      mail as never,
+      agreementsStub(true) as never,
+      deliveryFor(mail) as never,
+      settingsStub() as never,
+      notifications as never,
+      audit as never,
+    );
+    return { service, prisma, tx, notifications, audit };
+  }
+
+  it('refuses a listing created by an admin', async () => {
+    const { service, prisma } = build();
+    await expect(service.create(admin, {} as never)).rejects.toMatchObject({
+      response: expect.objectContaining({
+        message: expect.stringContaining(
+          'Admins can edit listings but not create them',
+        ),
+      }),
+    });
+    expect(prisma.property.create).not.toHaveBeenCalled();
+  });
+
+  it("lets an admin edit a host's listing, keeping its status", async () => {
+    const { service, tx } = build();
+    await service.update('p1', admin, { basePrice: 9000 });
+    expect(tx.property.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'p1' },
+        data: expect.objectContaining({ basePrice: 9000, status: undefined }),
+      }),
+    );
+  });
+
+  it('audits the admin edit and tells the host what changed', async () => {
+    const { service, notifications, audit } = build();
+    await service.update('p1', admin, {
+      basePrice: 9000,
+      title: 'Lake House Farm',
+    });
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: 'admin-1',
+        action: 'PROPERTY_EDITED_BY_ADMIN',
+        entityId: 'p1',
+        metadata: { ownerId: 'owner-1', changed: ['basePrice', 'title'] },
+      }),
+    );
+    expect(notifications.notify).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'owner-1', type: 'PROPERTY_EDITED' }),
+    );
+  });
+
+  it("does not flag the host's own edits as admin edits", async () => {
+    const { service, notifications, audit } = build();
+    await service.update('p1', host, { basePrice: 9000 });
+    expect(audit.record).not.toHaveBeenCalled();
+    expect(notifications.notify).not.toHaveBeenCalled();
   });
 });
