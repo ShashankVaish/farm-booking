@@ -97,12 +97,12 @@ describe('listingSlots', () => {
     time: (value: string) => value,
   };
 
-  it('lists only what the host offers, day first', () => {
+  it('lists only the parties the host offers, day first, never an overnight stay', () => {
     const slots = listingSlots(
       { ...DEFAULT_LISTING_META, daySlot: true, nightSlot: true, overnight: true },
       format,
     );
-    expect(slots.map((slot) => slot.key)).toEqual(['day', 'night', 'overnight']);
+    expect(slots.map((slot) => slot.key)).toEqual(['day', 'night']);
   });
 
   it('omits a slot that is switched off', () => {
@@ -114,8 +114,13 @@ describe('listingSlots', () => {
     expect(slots[0].detail).toBe('19:00-06:00');
   });
 
-  it('describes an overnight stay with both ends of the day', () => {
+  it('offers a listing with no party turned on as a night party', () => {
     const slots = listingSlots({ ...DEFAULT_LISTING_META, overnight: true }, format);
-    expect(slots[0].detail).toBe('Check in after 14:00, out by 11:00');
+    expect(slots.map((slot) => slot.key)).toEqual(['night']);
+  });
+
+  it('shows a day-party-only listing as just the day party', () => {
+    const slots = listingSlots({ ...DEFAULT_LISTING_META, daySlot: true, nightSlot: false }, format);
+    expect(slots.map((slot) => slot.key)).toEqual(['day']);
   });
 });

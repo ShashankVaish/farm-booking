@@ -1,4 +1,9 @@
-import { describeSlot, formatClock, readListingSlots } from './booking-slot';
+import {
+  describeSlot,
+  formatClock,
+  isSlotOffered,
+  readListingSlots,
+} from './booking-slot';
 
 describe('booking slots', () => {
   it('reads the slot lines of the host-meta block', () => {
@@ -26,11 +31,24 @@ describe('booking slots', () => {
     expect(slots.overnight.offered).toBe(false);
   });
 
-  it('keeps an old listing with no slot lines bookable overnight only', () => {
+  it('offers an old listing with no party slots as a night party only', () => {
     const slots = readListingSlots('Just some free-text rules');
-    expect(slots.overnight.offered).toBe(true);
-    expect(slots.day.offered).toBe(false);
-    expect(slots.night.offered).toBe(false);
+    expect(isSlotOffered(slots, 'NIGHT')).toBe(true);
+    expect(isSlotOffered(slots, 'DAY')).toBe(false);
+    expect(isSlotOffered(slots, 'OVERNIGHT')).toBe(false);
+  });
+
+  it('offers only what the host turned on', () => {
+    const dayOnly = readListingSlots(
+      [
+        '---host-meta-v1---',
+        'daySlot:true',
+        'nightSlot:false',
+        '---host-meta-v1---',
+      ].join('\n'),
+    );
+    expect(isSlotOffered(dayOnly, 'DAY')).toBe(true);
+    expect(isSlotOffered(dayOnly, 'NIGHT')).toBe(false);
   });
 
   it('formats 24-hour times for guests', () => {

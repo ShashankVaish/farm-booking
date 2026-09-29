@@ -1,5 +1,5 @@
 import { roundCoordinate } from '@/lib/host/listing-location';
-import { decodeListingMeta, encodeListingMeta } from '@/lib/host/listing-meta';
+import { decodeListingMeta, encodeListingMeta, offersNoParty } from '@/lib/host/listing-meta';
 import type { ListingDraft } from '@/lib/host/listing-types';
 import type { ApiProperty } from '@/lib/properties/types';
 
@@ -25,7 +25,6 @@ export function toPropertyPayload(draft: ListingDraft) {
     extraGuestCharge: draft.extraGuestCharge || undefined,
     // null, not undefined: clearing a party price has to reach the server.
     dayPartyPrice: draft.meta.daySlot && draft.dayPartyPrice ? draft.dayPartyPrice : null,
-    nightPartyPrice: draft.meta.nightSlot && draft.nightPartyPrice ? draft.nightPartyPrice : null,
     partyRules: draft.partyRules.trim() || undefined,
     propertyRules,
     cancellationPolicy: draft.cancellationPolicy.trim() || undefined,
@@ -44,7 +43,11 @@ export function toPropertyPayload(draft: ListingDraft) {
 }
 
 export function fromApiProperty(property: ApiProperty): ListingDraft {
-  const { meta, rules } = decodeListingMeta(property.propertyRules);
+  const decoded = decodeListingMeta(property.propertyRules);
+  const rules = decoded.rules;
+  // A listing saved before parties is sold as a night party; show it that way
+  // so the host sees what guests see and can add a day party.
+  const meta = offersNoParty(decoded.meta) ? { ...decoded.meta, nightSlot: true } : decoded.meta;
   const amenityIds = (property.amenities ?? [])
     .map((entry) => {
       if ('amenityId' in entry && entry.amenityId) return entry.amenityId;
@@ -67,7 +70,6 @@ export function fromApiProperty(property: ApiProperty): ListingDraft {
     weekendPrice: Number(property.weekendPrice ?? 0) || 0,
     extraGuestCharge: Number(property.extraGuestCharge ?? 0) || 0,
     dayPartyPrice: Number(property.dayPartyPrice ?? 0) || 0,
-    nightPartyPrice: Number(property.nightPartyPrice ?? 0) || 0,
     houseRules: rules,
     partyRules: property.partyRules ?? '',
     cancellationPolicy: property.cancellationPolicy ?? '',

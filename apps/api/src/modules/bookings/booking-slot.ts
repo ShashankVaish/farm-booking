@@ -75,10 +75,16 @@ export function readListingSlots(propertyRules?: string | null): ListingSlots {
   return slots;
 }
 
+/**
+ * Guests book day and night parties only; overnight stays are no longer
+ * sold. A listing whose host turned neither party on — every listing saved
+ * before parties existed — is offered as a night party, so it stays bookable.
+ */
 export function isSlotOffered(slots: ListingSlots, slot: BookingSlot): boolean {
   if (slot === BookingSlot.DAY) return slots.day.offered;
-  if (slot === BookingSlot.NIGHT) return slots.night.offered;
-  return slots.overnight.offered;
+  if (slot === BookingSlot.NIGHT)
+    return slots.night.offered || !slots.day.offered;
+  return false;
 }
 
 /** The hours saved on a booking, or nulls for an overnight stay. */

@@ -522,11 +522,15 @@ export class BookingsService {
     property: { propertyRules: string | null },
     dto: { slot?: BookingSlot; checkInDate: string; checkOutDate: string },
   ): BookingSlot {
-    const slot = dto.slot ?? BookingSlot.OVERNIGHT;
+    // A request without a slot (an older page) books the night party.
+    const slot = dto.slot ?? BookingSlot.NIGHT;
     if (!isSlotOffered(readListingSlots(property.propertyRules), slot)) {
       throw new BadRequestException({
         errorCode: ErrorCodes.SLOT_NOT_OFFERED,
-        message: `This place is not offered for a ${SLOT_LABEL[slot].toLowerCase()}. Choose another option.`,
+        message:
+          slot === BookingSlot.OVERNIGHT
+            ? 'Overnight stays are not offered. Book a day party or a night party.'
+            : `This place does not offer a ${SLOT_LABEL[slot].toLowerCase()}. Choose another option.`,
       });
     }
     if (

@@ -5,12 +5,14 @@ import type { ApiProperty } from '@/lib/properties/types';
 import { formatSlotRange, formatTime12 } from '@/lib/time/clock';
 
 /*
-  Day party, night party and overnight stay, as a guest books them.
+  Day party and night party, as a guest books them.
 
   Which a listing offers comes from the same host-meta block the listing page
-  reads, so the booking card offers exactly the options the page advertises.
-  A party is one date: it is sent to the server as check-in that date and
-  check-out the next, the same shape as a one-night stay.
+  reads, so the booking card offers exactly the options the page advertises —
+  a host who offers only night parties shows only the night party. A party is
+  one date: it is sent to the server as check-in that date and check-out the
+  next. Overnight stays are no longer sold; the label stays for bookings made
+  before.
 */
 
 export const SLOT_LABEL: Record<BookingSlotKey, string> = {
@@ -19,14 +21,17 @@ export const SLOT_LABEL: Record<BookingSlotKey, string> = {
   NIGHT: 'Night party',
 };
 
-const KEY_BY_META = { day: 'DAY', night: 'NIGHT', overnight: 'OVERNIGHT' } as const;
+const KEY_BY_META = { day: 'DAY', night: 'NIGHT' } as const;
 
 export type SlotChoice = {
   key: BookingSlotKey;
   label: string;
-  /** "10:30 am – 6:00 pm · 7 hrs 30 min", or the check-in/out times. */
+  /** "10:30 am – 6:00 pm · 7 hrs 30 min". */
   detail: string;
-  /** The host's flat price for this sitting, or null to use the night rate. */
+  /**
+   * The host's own day party price, or null: a night party always, and a day
+   * party without its own price, cost the listing's weekday / weekend price.
+   */
   price: number | null;
 };
 
@@ -35,7 +40,7 @@ function positive(value: number | string | null | undefined): number | null {
   return Number.isFinite(amount) && amount > 0 ? amount : null;
 }
 
-export function bookableSlots(property: Pick<ApiProperty, 'propertyRules' | 'dayPartyPrice' | 'nightPartyPrice'>): SlotChoice[] {
+export function bookableSlots(property: Pick<ApiProperty, 'propertyRules' | 'dayPartyPrice'>): SlotChoice[] {
   const { meta } = decodeListingMeta(property.propertyRules);
   return listingSlots(meta, { range: formatSlotRange, time: formatTime12 }).map((slot) => {
     const key = KEY_BY_META[slot.key];
@@ -43,7 +48,7 @@ export function bookableSlots(property: Pick<ApiProperty, 'propertyRules' | 'day
       key,
       label: slot.label,
       detail: slot.detail,
-      price: key === 'DAY' ? positive(property.dayPartyPrice) : key === 'NIGHT' ? positive(property.nightPartyPrice) : null,
+      price: key === 'DAY' ? positive(property.dayPartyPrice) : null,
     };
   });
 }

@@ -128,12 +128,20 @@ export function decodeListingMeta(source?: string | null): { meta: ListingMeta; 
   return { meta, rules };
 }
 
-export type BookingSlot = { key: 'day' | 'night' | 'overnight'; label: string; detail: string };
+export type BookingSlot = { key: 'day' | 'night'; label: string; detail: string };
+
+/** A host who turned neither party on: true for every listing saved before parties. */
+export function offersNoParty(meta: ListingMeta): boolean {
+  return !meta.daySlot && !meta.nightSlot;
+}
 
 /**
- * The sittings a listing is actually offered for, in the order a guest reads
- * them. Empty only if a host has turned every option off, which the wizard
- * prevents.
+ * The sittings a listing is booked for, in the order a guest reads them: a
+ * day party, a night party, or both — whatever the host turned on.
+ *
+ * Overnight stays are no longer sold. A listing with neither party turned on
+ * (every listing saved before parties existed) is offered as a night party,
+ * so it never becomes unbookable; the server applies the same rule.
  */
 export function listingSlots(
   meta: ListingMeta,
@@ -150,18 +158,11 @@ export function listingSlots(
       detail: format.range(meta.dayStart, meta.dayEnd),
     });
   }
-  if (meta.nightSlot) {
+  if (meta.nightSlot || offersNoParty(meta)) {
     slots.push({
       key: 'night',
       label: 'Night party',
       detail: format.range(meta.nightStart, meta.nightEnd),
-    });
-  }
-  if (meta.overnight) {
-    slots.push({
-      key: 'overnight',
-      label: 'Overnight stay',
-      detail: `Check in after ${format.time(meta.checkIn)}, out by ${format.time(meta.checkOut)}`,
     });
   }
   return slots;

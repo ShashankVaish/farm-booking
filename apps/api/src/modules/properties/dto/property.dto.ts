@@ -135,19 +135,12 @@ export class CreatePropertyDto {
   @Min(0)
   extraGuestCharge?: number;
 
-  /** Flat price for one day party; empty means the nightly rate applies. */
+  /** Flat price for one day party; empty means the night party price. */
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   dayPartyPrice?: number | null;
-
-  /** Flat price for one night party; empty means the nightly rate applies. */
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  nightPartyPrice?: number | null;
 
   @IsOptional()
   @IsString()
@@ -288,19 +281,12 @@ export class UpdatePropertyDto {
   @Min(0)
   extraGuestCharge?: number;
 
-  /** Flat price for one day party; empty means the nightly rate applies. */
+  /** Flat price for one day party; empty means the night party price. */
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   dayPartyPrice?: number | null;
-
-  /** Flat price for one night party; empty means the nightly rate applies. */
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  nightPartyPrice?: number | null;
 
   @IsOptional()
   @IsString()

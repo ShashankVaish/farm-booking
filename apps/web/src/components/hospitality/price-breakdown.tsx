@@ -20,7 +20,11 @@ export function PriceBreakdown({ quote, disclaimer = true }: { quote: PriceQuote
         <p className={styles.priceRow}>
           <span>
             {party}
-            {quote.slotPriced ? '' : Number(quote.weekendAmount) > 0 ? ' (weekend rate)' : ' (night rate)'}
+            {quote.slot === 'DAY' && !quote.slotPriced
+              ? ' (same as night party)'
+              : !quote.slotPriced && Number(quote.weekendAmount) > 0
+                ? ' (weekend)'
+                : ''}
           </span>
           <span>{rupees(Number(quote.baseAmount) + Number(quote.weekendAmount))}</span>
         </p>

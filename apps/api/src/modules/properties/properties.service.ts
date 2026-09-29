@@ -96,7 +96,6 @@ export class PropertiesService {
         weekendPrice: dto.weekendPrice,
         extraGuestCharge: dto.extraGuestCharge,
         dayPartyPrice: dto.dayPartyPrice,
-        nightPartyPrice: dto.nightPartyPrice,
         partyRules: dto.partyRules,
         propertyRules: dto.propertyRules,
         cancellationPolicy: dto.cancellationPolicy,
