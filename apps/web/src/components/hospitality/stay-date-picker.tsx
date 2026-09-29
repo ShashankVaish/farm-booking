@@ -12,6 +12,7 @@ import {
   nightlyPrice,
   todayIso,
 } from '@/lib/bookings/date-picker';
+import { applySingleDateClick } from '@/lib/bookings/slots';
 import { cn } from '@/lib/cn';
 import styles from './hospitality.module.css';
 
@@ -21,6 +22,13 @@ type Props = {
   checkOut: string;
   basePrice: number;
   weekendPrice?: number | null;
+  /*
+    'single' picks one date (a day or night party): one tap selects it, and
+    check-out is the next day. 'range' is the usual check-in → check-out.
+  */
+  mode?: 'range' | 'single';
+  /** A flat price per date that replaces the nightly rate on each cell. */
+  flatPrice?: number | null;
   onChange: (next: { checkIn: string; checkOut: string; error?: string }) => void;
 };
 
@@ -32,8 +40,11 @@ export function StayDatePicker({
   checkOut,
   basePrice,
   weekendPrice,
+  mode = 'range',
+  flatPrice = null,
   onChange,
 }: Props) {
+  const single = mode === 'single';
   const [month, setMonth] = useState(() => new Date());
   const [days, setDays] = useState<Array<{ date: string; status: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +81,7 @@ export function StayDatePicker({
 
   function inRange(date: string) {
     if (!checkIn) return false;
+    if (single) return date === checkIn;
     if (!checkOut) return date === checkIn;
     return date >= checkIn && date < checkOut;
   }
@@ -103,7 +115,7 @@ export function StayDatePicker({
         </div>
       </div>
 
-      <div className={styles.calendar} role="grid" aria-label="Select stay dates">
+      <div className={styles.calendar} role="grid" aria-label={single ? 'Select a date' : 'Select stay dates'}>
         {WEEKDAYS.map((day, index) => (
           <span key={`${day}-${index}`} className={styles.weekdayHead} aria-hidden="true">
             {day.slice(0, 1)}
@@ -121,9 +133,12 @@ export function StayDatePicker({
             cannot be booked at all.
           */
           const selectable =
-            cell.inMonth && isSelectableDate(cell.date, { checkIn, checkOut }, statusByDate, today);
+            cell.inMonth &&
+            (single
+              ? !unavailable
+              : isSelectableDate(cell.date, { checkIn, checkOut }, statusByDate, today));
           const selected = inRange(cell.date);
-          const price = nightlyPrice(cell.date, basePrice, weekendPrice);
+          const price = flatPrice ?? nightlyPrice(cell.date, basePrice, weekendPrice);
           const showPrice = cell.inMonth && !unavailable && !loading && price > 0;
           const checkOutOnly = selectable && unavailable;
           return (
@@ -145,9 +160,16 @@ export function StayDatePicker({
               aria-label={`${cell.date}, ${
                 past ? 'in the past' : status.toLowerCase()
               }${checkOutOnly ? ', selectable as check-out only' : ''}${
-                showPrice ? `, ${price} rupees per night` : ''
+                showPrice ? `, ${price} rupees${single ? '' : ' per night'}` : ''
               }`}
-              onClick={() => onChange(applyDateClick({ checkIn, checkOut }, cell.date, statusByDate, today))}
+              onClick={() => {
+                if (!single) {
+                  onChange(applyDateClick({ checkIn, checkOut }, cell.date, statusByDate, today));
+                  return;
+                }
+                const next = applySingleDateClick(cell.date, statusByDate, today);
+                onChange('checkIn' in next ? next : { checkIn, checkOut, error: next.error });
+              }}
             >
               <span className={styles.dayNumber}>{Number(cell.date.slice(8, 10))}</span>
               <span className={styles.dayPrice}>{showPrice ? compactInr(price) : ''}</span>
@@ -167,9 +189,9 @@ export function StayDatePicker({
           <span className={`${styles.legendDot} ${styles.dayBlocked}`} /> Blocked
         </span>
       </div>
-      {weekendPrice && weekendPrice !== basePrice ? (
+      {!flatPrice && weekendPrice && weekendPrice !== basePrice ? (
         <p className="t-caption" style={{ marginTop: 'var(--space-2)', color: 'var(--color-text-muted)' }}>
-          Saturday and Sunday nights are priced at the weekend rate.
+          {single ? 'Saturdays and Sundays are priced at the weekend rate.' : 'Saturday and Sunday nights are priced at the weekend rate.'}
         </p>
       ) : null}
     </div>

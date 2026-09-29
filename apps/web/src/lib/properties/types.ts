@@ -42,6 +42,9 @@ export type ApiProperty = {
   basePrice: number | string;
   weekendPrice?: number | string | null;
   extraGuestCharge?: number | string | null;
+  /** Flat price for one day party / night party; empty means the night rate. */
+  dayPartyPrice?: number | string | null;
+  nightPartyPrice?: number | string | null;
   partyRules?: string | null;
   propertyRules?: string | null;
   cancellationPolicy?: string | null;

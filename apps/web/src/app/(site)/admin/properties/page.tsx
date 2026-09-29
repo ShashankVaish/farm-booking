@@ -160,6 +160,9 @@ export default function AdminPropertiesPage() {
                       <Button size="sm" variant="ghost" href={`/admin/properties/${property.id}`}>
                         Review
                       </Button>
+                      <Button size="sm" variant="secondary" href={`/admin/properties/${property.id}/edit`}>
+                        Edit
+                      </Button>
                       {actionsFor(property.status).map((action) => (
                         <Button
                           key={action.id}

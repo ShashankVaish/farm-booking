@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/forms';
@@ -10,7 +10,8 @@ import { bookingApi } from '@/lib/bookings/api';
 import { openBookingKey } from '@/lib/bookings/types';
 import { handOffBooking } from '@/lib/bookings/booking-handoff';
 import { EmailGate } from '@/components/booking/email-gate';
-import type { PriceQuote } from '@/lib/bookings/types';
+import type { BookingSlotKey, PriceQuote } from '@/lib/bookings/types';
+import { bookableSlots, partyDateLabel } from '@/lib/bookings/slots';
 import type { ApiProperty } from '@/lib/properties/types';
 import { getAvailability } from '@/lib/properties/api';
 import {
@@ -33,6 +34,17 @@ export function PropertyBookingCard({
   bookable?: boolean;
 }) {
   const router = useRouter();
+  /*
+    Day party, night party or overnight — whichever the host offers, the same
+    list "How you can book it" shows. Overnight is picked first when offered,
+    so a listing that only ever did stays behaves exactly as before.
+  */
+  const slots = useMemo(() => bookableSlots(property), [property]);
+  const [slot, setSlot] = useState<BookingSlotKey>(
+    () => (slots.find((option) => option.key === 'OVERNIGHT') ?? slots[0])?.key ?? 'OVERNIGHT',
+  );
+  const chosen = slots.find((option) => option.key === slot) ?? null;
+  const isParty = slot !== 'OVERNIGHT';
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [guestCount, setGuestCount] = useState(2);
@@ -102,6 +114,7 @@ export function PropertyBookingCard({
           checkOutDate: checkOut,
           guestCount,
           couponCode: appliedCoupon || undefined,
+          slot,
         });
         if (!cancelled) {
           setQuote(result);
@@ -126,7 +139,17 @@ export function PropertyBookingCard({
     return () => {
       cancelled = true;
     };
-  }, [checkIn, checkOut, guestCount, appliedCoupon, property.id, bookable]);
+  }, [checkIn, checkOut, guestCount, appliedCoupon, property.id, bookable, slot]);
+
+  function chooseSlot(next: BookingSlotKey) {
+    if (next === slot || busy) return;
+    setSlot(next);
+    setError(null);
+    // A party is one date: keep the first night of a longer stay.
+    if (next !== 'OVERNIGHT' && checkIn) {
+      setCheckOut(addDaysIso(checkIn, 1));
+    }
+  }
 
   async function onReserve(event: FormEvent) {
     event.preventDefault();
@@ -136,7 +159,7 @@ export function PropertyBookingCard({
       return;
     }
     if (!checkIn || !checkOut) {
-      setError('Choose check-in and check-out dates.');
+      setError(isParty ? 'Choose a date.' : 'Choose check-in and check-out dates.');
       return;
     }
     if (checkOut <= checkIn) {
@@ -147,7 +170,7 @@ export function PropertyBookingCard({
     setBusy(true);
     setError(null);
     try {
-      const storedKey = openBookingKey(property.id, checkIn, checkOut, guestCount);
+      const storedKey = openBookingKey(property.id, checkIn, checkOut, guestCount, slot);
       const existingId = sessionStorage.getItem(storedKey);
       if (existingId) {
         router.push(`/booking/${existingId}`);
@@ -159,6 +182,7 @@ export function PropertyBookingCard({
         checkOutDate: checkOut,
         guestCount,
         couponCode: appliedCoupon || undefined,
+        slot,
       });
       sessionStorage.setItem(storedKey, result.booking.id);
       handOffBooking(result.booking);
@@ -190,10 +214,18 @@ export function PropertyBookingCard({
   }
 
   const nightly = Number(property.basePrice);
+  // What one unit costs in the header and the phone bar before a quote lands.
+  const unitPrice = isParty && chosen?.price ? chosen.price : nightly;
+  const unitLabel = isParty && chosen?.price ? chosen.label.toLowerCase() : 'night';
   const inr = (amount: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
   const nights = checkIn && checkOut && checkOut > checkIn ? nightsBetween(checkIn, checkOut).length : 0;
-  const barTotal = quote ? Number(quote.totalAmount) : nights ? nightly * nights : nightly;
+  const barTotal = quote ? Number(quote.totalAmount) : nights ? unitPrice * nights : unitPrice;
+  const stayLabel = isParty && checkIn
+    ? `${chosen?.label ?? 'Party'} · ${partyDateLabel(checkIn)}`
+    : nights
+      ? `For ${nights} ${nights === 1 ? 'night' : 'nights'} · ${shortStayLabel(checkIn, checkOut)}`
+      : '';
 
   function showCard() {
     document.getElementById('book-in')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -223,11 +255,45 @@ export function PropertyBookingCard({
   return (
     <aside className={styles.booking} aria-label="Booking">
       <p className="t-price">
-        {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(nightly)}{' '}
-        <span className="t-caption">/ night</span>
+        {inr(unitPrice)} <span className="t-caption">/ {unitLabel}</span>
       </p>
       <form id="book-form" onSubmit={onReserve}>
+        {slots.length > 1 ? (
+          <div className={styles.slotPicker} role="radiogroup" aria-label="What are you booking?">
+            <p className={styles.slotPickerTitle}>What are you booking?</p>
+            {slots.map((option) => {
+              const active = option.key === slot;
+              const price = option.price ?? (option.key === 'OVERNIGHT' ? nightly : null);
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  disabled={busy}
+                  className={cn(styles.slotChoice, active && styles.slotChoiceActive)}
+                  onClick={() => chooseSlot(option.key)}
+                >
+                  <span className={styles.slotChoiceText}>
+                    <span className={styles.slotChoiceLabel}>{option.label}</span>
+                    <span className={styles.slotChoiceDetail}>{option.detail}</span>
+                  </span>
+                  <span className={styles.slotChoicePrice}>
+                    {price ? inr(price) : 'Night rate'}
+                    {price && option.key === 'OVERNIGHT' ? <span className={styles.slotChoicePer}> / night</span> : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : chosen && isParty ? (
+          <p className={styles.slotSingle}>
+            <strong>{chosen.label}</strong> · {chosen.detail}
+          </p>
+        ) : null}
         <StayDatePicker
+          mode={isParty ? 'single' : 'range'}
+          flatPrice={isParty ? chosen?.price ?? null : null}
           propertyId={property.id}
           checkIn={checkIn}
           checkOut={checkOut}
@@ -242,8 +308,11 @@ export function PropertyBookingCard({
           }}
         />
         <p className="t-caption">
-          {checkIn ? `Check-in ${checkIn}` : 'Select check-in'}
-          {checkOut ? ` · Check-out ${checkOut}` : ''}
+          {isParty
+            ? checkIn
+              ? `${chosen?.label ?? 'Party'} on ${partyDateLabel(checkIn)} · ${chosen?.detail ?? ''}`
+              : 'Tap a date for your party'
+            : `${checkIn ? `Check-in ${checkIn}` : 'Select check-in'}${checkOut ? ` · Check-out ${checkOut}` : ''}`}
         </p>
         <Input
           id="book-guests"
@@ -281,7 +350,7 @@ export function PropertyBookingCard({
         ) : null}
         {suggested && nights ? (
           <p className={styles.suggestNote} role="status">
-            We picked {shortStayLabel(checkIn, checkOut)} for you — tap any other date to change it.
+            We picked {isParty ? partyDateLabel(checkIn) : shortStayLabel(checkIn, checkOut)} for you — tap any other date to change it.
           </p>
         ) : null}
         <Button type="submit" block loading={busy} disabled={busy || quoting || !checkIn || !checkOut}>
@@ -296,23 +365,29 @@ export function PropertyBookingCard({
         Tapping the summary scrolls to the calendar to change the date; Reserve
         submits the card's own form, so both paths share one set of checks.
       */}
-      <div className={styles.reserveBar} role="region" aria-label="Reserve this stay">
+      <div className={styles.reserveBar} role="region" aria-label={isParty ? `Reserve this ${unitLabel}` : 'Reserve this stay'}>
         <button type="button" className={styles.reserveSummary} onClick={showCard}>
           <span key={barTotal} className={cn(styles.reservePrice, quoting && styles.reservePriceLoading)}>
             {inr(barTotal)}
-            {!nights ? <span className={styles.reservePer}> / night</span> : null}
+            {!nights ? <span className={styles.reservePer}> / {unitLabel}</span> : null}
           </span>
           <span className={styles.reserveDates}>
-            {nights
-              ? `For ${nights} ${nights === 1 ? 'night' : 'nights'} · ${shortStayLabel(checkIn, checkOut)}`
-              : 'Add dates to see the total'}
+            {stayLabel || (isParty ? `${chosen?.label ?? 'Party'} · pick a date` : 'Add dates to see the total')}
           </span>
           <span className={styles.reserveChip}>
             <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
               <rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
               <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.5" />
             </svg>
-            {suggested ? 'Suggested · change' : nights ? 'Change dates' : 'Pick dates'}
+            {suggested
+              ? 'Suggested · change'
+              : nights
+                ? isParty
+                  ? 'Change date'
+                  : 'Change dates'
+                : isParty
+                  ? 'Pick a date'
+                  : 'Pick dates'}
           </span>
         </button>
         {nights ? (
@@ -329,7 +404,7 @@ export function PropertyBookingCard({
           </button>
         ) : (
           <button type="button" className={styles.reserveButton} onClick={showCard}>
-            Check dates
+            {isParty ? 'Pick a date' : 'Check dates'}
           </button>
         )}
       </div>

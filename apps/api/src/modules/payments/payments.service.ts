@@ -8,6 +8,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import {
+  BookingSlot,
   BookingStatus,
   PaymentProviderType,
   PaymentStatus,
@@ -55,6 +56,7 @@ import {
 } from '../notifications/whatsapp-templates';
 import { assertBookingTransition } from '../bookings/booking-status';
 import { bookingDetailInclude } from '../bookings/booking-include';
+import { describeSlot } from '../bookings/booking-slot';
 import {
   CAPTURABLE_PAYMENT_STATUSES,
   OPEN_PAYMENT_STATUSES,
@@ -108,6 +110,9 @@ export class PaymentsService {
     booking: {
       checkInDate: Date;
       checkOutDate: Date;
+      slot?: BookingSlot | null;
+      slotStartTime?: string | null;
+      slotEndTime?: string | null;
       guestCount: number;
       totalAmount: Prisma.Decimal | number | string;
       customer: { name: string };
@@ -138,6 +143,7 @@ export class PaymentsService {
       location: [property.city, property.state].filter(Boolean).join(', '),
       checkIn: booking.checkInDate,
       checkOut: booking.checkOutDate,
+      slot: describeSlot(booking),
       guests: booking.guestCount,
       total: Number(booking.totalAmount),
       bookingId: payment.bookingId,

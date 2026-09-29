@@ -9,6 +9,7 @@ import { isUpcoming, paymentStatusLabel, type CustomerBooking } from '@/lib/book
 import { ApiError } from '@/lib/api/errors';
 import { hostApi, type HostNotification } from '@/lib/host/host-api';
 import styles from './dashboard.module.css';
+import { stayDatesLabel } from '@/lib/bookings/slots';
 
 export default function DashboardPage() {
   const [trips, setTrips] = useState<CustomerBooking[]>([]);
@@ -54,7 +55,7 @@ export default function DashboardPage() {
                 <div>
                   <Link href={`/dashboard/trips/${trip.id}`}>{trip.property.title}</Link>
                   <p className="t-caption">
-                    {trip.checkInDate.slice(0, 10)} → {trip.checkOutDate.slice(0, 10)} · {paymentStatusLabel(trip)}
+                    {stayDatesLabel(trip)} · {paymentStatusLabel(trip)}
                   </p>
                 </div>
                 <Button href={`/booking/${trip.id}`} size="sm" variant="secondary">

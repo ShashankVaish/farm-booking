@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/api/client';
 import { toQueryString } from '@/lib/api/query';
 import type { SubscriptionPlan } from '@/lib/plans/plans';
 import type { AuthUser, AvailabilityDay, Paginated, ApiProperty, ApiReview } from '@/lib/properties/types';
+import type { BookingSlotKey } from '@/lib/bookings/types';
 
 export type OwnerOverview = {
   propertyCount: number;
@@ -18,6 +19,9 @@ export type OwnerOverview = {
     id: string;
     checkInDate: string;
     checkOutDate: string;
+    slot?: BookingSlotKey;
+    slotStartTime?: string | null;
+    slotEndTime?: string | null;
     status: string;
     property: { id: string; title: string };
   }>;
@@ -34,6 +38,9 @@ export type OwnerBooking = {
   status: string;
   checkInDate: string;
   checkOutDate: string;
+  slot?: BookingSlotKey;
+  slotStartTime?: string | null;
+  slotEndTime?: string | null;
   guestCount: number;
   totalAmount: string | number;
   property: { id: string; title: string };

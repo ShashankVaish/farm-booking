@@ -69,6 +69,8 @@ function draftAsProperty(draft: ListingDraft): ApiProperty {
     basePrice: draft.weekdayPrice,
     weekendPrice: draft.weekendPrice,
     extraGuestCharge: draft.extraGuestCharge,
+    dayPartyPrice: draft.dayPartyPrice || null,
+    nightPartyPrice: draft.nightPartyPrice || null,
     partyRules: draft.partyRules,
     propertyRules: draft.houseRules,
     cancellationPolicy: draft.cancellationPolicy,
@@ -538,6 +540,8 @@ export function ListingWizard({
               end={draft.meta.dayEnd}
               onStart={(dayStart) => setDraft({ ...draft, meta: { ...draft.meta, dayStart } })}
               onEnd={(dayEnd) => setDraft({ ...draft, meta: { ...draft.meta, dayEnd } })}
+              price={draft.dayPartyPrice}
+              onPrice={(dayPartyPrice) => setDraft({ ...draft, dayPartyPrice })}
             />
 
             <SlotOption
@@ -550,6 +554,8 @@ export function ListingWizard({
               end={draft.meta.nightEnd}
               onStart={(nightStart) => setDraft({ ...draft, meta: { ...draft.meta, nightStart } })}
               onEnd={(nightEnd) => setDraft({ ...draft, meta: { ...draft.meta, nightEnd } })}
+              price={draft.nightPartyPrice}
+              onPrice={(nightPartyPrice) => setDraft({ ...draft, nightPartyPrice })}
             />
 
             <div className={styles.slotBlock}>
@@ -825,6 +831,8 @@ function SlotOption({
   end,
   onStart,
   onEnd,
+  price,
+  onPrice,
 }: {
   id: string;
   label: string;
@@ -835,6 +843,9 @@ function SlotOption({
   end: string;
   onStart: (value: string) => void;
   onEnd: (value: string) => void;
+  /** The flat price for one sitting; 0 means the night rate applies. */
+  price: number;
+  onPrice: (value: number) => void;
 }) {
   return (
     <div className={styles.slotBlock}>
@@ -852,6 +863,17 @@ function SlotOption({
             <TimeField id={`${id}-end`} label="Ends" value={end} onChange={onEnd} />
           </div>
           <p className={styles.slotSummary}>{formatSlotRange(start, end)}</p>
+          <Input
+            id={`${id}-price`}
+            label={`${label} price (₹)`}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            placeholder="Same as night rate"
+            value={shownNumber(price)}
+            onChange={(e) => onPrice(wholeNumber(e.target.value))}
+            hint="What guests pay for one sitting. Leave empty to charge your weekday / weekend night price."
+          />
         </>
       ) : null}
     </div>

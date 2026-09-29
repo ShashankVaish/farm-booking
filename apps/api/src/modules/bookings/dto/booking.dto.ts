@@ -1,6 +1,8 @@
+import { BookingSlot } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsDateString,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -30,6 +32,11 @@ export class CreateBookingDto {
   @IsString()
   @MaxLength(40)
   couponCode?: string;
+
+  /** Day party, night party or (the default) an overnight stay. */
+  @IsOptional()
+  @IsEnum(BookingSlot)
+  slot?: BookingSlot;
 }
 
 export class QuoteBookingDto {
@@ -52,6 +59,11 @@ export class QuoteBookingDto {
   @IsString()
   @MaxLength(40)
   couponCode?: string;
+
+  /** Day party, night party or (the default) an overnight stay. */
+  @IsOptional()
+  @IsEnum(BookingSlot)
+  slot?: BookingSlot;
 }
 
 export class CancelBookingDto {

@@ -7,6 +7,7 @@ import { EmptyState, ErrorState, Spinner } from '@/components/ui/feedback';
 import { hostApi, type HostNotification, type OwnerOverview } from '@/lib/host/host-api';
 import { ApiError } from '@/lib/api/errors';
 import styles from './host.module.css';
+import { stayDatesLabel } from '@/lib/bookings/slots';
 
 function money(value: string | number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value));
@@ -87,7 +88,7 @@ export default function HostDashboardPage() {
                 <div>
                   <p className="t-body">{booking.property.title}</p>
                   <p className="t-caption">
-                    {booking.checkInDate.slice(0, 10)} → {booking.checkOutDate.slice(0, 10)}
+                    {stayDatesLabel(booking)}
                   </p>
                 </div>
               </li>

@@ -390,3 +390,29 @@ describe('host contact in the confirmation', () => {
     expect(displayIndianMobile('12345')).toBe('12345');
   });
 });
+
+describe('party bookings', () => {
+  const party = {
+    ...stay(),
+    slot: {
+      label: 'Day party',
+      from: 'Wed, 7 Oct, 2026, 10:30 am',
+      to: 'Wed, 7 Oct, 2026, 6:00 pm',
+    },
+  };
+
+  it('shows what was booked and its hours instead of check-in and check-out', () => {
+    const rendered = bookingConfirmedEmail(party);
+    expect(rendered.html).toContain('Day party');
+    expect(rendered.html).toContain('10:30 am');
+    expect(rendered.html).not.toContain('Check-out');
+    expect(rendered.text).toContain('Starts:     Wed, 7 Oct, 2026, 10:30 am');
+    expect(rendered.text).toContain('Your day party is confirmed');
+  });
+
+  it('keeps check-in and check-out for an overnight stay', () => {
+    const rendered = bookingConfirmedEmail(stay());
+    expect(rendered.text).toContain('Check-in:');
+    expect(rendered.text).toContain('Your stay is confirmed');
+  });
+});

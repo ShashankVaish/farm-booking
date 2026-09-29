@@ -4,6 +4,7 @@ import {
   formatInr,
   formatStayDate,
   shortRef,
+  type StaySlot,
 } from '../mail/templates';
 import type { WhatsAppTemplate } from './whatsapp.service';
 
@@ -111,9 +112,27 @@ type Stay = {
   propertyTitle: string;
   checkIn: Date | string;
   checkOut: Date | string;
+  /** A day or night party; empty for an overnight stay. */
+  slot?: StaySlot | null;
   guests: number;
   bookingId: string;
 };
+
+/*
+  The approved templates say "Check-in: {{n}}. Check-out: {{m}}." For a party
+  those two slots carry its start (with what it is) and its end, times
+  included, so the same approved text reads right without re-approval:
+  "Check-in: Wed, 7 Oct, 2026, 10:30 am (Day party). Check-out: Wed, 7 Oct,
+  2026, 6:00 pm."
+*/
+function stayParams(
+  data: Pick<Stay, 'checkIn' | 'checkOut' | 'slot'>,
+): [string, string] {
+  if (data.slot) {
+    return [`${data.slot.from} (${data.slot.label})`, data.slot.to];
+  }
+  return [formatStayDate(data.checkIn), formatStayDate(data.checkOut)];
+}
 
 export function bookingConfirmedWhatsApp(
   data: Stay & {
@@ -132,8 +151,7 @@ export function bookingConfirmedWhatsApp(
     bodyParams: [
       firstName(data.guestName),
       data.propertyTitle,
-      formatStayDate(data.checkIn),
-      formatStayDate(data.checkOut),
+      ...stayParams(data),
       String(data.guests),
       shortRef(data.bookingId),
       hostName,
@@ -152,8 +170,7 @@ export function hostBookingConfirmedWhatsApp(
       firstName(data.hostName),
       data.propertyTitle,
       data.guestName,
-      formatStayDate(data.checkIn),
-      formatStayDate(data.checkOut),
+      ...stayParams(data),
       String(data.guests),
     ],
   };
@@ -179,8 +196,7 @@ export function bookingCancelledWhatsApp(
     bodyParams: [
       firstName(data.guestName),
       data.propertyTitle,
-      formatStayDate(data.checkIn),
-      formatStayDate(data.checkOut),
+      ...stayParams(data),
     ],
     urlButtonParam: data.bookingId,
   };

@@ -972,3 +972,107 @@
     transition: none;
   }
 }
+
+/* Day party / night party / overnight choice at the top of the booking card. */
+.slotPicker {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.slotPickerTitle {
+  margin: 0 0 var(--space-1);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.slotChoice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--touch, 44px);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--easing-standard),
+    background var(--duration-fast) var(--easing-standard),
+    transform var(--duration-fast) var(--easing-standard);
+}
+
+.slotChoice:hover:not(:disabled) {
+  border-color: var(--color-primary-border);
+}
+
+.slotChoice:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.slotChoice:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.slotChoice:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.slotChoiceActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary-tint);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.slotChoiceText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.slotChoiceLabel {
+  font-weight: 700;
+}
+
+.slotChoiceDetail {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.slotChoicePrice {
+  flex-shrink: 0;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.slotChoicePer {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.slotSingle {
+  margin: 0 0 var(--space-3);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.slotSingle strong {
+  color: var(--color-text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slotChoice {
+    transition: none;
+  }
+}

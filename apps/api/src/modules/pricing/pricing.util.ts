@@ -13,8 +13,12 @@ export interface PropertyPricingInput {
   basePrice: Prisma.Decimal | number | string;
   weekendPrice?: Prisma.Decimal | number | string | null;
   extraGuestCharge?: Prisma.Decimal | number | string | null;
+  dayPartyPrice?: Prisma.Decimal | number | string | null;
+  nightPartyPrice?: Prisma.Decimal | number | string | null;
   guestCapacity: number;
 }
+
+export type PricedSlot = 'OVERNIGHT' | 'DAY' | 'NIGHT';
 
 export interface CouponDiscountInput {
   discountType: 'PERCENTAGE' | 'FIXED';
@@ -23,6 +27,9 @@ export interface CouponDiscountInput {
 }
 
 export interface PriceBreakdown {
+  slot: PricedSlot;
+  /** True when a day/night party was charged at its own flat price. */
+  slotPriced: boolean;
   nights: number;
   weekdayNights: number;
   weekendNights: number;
@@ -43,11 +50,13 @@ export function calculatePriceBreakdown(params: {
   guestCount: number;
   platformFeeBps: number;
   coupon?: CouponDiscountInput | null;
+  slot?: PricedSlot;
 }): PriceBreakdown {
   const nights = enumerateNights(params.checkIn, params.checkOut);
   if (nights.length === 0) {
     throw new Error('A booking must include at least one night.');
   }
+  const slot = params.slot ?? 'OVERNIGHT';
 
   const weekendNights = nights.filter((night) => isWeekendUtc(night)).length;
   const weekdayNights = nights.length - weekendNights;
@@ -61,8 +70,25 @@ export function calculatePriceBreakdown(params: {
     ? money(params.property.extraGuestCharge)
     : money(0);
 
-  const baseAmount = multiplyMoney(basePrice, weekdayNights);
-  const weekendAmount = multiplyMoney(weekendNightPrice, weekendNights);
+  /*
+    A day or night party is one date. With the host's own flat price for that
+    sitting it costs exactly that, whatever the day of the week; without one
+    it costs what that date's night would.
+  */
+  const slotPrice =
+    slot === 'DAY'
+      ? params.property.dayPartyPrice
+      : slot === 'NIGHT'
+        ? params.property.nightPartyPrice
+        : null;
+  const slotAmount =
+    slotPrice != null && money(slotPrice).gt(0) ? money(slotPrice) : null;
+  const slotPriced = slotAmount !== null;
+
+  const baseAmount = slotAmount ?? multiplyMoney(basePrice, weekdayNights);
+  const weekendAmount = slotPriced
+    ? money(0)
+    : multiplyMoney(weekendNightPrice, weekendNights);
   const extraGuestAmount = multiplyMoney(
     extraGuestCharge,
     extraGuests * nights.length,
@@ -78,6 +104,8 @@ export function calculatePriceBreakdown(params: {
   );
 
   return {
+    slot,
+    slotPriced,
     nights: nights.length,
     weekdayNights,
     weekendNights,

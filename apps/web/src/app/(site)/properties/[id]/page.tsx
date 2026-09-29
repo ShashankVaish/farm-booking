@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/ui/feedback';
 import { brand } from '@/lib/config/brand';
 import { getProperty } from '@/lib/properties/api';
+import { isServiceUnavailable, ServiceUnavailableError } from '@/lib/api/availability';
 import { coverImage, amenityName } from '@/lib/properties/map-property';
 import { photoAlt } from '@/lib/properties/photo-alt';
 import { decodeListingMeta, listingSlots } from '@/lib/host/listing-meta';
@@ -145,7 +146,9 @@ export default async function PropertyPage({ params }: Props) {
   let property: ApiProperty;
   try {
     property = await getProperty(id);
-  } catch {
+  } catch (error) {
+    // Server down: the error boundary shows the maintenance screen instead.
+    if (isServiceUnavailable(error)) throw new ServiceUnavailableError();
     return (
       <section className="container" style={{ padding: 'var(--space-12) 0' }}>
         <ErrorState title="Stay unavailable" description="This property could not be loaded." />

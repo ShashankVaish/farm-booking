@@ -1,7 +1,7 @@
 import { apiClient } from '@/lib/api/client';
 import { toQueryString } from '@/lib/api/query';
 import type { Paginated } from '@/lib/properties/types';
-import type { CustomerBooking, PaymentOrder, PriceQuote } from '@/lib/bookings/types';
+import type { BookingSlotKey, CustomerBooking, PaymentOrder, PriceQuote } from '@/lib/bookings/types';
 
 export const bookingApi = {
   quote: (body: {
@@ -10,6 +10,7 @@ export const bookingApi = {
     checkOutDate: string;
     guestCount: number;
     couponCode?: string;
+    slot?: BookingSlotKey;
   }) => apiClient.post<PriceQuote>('/api/bookings/quote', body),
 
   create: (body: {
@@ -18,6 +19,7 @@ export const bookingApi = {
     checkOutDate: string;
     guestCount: number;
     couponCode?: string;
+    slot?: BookingSlotKey;
   }) => apiClient.post<{ booking: CustomerBooking; pricing: PriceQuote; idempotent?: boolean }>('/api/bookings', body),
 
   get: (id: string) => apiClient.get<CustomerBooking>(`/api/bookings/${id}`),
