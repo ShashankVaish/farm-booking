@@ -14,7 +14,6 @@ export interface PropertyPricingInput {
   weekendPrice?: Prisma.Decimal | number | string | null;
   extraGuestCharge?: Prisma.Decimal | number | string | null;
   dayPartyPrice?: Prisma.Decimal | number | string | null;
-  nightPartyPrice?: Prisma.Decimal | number | string | null;
   guestCapacity: number;
 }
 
@@ -28,7 +27,7 @@ export interface CouponDiscountInput {
 
 export interface PriceBreakdown {
   slot: PricedSlot;
-  /** True when a day/night party was charged at its own flat price. */
+  /** True when a day party was charged at the host's own day party price. */
   slotPriced: boolean;
   nights: number;
   weekdayNights: number;
@@ -71,16 +70,12 @@ export function calculatePriceBreakdown(params: {
     : money(0);
 
   /*
-    A day or night party is one date. With the host's own flat price for that
-    sitting it costs exactly that, whatever the day of the week; without one
-    it costs what that date's night would.
+    A night party is charged at the listing's own price for that date
+    (weekday or weekend). A day party costs the host's day party price when
+    they set one, whatever the day of the week, and otherwise exactly what a
+    night party on that date would.
   */
-  const slotPrice =
-    slot === 'DAY'
-      ? params.property.dayPartyPrice
-      : slot === 'NIGHT'
-        ? params.property.nightPartyPrice
-        : null;
+  const slotPrice = slot === 'DAY' ? params.property.dayPartyPrice : null;
   const slotAmount =
     slotPrice != null && money(slotPrice).gt(0) ? money(slotPrice) : null;
   const slotPriced = slotAmount !== null;

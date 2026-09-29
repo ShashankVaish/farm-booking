@@ -22,9 +22,8 @@ export type ListingDraft = {
   weekdayPrice: number;
   weekendPrice: number;
   extraGuestCharge: number;
-  /** Flat price for one day / night party; 0 means "charge the night rate". */
+  /** Flat price for one day party; 0 means "same as a night party". */
   dayPartyPrice: number;
-  nightPartyPrice: number;
   houseRules: string;
   partyRules: string;
   cancellationPolicy: string;
@@ -48,7 +47,6 @@ export const emptyListing = (): ListingDraft => ({
   weekendPrice: 0,
   extraGuestCharge: 0,
   dayPartyPrice: 0,
-  nightPartyPrice: 0,
   houseRules: '',
   partyRules: '',
   cancellationPolicy: 'Free cancellation up to 7 days before check-in. 50% refund thereafter.',
@@ -70,7 +68,8 @@ export const emptyListing = (): ListingDraft => ({
     confirmed: false,
     confirmedAddress: '',
   },
-  meta: { ...DEFAULT_LISTING_META },
+  // A new listing starts with the night party on; the host adds a day party.
+  meta: { ...DEFAULT_LISTING_META, nightSlot: true },
 });
 
 export const WIZARD_STEPS = [

@@ -37,8 +37,9 @@ enum AvailabilityStatus {
   BLOCKED
 }
 
-/// What a booking is for. A DAY or NIGHT party takes one date, just like one
-/// overnight night, so every slot shares the same one-booking-per-date lock.
+/// What a booking is for. Guests book a DAY or NIGHT party, each for one
+/// date; OVERNIGHT is kept only for bookings made before parties replaced
+/// overnight stays. Every slot shares the one-booking-per-date lock.
 enum BookingSlot {
   OVERNIGHT
   DAY
@@ -226,10 +227,9 @@ model Property {
   basePrice          Decimal      @db.Decimal(12, 2)
   weekendPrice       Decimal?     @db.Decimal(12, 2)
   extraGuestCharge   Decimal?     @db.Decimal(12, 2)
-  // Flat price for one day party / night party sitting. Null means the
-  // sitting costs the same as a night (weekday or weekend rate).
+  // Flat price for one day party. Null means it costs the same as a night
+  // party, which is always charged at basePrice / weekendPrice.
   dayPartyPrice      Decimal?     @db.Decimal(12, 2)
-  nightPartyPrice    Decimal?     @db.Decimal(12, 2)
   partyRules         String?      @db.Text
   propertyRules      String?      @db.Text
   cancellationPolicy String?      @db.Text

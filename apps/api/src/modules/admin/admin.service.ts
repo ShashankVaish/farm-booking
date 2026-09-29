@@ -465,9 +465,6 @@ export class AdminService {
         dayPartyPrice: property.dayPartyPrice
           ? money(property.dayPartyPrice).toFixed(2)
           : null,
-        nightPartyPrice: property.nightPartyPrice
-          ? money(property.nightPartyPrice).toFixed(2)
-          : null,
       },
       rules: {
         propertyRules: property.propertyRules,

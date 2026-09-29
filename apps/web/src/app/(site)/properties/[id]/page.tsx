@@ -185,7 +185,7 @@ export default async function PropertyPage({ params }: Props) {
   const { meta, rules: houseRules } = decodeListingMeta(property.propertyRules);
   const locationName = [property.location, property.city, property.state].filter(Boolean).join(', ');
   const amenities = amenityLabels(property);
-  // Day party, night party or overnight — whichever sittings the host offers.
+  // Day party, night party or both — whichever the host offers.
   const slots = listingSlots(meta, { range: formatSlotRange, time: formatTime12 });
   const badges = [
     property.isCoupleFriendly ? 'Couple friendly' : null,
@@ -313,12 +313,7 @@ export default async function PropertyPage({ params }: Props) {
           <section className={page.section} data-reveal>
             <h2 className={page.sectionTitle}>Good to know</h2>
             <dl className={page.facts}>
-              <Fact label="Check-in" value={`After ${meta.checkIn}`} />
-              <Fact label="Check-out" value={`Before ${meta.checkOut}`} />
-              <Fact
-                label="Minimum stay"
-                value={`${meta.minStay} night${meta.minStay === 1 ? '' : 's'}`}
-              />
+              {/* Timings live in "How you can book it": every booking is a day or night party. */}
               <Fact label="Smoking" value={meta.smoking || 'Not specified'} />
               <Fact label="Pets" value={meta.pets || 'Not specified'} />
               <Fact

@@ -57,7 +57,6 @@ describe('pricing', () => {
     const venue = {
       ...property,
       dayPartyPrice: '6000.00',
-      nightPartyPrice: null,
     };
 
     it('charges a day party its own flat price, even on a weekend', () => {
@@ -77,7 +76,7 @@ describe('pricing', () => {
       expect(breakdown.totalAmount).toBe('6000.00');
     });
 
-    it('falls back to the night rate when the host set no party price', () => {
+    it('charges a night party the listing price for that date', () => {
       const breakdown = calculatePriceBreakdown({
         property: venue,
         checkIn: '2026-09-12',

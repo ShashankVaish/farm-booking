@@ -35,13 +35,13 @@ export function PropertyBookingCard({
 }) {
   const router = useRouter();
   /*
-    Day party, night party or overnight — whichever the host offers, the same
-    list "How you can book it" shows. Overnight is picked first when offered,
-    so a listing that only ever did stays behaves exactly as before.
+    Day party and/or night party — only what the host offers, the same list
+    "How you can book it" shows. The night party is picked first when offered:
+    it is the listing's own price, the one shown on its card in search.
   */
   const slots = useMemo(() => bookableSlots(property), [property]);
   const [slot, setSlot] = useState<BookingSlotKey>(
-    () => (slots.find((option) => option.key === 'OVERNIGHT') ?? slots[0])?.key ?? 'OVERNIGHT',
+    () => (slots.find((option) => option.key === 'NIGHT') ?? slots[0])?.key ?? 'NIGHT',
   );
   const chosen = slots.find((option) => option.key === slot) ?? null;
   const isParty = slot !== 'OVERNIGHT';
@@ -215,8 +215,9 @@ export function PropertyBookingCard({
 
   const nightly = Number(property.basePrice);
   // What one unit costs in the header and the phone bar before a quote lands.
-  const unitPrice = isParty && chosen?.price ? chosen.price : nightly;
-  const unitLabel = isParty && chosen?.price ? chosen.label.toLowerCase() : 'night';
+  const unitPrice = chosen?.price ?? nightly;
+  const unitLabel = isParty && chosen ? chosen.label.toLowerCase() : 'night';
+  const weekendRate = property.weekendPrice ? Number(property.weekendPrice) : 0;
   const inr = (amount: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
   const nights = checkIn && checkOut && checkOut > checkIn ? nightsBetween(checkIn, checkOut).length : 0;
@@ -263,7 +264,10 @@ export function PropertyBookingCard({
             <p className={styles.slotPickerTitle}>What are you booking?</p>
             {slots.map((option) => {
               const active = option.key === slot;
-              const price = option.price ?? (option.key === 'OVERNIGHT' ? nightly : null);
+              // Without its own price a sitting costs the listing's price for
+              // the date, which is higher at weekends when the host says so.
+              const price = option.price ?? nightly;
+              const weekendNote = !option.price && weekendRate > 0 && weekendRate !== nightly;
               return (
                 <button
                   key={option.key}
@@ -279,8 +283,8 @@ export function PropertyBookingCard({
                     <span className={styles.slotChoiceDetail}>{option.detail}</span>
                   </span>
                   <span className={styles.slotChoicePrice}>
-                    {price ? inr(price) : 'Night rate'}
-                    {price && option.key === 'OVERNIGHT' ? <span className={styles.slotChoicePer}> / night</span> : null}
+                    {inr(price)}
+                    {weekendNote ? <span className={styles.slotChoiceWeekend}>Sat–Sun {inr(weekendRate)}</span> : null}
                   </span>
                 </button>
               );

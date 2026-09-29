@@ -1051,8 +1051,17 @@
 
 .slotChoicePrice {
   flex-shrink: 0;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.slotChoiceWeekend {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
 }
 
 .slotChoicePer {

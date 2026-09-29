@@ -70,7 +70,6 @@ function draftAsProperty(draft: ListingDraft): ApiProperty {
     weekendPrice: draft.weekendPrice,
     extraGuestCharge: draft.extraGuestCharge,
     dayPartyPrice: draft.dayPartyPrice || null,
-    nightPartyPrice: draft.nightPartyPrice || null,
     partyRules: draft.partyRules,
     propertyRules: draft.houseRules,
     cancellationPolicy: draft.cancellationPolicy,
@@ -507,10 +506,9 @@ export function ListingWizard({
 
       {step === 5 ? (
         <div className={`${styles.panel} ${styles.twoCol}`}>
-          <Input id="weekday" label="Weekday price (₹)" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.weekdayPrice)} onChange={(e) => setDraft({ ...draft, weekdayPrice: wholeNumber(e.target.value) })} />
-          <Input id="weekend" label="Weekend price (₹)" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.weekendPrice)} onChange={(e) => setDraft({ ...draft, weekendPrice: wholeNumber(e.target.value) })} />
+          <Input id="weekday" label="Weekday price (₹)" hint="What a night party costs Monday to Friday." type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.weekdayPrice)} onChange={(e) => setDraft({ ...draft, weekdayPrice: wholeNumber(e.target.value) })} />
+          <Input id="weekend" label="Weekend price (₹)" hint="What a night party costs on Saturday and Sunday. Empty means the weekday price." type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.weekendPrice)} onChange={(e) => setDraft({ ...draft, weekendPrice: wholeNumber(e.target.value) })} />
           <Input id="extra" label="Extra guest charge (₹)" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.extraGuestCharge)} onChange={(e) => setDraft({ ...draft, extraGuestCharge: wholeNumber(e.target.value) })} />
-          <Input id="minstay" label="Minimum stay (nights)" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={shownNumber(draft.meta.minStay)} onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, minStay: wholeNumber(e.target.value) } })} />
           <Textarea
             id="seasonal"
             label="Seasonal pricing (optional)"
@@ -527,7 +525,7 @@ export function ListingWizard({
           <fieldset className={styles.slotGroup}>
             <legend className="t-h4">When can this place be booked?</legend>
             <p className="t-body-small" style={{ margin: '0 0 var(--space-4)' }}>
-              Pick every sitting you let this place out for. Guests see these on your listing.
+              Choose a day party, a night party, or both. Guests only see — and can only book — the ones you turn on.
             </p>
 
             <SlotOption
@@ -542,6 +540,7 @@ export function ListingWizard({
               onEnd={(dayEnd) => setDraft({ ...draft, meta: { ...draft.meta, dayEnd } })}
               price={draft.dayPartyPrice}
               onPrice={(dayPartyPrice) => setDraft({ ...draft, dayPartyPrice })}
+              priceHint="What guests pay for one day party. Leave empty to charge the same as a night party (your weekday / weekend price)."
             />
 
             <SlotOption
@@ -554,35 +553,11 @@ export function ListingWizard({
               end={draft.meta.nightEnd}
               onStart={(nightStart) => setDraft({ ...draft, meta: { ...draft.meta, nightStart } })}
               onEnd={(nightEnd) => setDraft({ ...draft, meta: { ...draft.meta, nightEnd } })}
-              price={draft.nightPartyPrice}
-              onPrice={(nightPartyPrice) => setDraft({ ...draft, nightPartyPrice })}
             />
+            {draft.meta.nightSlot ? (
+              <p className={styles.slotHint}>A night party is charged at your weekday / weekend price from the Pricing step.</p>
+            ) : null}
 
-            <div className={styles.slotBlock}>
-              <Checkbox
-                id="slot-overnight"
-                label="Overnight stay"
-                checked={draft.meta.overnight}
-                onChange={(e) => setDraft({ ...draft, meta: { ...draft.meta, overnight: e.target.checked } })}
-              />
-              <p className={styles.slotHint}>Guests stay the night and check out the next day.</p>
-              {draft.meta.overnight ? (
-                <div className={styles.twoCol}>
-                  <TimeField
-                    id="checkin"
-                    label="Check-in time"
-                    value={draft.meta.checkIn}
-                    onChange={(checkIn) => setDraft({ ...draft, meta: { ...draft.meta, checkIn } })}
-                  />
-                  <TimeField
-                    id="checkout"
-                    label="Check-out time"
-                    value={draft.meta.checkOut}
-                    onChange={(checkOut) => setDraft({ ...draft, meta: { ...draft.meta, checkOut } })}
-                  />
-                </div>
-              ) : null}
-            </div>
 
           </fieldset>
           <Textarea id="cancel" label="Cancellation policy" rows={4} value={draft.cancellationPolicy} onChange={(e) => setDraft({ ...draft, cancellationPolicy: e.target.value })} />
@@ -760,14 +735,13 @@ function validateStep(step: number, draft: ListingDraft): Record<string, string>
   }
   if (step === 5) {
     if (draft.weekdayPrice <= 0) return { price: 'Set a weekday price.' };
-    if (draft.meta.minStay < 1) return { minStay: 'Minimum stay must be at least 1 night.' };
     return {};
   }
   if (step === 6) {
     // A listing with every sitting switched off cannot be booked at all, which
     // is never what a host means to publish.
-    if (!draft.meta.daySlot && !draft.meta.nightSlot && !draft.meta.overnight) {
-      return { slots: 'Choose at least one — day party, night party or overnight stay.' };
+    if (!draft.meta.daySlot && !draft.meta.nightSlot) {
+      return { slots: 'Choose at least one — a day party or a night party.' };
     }
     return {};
   }
@@ -833,6 +807,7 @@ function SlotOption({
   onEnd,
   price,
   onPrice,
+  priceHint,
 }: {
   id: string;
   label: string;
@@ -843,9 +818,10 @@ function SlotOption({
   end: string;
   onStart: (value: string) => void;
   onEnd: (value: string) => void;
-  /** The flat price for one sitting; 0 means the night rate applies. */
-  price: number;
-  onPrice: (value: number) => void;
+  /** Its own price, for a sitting that has one (the day party). */
+  price?: number;
+  onPrice?: (value: number) => void;
+  priceHint?: string;
 }) {
   return (
     <div className={styles.slotBlock}>
@@ -863,17 +839,19 @@ function SlotOption({
             <TimeField id={`${id}-end`} label="Ends" value={end} onChange={onEnd} />
           </div>
           <p className={styles.slotSummary}>{formatSlotRange(start, end)}</p>
-          <Input
-            id={`${id}-price`}
-            label={`${label} price (₹)`}
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            placeholder="Same as night rate"
-            value={shownNumber(price)}
-            onChange={(e) => onPrice(wholeNumber(e.target.value))}
-            hint="What guests pay for one sitting. Leave empty to charge your weekday / weekend night price."
-          />
+          {onPrice ? (
+            <Input
+              id={`${id}-price`}
+              label={`${label} price (₹)`}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="Same as night party"
+              value={shownNumber(price ?? 0)}
+              onChange={(e) => onPrice(wholeNumber(e.target.value))}
+              hint={priceHint}
+            />
+          ) : null}
         </>
       ) : null}
     </div>

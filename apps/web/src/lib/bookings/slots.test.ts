@@ -18,17 +18,27 @@ const venueRules = encodeListingMeta(
 );
 
 describe('booking slots', () => {
-  it('offers every sitting the listing shows, with the host party prices', () => {
-    const slots = bookableSlots({ propertyRules: venueRules, dayPartyPrice: '6000.00', nightPartyPrice: null });
-    expect(slots.map((slot) => slot.key)).toEqual(['DAY', 'NIGHT', 'OVERNIGHT']);
+  it('offers day and night parties only, never an overnight stay', () => {
+    const slots = bookableSlots({ propertyRules: venueRules, dayPartyPrice: '6000.00' });
+    expect(slots.map((slot) => slot.key)).toEqual(['DAY', 'NIGHT']);
     expect(slots[0]).toMatchObject({ label: 'Day party', price: 6000 });
     expect(slots[0].detail).toContain('10:30 am – 6:00 pm');
-    // No night party price: it is charged at the night rate.
+    // A night party is always the listing's own price.
     expect(slots[1].price).toBeNull();
   });
 
-  it('keeps an older listing overnight-only', () => {
-    expect(bookableSlots({ propertyRules: 'Just rules' }).map((slot) => slot.key)).toEqual(['OVERNIGHT']);
+  it('shows only the night party when that is all the host offers', () => {
+    const nightOnly = encodeListingMeta({ ...DEFAULT_LISTING_META, daySlot: false, nightSlot: true }, '');
+    expect(bookableSlots({ propertyRules: nightOnly }).map((slot) => slot.key)).toEqual(['NIGHT']);
+  });
+
+  it('prices a day party like a night party when the host set no day price', () => {
+    const [day] = bookableSlots({ propertyRules: venueRules, dayPartyPrice: null });
+    expect(day.price).toBeNull();
+  });
+
+  it('sells an older listing with no party turned on as a night party', () => {
+    expect(bookableSlots({ propertyRules: 'Just rules' }).map((slot) => slot.key)).toEqual(['NIGHT']);
   });
 
   it('books a party for the tapped date only, and never a taken one', () => {
