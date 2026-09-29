@@ -4,6 +4,7 @@ import {
   calculatePriceBreakdown,
   type CouponDiscountInput,
   type PriceBreakdown,
+  type PricedSlot,
   type PropertyPricingInput,
 } from './pricing.util';
 
@@ -17,6 +18,7 @@ export class PricingService {
     checkOut: Date | string;
     guestCount: number;
     coupon?: CouponDiscountInput | null;
+    slot?: PricedSlot;
   }): PriceBreakdown {
     return calculatePriceBreakdown({
       ...params,

@@ -8,6 +8,7 @@ import { bookingApi } from '@/lib/bookings/api';
 import { isPastTrip, isUpcoming, paymentStatusLabel, type CustomerBooking } from '@/lib/bookings/types';
 import { ApiError } from '@/lib/api/errors';
 import styles from '../dashboard.module.css';
+import { stayDatesLabel } from '@/lib/bookings/slots';
 
 type Tab = 'upcoming' | 'past' | 'cancelled';
 
@@ -59,7 +60,7 @@ export default function TripsPage() {
               <div>
                 <Link href={`/dashboard/trips/${trip.id}`}>{trip.property.title}</Link>
                 <p className="t-caption">
-                  {trip.checkInDate.slice(0, 10)} → {trip.checkOutDate.slice(0, 10)} · {trip.guestCount} guests
+                  {stayDatesLabel(trip)} · {trip.guestCount} guests
                 </p>
                 <span className={styles.badge}>{paymentStatusLabel(trip)}</span>
               </div>

@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from '@/lib/config/env';
 import { ApiError, NetworkError } from '@/lib/api/errors';
+import { MAINTENANCE_MESSAGE, reportApiStatus } from '@/lib/api/availability';
 import { memoryTokenStore, type TokenStore } from '@/lib/api/token-store';
 import type { ApiEnvelope, RequestOptions } from '@/lib/api/types';
 
@@ -35,7 +36,10 @@ function timeoutSignal(requestOptions: RequestOptions): AbortSignal | undefined 
 
 export function createApiClient(options: ClientOptions = {}) {
   const tokenStore = options.tokenStore ?? memoryTokenStore;
-  const fetchImpl = options.fetchImpl ?? fetch;
+  // Looked up on every call, not captured once: Next.js installs its own
+  // fetch (with caching) and tests replace it, and a copy taken when this
+  // module first loaded would bypass both.
+  const fetchImpl: typeof fetch = (...args) => (options.fetchImpl ?? globalThis.fetch)(...args);
 
   // One shared refresh at a time: several components can 401 at once after the
   // 15-minute access token expires, and each must not rotate the token again.
@@ -115,6 +119,8 @@ export function createApiClient(options: ClientOptions = {}) {
         ...(requestOptions.next ? { next: requestOptions.next } : {}),
       } as RequestInit);
     } catch {
+      // No answer at all: the API (or the way to it) is down.
+      reportApiStatus(false);
       throw new NetworkError();
     }
 
@@ -137,6 +143,17 @@ export function createApiClient(options: ClientOptions = {}) {
     }
 
     const payload = (await response.json().catch(() => null)) as unknown;
+
+    /*
+      A 5xx without the API's envelope came from the proxy in front of it, not
+      from the API: the backend is down or restarting. Anything the API itself
+      answered, error or not, means it is up.
+    */
+    if (!response.ok && response.status >= 500 && !isEnvelope(payload)) {
+      reportApiStatus(false);
+      throw new ApiError(response.status, 'SERVICE_UNAVAILABLE', MAINTENANCE_MESSAGE);
+    }
+    reportApiStatus(true);
 
     if (!response.ok) {
       if (isEnvelope(payload) && payload.success === false) {

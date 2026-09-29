@@ -22,6 +22,9 @@ export type ListingDraft = {
   weekdayPrice: number;
   weekendPrice: number;
   extraGuestCharge: number;
+  /** Flat price for one day / night party; 0 means "charge the night rate". */
+  dayPartyPrice: number;
+  nightPartyPrice: number;
   houseRules: string;
   partyRules: string;
   cancellationPolicy: string;
@@ -44,6 +47,8 @@ export const emptyListing = (): ListingDraft => ({
   weekdayPrice: 0,
   weekendPrice: 0,
   extraGuestCharge: 0,
+  dayPartyPrice: 0,
+  nightPartyPrice: 0,
   houseRules: '',
   partyRules: '',
   cancellationPolicy: 'Free cancellation up to 7 days before check-in. 50% refund thereafter.',

@@ -11,6 +11,7 @@ import { paymentStatusLabel, type CustomerBooking, type PriceQuote } from '@/lib
 import { ApiError, NetworkError } from '@/lib/api/errors';
 import { useToast } from '@/components/providers/toast-provider';
 import styles from '../../dashboard.module.css';
+import { stayDatesLabel } from '@/lib/bookings/slots';
 
 function quoteFromBooking(booking: CustomerBooking): PriceQuote {
   return {
@@ -21,6 +22,7 @@ function quoteFromBooking(booking: CustomerBooking): PriceQuote {
     platformFee: String(booking.platformFee),
     discountAmount: String(booking.discountAmount),
     totalAmount: String(booking.totalAmount),
+    slot: booking.slot,
   };
 }
 
@@ -75,7 +77,7 @@ export default function TripDetailPage() {
       <p className={styles.badge}>{paymentStatusLabel(booking)}</p>
       <p className="t-body-small">Booking ID {booking.id}</p>
       <p className="t-body-small">
-        {booking.checkInDate.slice(0, 10)} → {booking.checkOutDate.slice(0, 10)} · {booking.guestCount} guests
+        {stayDatesLabel(booking)} · {booking.guestCount} guests
       </p>
       <PriceBreakdown quote={quoteFromBooking(booking)} disclaimer={false} />
       <h2 className="t-h3">Cancellation policy</h2>

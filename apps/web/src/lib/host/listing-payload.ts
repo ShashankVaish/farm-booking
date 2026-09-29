@@ -23,6 +23,9 @@ export function toPropertyPayload(draft: ListingDraft) {
     basePrice: draft.weekdayPrice,
     weekendPrice: draft.weekendPrice || undefined,
     extraGuestCharge: draft.extraGuestCharge || undefined,
+    // null, not undefined: clearing a party price has to reach the server.
+    dayPartyPrice: draft.meta.daySlot && draft.dayPartyPrice ? draft.dayPartyPrice : null,
+    nightPartyPrice: draft.meta.nightSlot && draft.nightPartyPrice ? draft.nightPartyPrice : null,
     partyRules: draft.partyRules.trim() || undefined,
     propertyRules,
     cancellationPolicy: draft.cancellationPolicy.trim() || undefined,
@@ -63,6 +66,8 @@ export function fromApiProperty(property: ApiProperty): ListingDraft {
     weekdayPrice: Number(property.basePrice) || 0,
     weekendPrice: Number(property.weekendPrice ?? 0) || 0,
     extraGuestCharge: Number(property.extraGuestCharge ?? 0) || 0,
+    dayPartyPrice: Number(property.dayPartyPrice ?? 0) || 0,
+    nightPartyPrice: Number(property.nightPartyPrice ?? 0) || 0,
     houseRules: rules,
     partyRules: property.partyRules ?? '',
     cancellationPolicy: property.cancellationPolicy ?? '',

@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { toQueryString } from '@/lib/api/query';
+import { isServiceUnavailable, ServiceUnavailableError } from '@/lib/api/availability';
 import type {
   ApiProperty,
   ApiReview,
@@ -66,6 +67,11 @@ export async function safeSearch(filters: SearchFilters = {}): Promise<Paginated
   try {
     return await searchProperties(filters);
   } catch (error) {
+    // The backend is down: show the maintenance screen (via the error
+    // boundary), not an empty catalogue that reads as "no stays exist".
+    if (isServiceUnavailable(error)) {
+      throw new ServiceUnavailableError();
+    }
     console.error(
       '[safeSearch] property search failed, rendering an empty catalogue:',
       error instanceof Error ? error.message : error,

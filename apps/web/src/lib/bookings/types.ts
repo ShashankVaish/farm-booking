@@ -1,4 +1,10 @@
+/** What a booking is for. A day or night party is always one date. */
+export type BookingSlotKey = 'OVERNIGHT' | 'DAY' | 'NIGHT';
+
 export type PriceQuote = {
+  slot?: BookingSlotKey;
+  /** True when a party was charged at the host's own flat price for it. */
+  slotPriced?: boolean;
   nights: number;
   weekdayNights?: number;
   weekendNights?: number;
@@ -26,6 +32,9 @@ export type CustomerBooking = {
   checkInDate: string;
   checkOutDate: string;
   guestCount: number;
+  slot?: BookingSlotKey;
+  slotStartTime?: string | null;
+  slotEndTime?: string | null;
   baseAmount: string | number;
   weekendAmount: string | number;
   extraGuestAmount: string | number;
@@ -86,8 +95,17 @@ export const PAYMENT_OUTCOME_MESSAGE: Record<PaymentOutcome, string> = {
   unknown: 'We could not match that payment to a booking. Check your trips, or contact support.',
 };
 
-export function openBookingKey(propertyId: string, checkIn: string, checkOut: string, guests: number): string {
-  return `open-booking:${propertyId}:${checkIn}:${checkOut}:${guests}`;
+export function openBookingKey(
+  propertyId: string,
+  checkIn: string,
+  checkOut: string,
+  guests: number,
+  slot: BookingSlotKey = 'OVERNIGHT',
+): string {
+  // An overnight key keeps its old shape, so a hold made before slots existed
+  // is still found.
+  const base = `open-booking:${propertyId}:${checkIn}:${checkOut}:${guests}`;
+  return slot === 'OVERNIGHT' ? base : `${base}:${slot}`;
 }
 
 export function paymentStatusLabel(booking: CustomerBooking): string {

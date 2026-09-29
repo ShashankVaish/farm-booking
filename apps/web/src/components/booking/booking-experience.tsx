@@ -19,6 +19,7 @@ import {
 import { ApiError } from '@/lib/api/errors';
 import { brand } from '@/lib/config/brand';
 import styles from '@/app/(site)/dashboard/dashboard.module.css';
+import { stayDatesLabel } from '@/lib/bookings/slots';
 
 /*
   How often the page asks the server whether an open payment has landed.
@@ -46,6 +47,7 @@ function quoteFromBooking(booking: CustomerBooking): PriceQuote {
     discountAmount: String(booking.discountAmount),
     totalAmount: String(booking.totalAmount),
     currency: booking.currency,
+    slot: booking.slot,
   };
 }
 
@@ -256,7 +258,7 @@ export function BookingExperience({ bookingId, confirmation }: { bookingId: stri
         {booking.property.city ? ` · ${booking.property.city}` : ''}
       </p>
       <p className="t-body-small">
-        {booking.checkInDate.slice(0, 10)} → {booking.checkOutDate.slice(0, 10)} · {booking.guestCount} guests
+        {stayDatesLabel(booking)} · {booking.guestCount} guests
       </p>
       {booking.coupon?.code ? <p className="t-caption">Coupon {booking.coupon.code}</p> : null}
       <PriceBreakdown quote={quoteFromBooking(booking)} disclaimer={awaitingPay} />

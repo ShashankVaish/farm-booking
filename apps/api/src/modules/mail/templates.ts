@@ -232,6 +232,9 @@ export function existingAccountEmail(input: {
 
 // --- Booking confirmed -----------------------------------------------------
 
+/** A day or night party: what it is and when it starts and ends. */
+export type StaySlot = { label: string; from: string; to: string };
+
 export type BookingEmailData = {
   guestName: string;
   propertyTitle: string;
@@ -239,6 +242,8 @@ export type BookingEmailData = {
   checkIn: Date | string;
   checkOut: Date | string;
   guests: number;
+  /** Set for a day or night party; an overnight stay leaves it empty. */
+  slot?: StaySlot | null;
   total: number | string;
   bookingId: string;
   brandName: string;
@@ -370,18 +375,44 @@ function addressBlock(data: BookingEmailData): string {
           </table>`;
 }
 
+/** Check-in and check-out, or for a party what it is and its hours. */
+function stayRows(data: BookingEmailData): DetailRow[] {
+  if (data.slot) {
+    return [
+      { label: 'Booking', value: data.slot.label },
+      { label: 'Starts', value: data.slot.from },
+      { label: 'Ends', value: data.slot.to },
+    ];
+  }
+  return [
+    { label: 'Check-in', value: formatStayDate(data.checkIn) },
+    { label: 'Check-out', value: formatStayDate(data.checkOut) },
+  ];
+}
+
+/** "stay", or "day party" / "night party". */
+function stayNoun(data: BookingEmailData): string {
+  return data.slot ? data.slot.label.toLowerCase() : 'stay';
+}
+
+/** The same rows for the plain-text part, labels padded to `width`. */
+function stayText(data: BookingEmailData, width: number): string[] {
+  return stayRows(data).map(
+    ({ label, value }) => `${`${label}:`.padEnd(width)}${value}`,
+  );
+}
+
 export function bookingConfirmedEmail(data: BookingEmailData): RenderedEmail {
   const rows = detailRows([
     { label: 'Property', value: data.propertyTitle },
     { label: 'Where', value: data.location },
-    { label: 'Check-in', value: formatStayDate(data.checkIn) },
-    { label: 'Check-out', value: formatStayDate(data.checkOut) },
+    ...stayRows(data),
     { label: 'Guests', value: String(data.guests) },
     { label: 'Total paid', value: formatInr(data.total) },
   ]);
 
   const body = `
-          ${paragraph(`Hi ${escapeHtml(firstName(data.guestName))}, your payment went through and your stay is confirmed. The host has been told to expect you.`)}
+          ${paragraph(`Hi ${escapeHtml(firstName(data.guestName))}, your payment went through and your ${escapeHtml(stayNoun(data))} is confirmed. The host has been told to expect you.`)}
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">${rows}</table>
           ${addressBlock(data)}
           ${hostContactBlock(data)}
@@ -412,20 +443,19 @@ export function bookingConfirmedEmail(data: BookingEmailData): RenderedEmail {
   return {
     subject: `Confirmed — ${data.propertyTitle}, ${formatStayDate(data.checkIn)}`,
     html: layout({
-      preheader: `Your stay at ${data.propertyTitle} is confirmed.`,
-      heading: 'Your stay is confirmed',
+      preheader: `Your ${stayNoun(data)} at ${data.propertyTitle} is confirmed.`,
+      heading: `Your ${stayNoun(data)} is confirmed`,
       body,
       brandName: data.brandName,
     }),
     text: [
-      'Your stay is confirmed',
+      `Your ${stayNoun(data)} is confirmed`,
       '',
-      `Hi ${firstName(data.guestName)}, your payment went through and your stay is confirmed.`,
+      `Hi ${firstName(data.guestName)}, your payment went through and your ${stayNoun(data)} is confirmed.`,
       '',
       `Property:   ${data.propertyTitle}`,
       `Where:      ${data.location}`,
-      `Check-in:   ${formatStayDate(data.checkIn)}`,
-      `Check-out:  ${formatStayDate(data.checkOut)}`,
+      ...stayText(data, 12),
       `Guests:     ${data.guests}`,
       `Total paid: ${formatInr(data.total)}`,
       ...addressLines,
@@ -444,8 +474,7 @@ export function hostBookingConfirmedEmail(
   const rows = detailRows([
     { label: 'Property', value: data.propertyTitle },
     { label: 'Guest', value: data.guestName },
-    { label: 'Check-in', value: formatStayDate(data.checkIn) },
-    { label: 'Check-out', value: formatStayDate(data.checkOut) },
+    ...stayRows(data),
     { label: 'Guests', value: String(data.guests) },
   ]);
 
@@ -470,8 +499,7 @@ export function hostBookingConfirmedEmail(
       'These dates are now blocked on your calendar.',
       '',
       `Guest:     ${data.guestName}`,
-      `Check-in:  ${formatStayDate(data.checkIn)}`,
-      `Check-out: ${formatStayDate(data.checkOut)}`,
+      ...stayText(data, 11),
       `Guests:    ${data.guests}`,
       '',
       `Open your calendar: ${data.bookingUrl}`,
@@ -487,8 +515,7 @@ export function paymentPendingEmail(
 ): RenderedEmail {
   const rows = detailRows([
     { label: 'Property', value: data.propertyTitle },
-    { label: 'Check-in', value: formatStayDate(data.checkIn) },
-    { label: 'Check-out', value: formatStayDate(data.checkOut) },
+    ...stayRows(data),
     { label: 'Guests', value: String(data.guests) },
     { label: 'Amount due', value: formatInr(data.total) },
   ]);
@@ -514,8 +541,7 @@ export function paymentPendingEmail(
       'confirmed until payment is complete.',
       '',
       `Property:   ${data.propertyTitle}`,
-      `Check-in:   ${formatStayDate(data.checkIn)}`,
-      `Check-out:  ${formatStayDate(data.checkOut)}`,
+      ...stayText(data, 12),
       `Guests:     ${data.guests}`,
       `Amount due: ${formatInr(data.total)}`,
       '',

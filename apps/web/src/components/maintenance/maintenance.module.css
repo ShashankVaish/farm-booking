@@ -1,0 +1,123 @@
+/* Covers everything, header included: nothing behind it can work anyway. */
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6) var(--gutter);
+  background:
+    radial-gradient(60% 50% at 50% 0%, rgb(255 90 96 / 0.12), transparent 70%),
+    var(--color-background);
+  animation: maintenance-in 320ms var(--easing-emphasis, ease) both;
+  overflow-y: auto;
+}
+
+@keyframes maintenance-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.card {
+  width: 100%;
+  max-width: 30rem;
+  padding: var(--space-8) var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.icon {
+  display: inline-grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  margin-bottom: var(--space-4);
+  border-radius: 50%;
+  background: var(--color-primary-tint);
+  border: 1px solid var(--color-primary-border);
+  color: var(--color-primary-text);
+}
+
+.icon svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.gear {
+  animation: gear-turn 6s linear infinite;
+}
+
+@keyframes gear-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-heading, var(--font-display));
+  font-weight: 800;
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  color: var(--color-text-primary);
+}
+
+.body {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.status {
+  margin: var(--space-5) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-body-small);
+}
+
+.retry {
+  margin-top: var(--space-3);
+  min-height: var(--touch);
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--easing-standard);
+}
+
+.retry:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.retry:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.contact {
+  margin: var(--space-6) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-caption);
+  line-height: 1.6;
+}
+
+.contact a {
+  color: var(--color-primary-text);
+}

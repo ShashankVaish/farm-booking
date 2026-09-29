@@ -52,4 +52,57 @@ describe('pricing', () => {
     });
     expect(discount.toFixed(2)).toBe('100.00');
   });
+
+  describe('day and night parties', () => {
+    const venue = {
+      ...property,
+      dayPartyPrice: '6000.00',
+      nightPartyPrice: null,
+    };
+
+    it('charges a day party its own flat price, even on a weekend', () => {
+      // Sat 12 Sep 2026: the weekend night rate would be 1500.
+      const breakdown = calculatePriceBreakdown({
+        property: venue,
+        checkIn: '2026-09-12',
+        checkOut: '2026-09-13',
+        guestCount: 2,
+        platformFeeBps: 0,
+        slot: 'DAY',
+      });
+      expect(breakdown.slot).toBe('DAY');
+      expect(breakdown.slotPriced).toBe(true);
+      expect(breakdown.baseAmount).toBe('6000.00');
+      expect(breakdown.weekendAmount).toBe('0.00');
+      expect(breakdown.totalAmount).toBe('6000.00');
+    });
+
+    it('falls back to the night rate when the host set no party price', () => {
+      const breakdown = calculatePriceBreakdown({
+        property: venue,
+        checkIn: '2026-09-12',
+        checkOut: '2026-09-13',
+        guestCount: 4,
+        platformFeeBps: 0,
+        slot: 'NIGHT',
+      });
+      expect(breakdown.slotPriced).toBe(false);
+      expect(breakdown.weekendAmount).toBe('1500.00');
+      // Extra guests are still charged for the one sitting.
+      expect(breakdown.extraGuestAmount).toBe('400.00');
+      expect(breakdown.totalAmount).toBe('1900.00');
+    });
+
+    it('ignores party prices for an overnight stay', () => {
+      const breakdown = calculatePriceBreakdown({
+        property: venue,
+        checkIn: '2026-09-10',
+        checkOut: '2026-09-11',
+        guestCount: 2,
+        platformFeeBps: 0,
+      });
+      expect(breakdown.slot).toBe('OVERNIGHT');
+      expect(breakdown.baseAmount).toBe('1000.00');
+    });
+  });
 });

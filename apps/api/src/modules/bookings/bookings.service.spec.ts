@@ -181,6 +181,81 @@ describe('BookingsService', () => {
     });
   });
 
+  describe('day and night parties', () => {
+    const partyRules = [
+      '---host-meta-v1---',
+      'daySlot:true',
+      'dayStart:10:30',
+      'dayEnd:18:00',
+      'nightSlot:false',
+      'overnight:true',
+      '---host-meta-v1---',
+      'No loud music after 22:00',
+    ].join('\n');
+
+    it('books an offered day party for one date and saves its hours', async () => {
+      const { service, prisma, tx } = setup();
+      prisma.property.findUnique.mockResolvedValue({
+        ...property,
+        propertyRules: partyRules,
+      });
+      await service.create(customer, {
+        propertyId: 'prop-1',
+        checkInDate: '2026-10-01',
+        checkOutDate: '2026-10-02',
+        guestCount: 2,
+        slot: 'DAY',
+      });
+      expect(tx.booking.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            slot: 'DAY',
+            slotStartTime: '10:30',
+            slotEndTime: '18:00',
+          }),
+        }),
+      );
+    });
+
+    it('refuses a slot the listing does not offer', async () => {
+      const { service, prisma } = setup();
+      prisma.property.findUnique.mockResolvedValue({
+        ...property,
+        propertyRules: partyRules,
+      });
+      await expect(
+        service.quote({
+          propertyId: 'prop-1',
+          checkInDate: '2026-10-01',
+          checkOutDate: '2026-10-02',
+          guestCount: 2,
+          slot: 'NIGHT',
+        }),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ errorCode: 'SLOT_NOT_OFFERED' }),
+      });
+    });
+
+    it('refuses a party that spans more than one date', async () => {
+      const { service, prisma } = setup();
+      prisma.property.findUnique.mockResolvedValue({
+        ...property,
+        propertyRules: partyRules,
+      });
+      await expect(
+        service.quote({
+          propertyId: 'prop-1',
+          checkInDate: '2026-10-01',
+          checkOutDate: '2026-10-03',
+          guestCount: 2,
+          slot: 'DAY',
+        }),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ errorCode: 'INVALID_DATE_RANGE' }),
+      });
+    });
+  });
+
   it('cancels a pending booking and releases nights', async () => {
     const { service, prisma, availability, notifications } = setup();
     prisma.booking.findUnique.mockResolvedValue({

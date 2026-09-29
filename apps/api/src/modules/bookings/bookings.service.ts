@@ -5,7 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BookingStatus, Prisma, PropertyStatus } from '@prisma/client';
+import {
+  BookingSlot,
+  BookingStatus,
+  Prisma,
+  PropertyStatus,
+} from '@prisma/client';
 import { ErrorCodes } from '../../common/constants/error-codes';
 import { UserRoles } from '../../common/constants/roles';
 import {
@@ -39,6 +44,13 @@ import { paymentPendingEmail } from '../mail/templates';
 import { bookingCancelledWhatsApp } from '../notifications/whatsapp-templates';
 import { PlatformSettingsService } from '../settings/platform-settings.service';
 import { needsEmailVerification } from '../auth/email-verification.service';
+import {
+  SLOT_LABEL,
+  describeSlot,
+  isSlotOffered,
+  readListingSlots,
+  slotHours,
+} from './booking-slot';
 
 @Injectable()
 export class BookingsService {
@@ -56,6 +68,7 @@ export class BookingsService {
   async quote(dto: QuoteBookingDto, userId?: string) {
     const property = await this.requireApprovedProperty(dto.propertyId);
     this.assertStay(property.guestCapacity, dto);
+    const slot = this.assertSlot(property, dto);
     const coupon = await this.resolveCoupon(dto.couponCode, dto, userId);
     const breakdown = this.pricing.quote({
       property,
@@ -63,6 +76,7 @@ export class BookingsService {
       checkOut: dto.checkOutDate,
       guestCount: dto.guestCount,
       coupon,
+      slot,
     });
     await this.availability.assertRangeAvailable(
       dto.propertyId,
@@ -97,6 +111,7 @@ export class BookingsService {
     }
 
     this.assertStay(property.guestCapacity, dto);
+    const slot = this.assertSlot(property, dto);
 
     const existingOpen = await this.prisma.booking.findFirst({
       where: {
@@ -104,6 +119,7 @@ export class BookingsService {
         propertyId: dto.propertyId,
         checkInDate: toUtcDateOnly(dto.checkInDate),
         checkOutDate: toUtcDateOnly(dto.checkOutDate),
+        slot,
         status: {
           in: [BookingStatus.PENDING, BookingStatus.PAYMENT_PENDING],
         },
@@ -117,6 +133,7 @@ export class BookingsService {
         checkOut: dto.checkOutDate,
         guestCount: dto.guestCount,
         coupon,
+        slot,
       });
       return { booking: existingOpen, pricing: breakdown, idempotent: true };
     }
@@ -128,6 +145,7 @@ export class BookingsService {
       checkOut: dto.checkOutDate,
       guestCount: dto.guestCount,
       coupon,
+      slot,
     });
 
     try {
@@ -148,6 +166,8 @@ export class BookingsService {
             checkInDate: toUtcDateOnly(dto.checkInDate),
             checkOutDate: toUtcDateOnly(dto.checkOutDate),
             guestCount: dto.guestCount,
+            slot,
+            ...slotHours(readListingSlots(property.propertyRules), slot),
             baseAmount: breakdown.baseAmount,
             weekendAmount: breakdown.weekendAmount,
             extraGuestAmount: breakdown.extraGuestAmount,
@@ -197,6 +217,7 @@ export class BookingsService {
           checkIn: booking.checkInDate,
           checkOut: booking.checkOutDate,
           guests: booking.guestCount,
+          slot: describeSlot(booking),
           total: Number(breakdown.totalAmount),
           bookingId: booking.id,
           brandName: this.mail.brandName(),
@@ -376,6 +397,7 @@ export class BookingsService {
           propertyTitle: booking.property.title,
           checkIn: booking.checkInDate,
           checkOut: booking.checkOutDate,
+          slot: describeSlot(booking),
           bookingId: booking.id,
         }),
     });
@@ -492,6 +514,33 @@ export class BookingsService {
     }
   }
 
+  /**
+   * The slot being booked, checked against what the listing offers. A day or
+   * night party is a single date, so it must be exactly one night long.
+   */
+  private assertSlot(
+    property: { propertyRules: string | null },
+    dto: { slot?: BookingSlot; checkInDate: string; checkOutDate: string },
+  ): BookingSlot {
+    const slot = dto.slot ?? BookingSlot.OVERNIGHT;
+    if (!isSlotOffered(readListingSlots(property.propertyRules), slot)) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.SLOT_NOT_OFFERED,
+        message: `This place is not offered for a ${SLOT_LABEL[slot].toLowerCase()}. Choose another option.`,
+      });
+    }
+    if (
+      slot !== BookingSlot.OVERNIGHT &&
+      enumerateNights(dto.checkInDate, dto.checkOutDate).length !== 1
+    ) {
+      throw new BadRequestException({
+        errorCode: ErrorCodes.INVALID_DATE_RANGE,
+        message: `A ${SLOT_LABEL[slot].toLowerCase()} is booked for a single date.`,
+      });
+    }
+    return slot;
+  }
+
   private async requireApprovedProperty(propertyId: string) {
     const property = await this.prisma.property.findUnique({
       where: { id: propertyId },
@@ -532,6 +581,7 @@ export class BookingsService {
       checkIn: dto.checkInDate,
       checkOut: dto.checkOutDate,
       guestCount: dto.guestCount,
+      slot: dto.slot,
     });
     const subtotal = money(preview.baseAmount)
       .plus(preview.weekendAmount)
