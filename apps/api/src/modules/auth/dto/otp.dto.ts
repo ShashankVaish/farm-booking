@@ -26,6 +26,11 @@ export class RequestOtpDto {
   @IsOptional()
   @IsIn(['LOGIN', 'REGISTER'])
   purpose?: 'LOGIN' | 'REGISTER';
+
+  /** WhatsApp by default; "sms" when the person asks for a text instead. */
+  @IsOptional()
+  @IsIn(['whatsapp', 'sms'])
+  channel?: 'whatsapp' | 'sms';
 }
 
 export class VerifyOtpDto {

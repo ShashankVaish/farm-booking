@@ -13,6 +13,8 @@ import { PasswordService } from './password.service';
 import { ConsoleSmsProvider } from './providers/console-sms.provider';
 import { SMS_PROVIDER } from './providers/sms-provider.interface';
 import { RenflairSmsProvider } from './providers/renflair-sms.provider';
+import { RenflairWhatsAppOtpProvider } from './providers/renflair-whatsapp.provider';
+import { OtpChannelRouter } from './providers/otp-channel.router';
 import { TwilioSmsProvider } from './providers/twilio-sms.provider';
 import { TokenService } from './token.service';
 import { PhoneVerificationService } from './phone-verification.service';
@@ -49,6 +51,7 @@ import { RedisOtpStore } from './otp/redis-otp.store';
     ConsoleSmsProvider,
     TwilioSmsProvider,
     RenflairSmsProvider,
+    RenflairWhatsAppOtpProvider,
     {
       /**
        * SMS_PROVIDER picks the gateway. Anything unrecognised falls back to the
@@ -61,24 +64,39 @@ import { RedisOtpStore } from './otp/redis-otp.store';
         ConsoleSmsProvider,
         TwilioSmsProvider,
         RenflairSmsProvider,
+        RenflairWhatsAppOtpProvider,
       ],
       useFactory: (
         config: ConfigService,
         consoleSms: ConsoleSmsProvider,
         twilio: TwilioSmsProvider,
         renflair: RenflairSmsProvider,
+        renflairWhatsApp: RenflairWhatsAppOtpProvider,
       ) => {
         const choice = (config.get<string>('SMS_PROVIDER') ?? 'console')
           .trim()
           .toLowerCase();
-        if (choice === 'twilio') return twilio;
-        if (choice === 'renflair') return renflair;
-        if (choice !== 'console') {
+        let sms: ConsoleSmsProvider | TwilioSmsProvider | RenflairSmsProvider =
+          consoleSms;
+        if (choice === 'twilio') sms = twilio;
+        else if (choice === 'renflair') sms = renflair;
+        else if (choice !== 'console') {
           new Logger('SmsProvider').warn(
             `Unknown SMS_PROVIDER "${choice}" — falling back to the console provider. Codes will be logged, not sent.`,
           );
         }
-        return consoleSms;
+        /*
+          With a Renflair WhatsApp key, codes go on WhatsApp first and fall
+          back to the SMS gateway above. OTP_WHATSAPP=off turns WhatsApp off
+          without removing the key.
+        */
+        const whatsappOff =
+          (config.get<string>('OTP_WHATSAPP') ?? '').trim().toLowerCase() ===
+          'off';
+        if (renflairWhatsApp.isConfigured() && !whatsappOff) {
+          return new OtpChannelRouter(renflairWhatsApp, sms);
+        }
+        return sms;
       },
     },
     {

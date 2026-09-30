@@ -214,6 +214,19 @@ export class EnvironmentVariables {
   RENFLAIR_API_KEY?: string;
 
   /**
+   * Renflair WhatsApp key (a separate key from the SMS one). When set, login
+   * and signup codes go on WhatsApp first, falling back to SMS_PROVIDER.
+   */
+  @IsOptional()
+  @IsString()
+  RENFLAIR_WHATSAPP_API_KEY?: string;
+
+  /** "off" keeps codes on SMS even with a WhatsApp key present. */
+  @IsOptional()
+  @IsString()
+  OTP_WHATSAPP?: string;
+
+  /**
    * Email. All optional: with no MAIL_PROVIDER the console transport is used,
    * which logs messages instead of sending them. The transport itself checks
    * that host, user and password are present before choosing SMTP, so a half
