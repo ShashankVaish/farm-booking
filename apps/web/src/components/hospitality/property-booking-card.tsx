@@ -25,6 +25,7 @@ import {
 import { cn } from '@/lib/cn';
 import { PriceBreakdown } from './price-breakdown';
 import { StayDatePicker } from './stay-date-picker';
+import { GuestStepper } from './guest-stepper';
 import styles from './hospitality.module.css';
 
 export function PropertyBookingCard({
@@ -376,15 +377,11 @@ export function PropertyBookingCard({
               : 'Tap a date for your party'
             : `${checkIn ? `Check-in ${checkIn}` : 'Select check-in'}${checkOut ? ` · Check-out ${checkOut}` : ''}`}
         </p>
-        <Input
-          id="book-guests"
-          label="Guests"
-          type="number"
-          min={1}
-          max={property.guestCapacity}
+        <GuestStepper
           value={guestCount}
+          max={Math.max(1, property.guestCapacity)}
           disabled={busy}
-          onChange={(e) => setGuestCount(Math.min(property.guestCapacity, Math.max(1, Number(e.target.value) || 1)))}
+          onChange={setGuestCount}
         />
         <Input
           id="coupon"

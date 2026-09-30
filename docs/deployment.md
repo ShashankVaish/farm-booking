@@ -76,9 +76,30 @@ Set under **Settings → Environment Variables**, scope *Production*:
 | `NEXT_PUBLIC_API_URL` | `https://api.baagly.com` |
 | `NEXT_PUBLIC_SITE_URL` | `https://www.baagly.com` |
 | `NEXT_PUBLIC_BRAND_NAME` | `Baagly` |
+| `REVALIDATE_SECRET` | same value as `REVALIDATE_SECRET` in the API's `.env.production` (`openssl rand -hex 32`) |
 
-No secrets belong here. Every `NEXT_PUBLIC_*` value is inlined into the browser
-bundle by anyone who views the page source.
+No other secrets belong here. Every `NEXT_PUBLIC_*` value is inlined into the
+browser bundle by anyone who views the page source. `REVALIDATE_SECRET` has no
+`NEXT_PUBLIC_` prefix, so it stays on Vercel's servers and is only used to
+check calls to `/revalidate`.
+
+### Caching
+
+Listing pages, the homepage and search data are cached by Vercel and rebuilt
+at most every 1–5 minutes. The API also caches public responses (search,
+listings, reviews, amenities) in Redis. Whenever anything changes — an edit,
+an approval, a booking, a review — the API clears its Redis cache and calls
+`https://www.baagly.com/revalidate` so Vercel rebuilds its pages at once.
+
+That call needs both sides configured: `WEB_REVALIDATE_URL` and
+`REVALIDATE_SECRET` in the API's `.env.production`, and the same
+`REVALIDATE_SECRET` here. Without them the caches still work; changes just
+take up to five minutes to show.
+
+```bash
+curl -sI https://api.baagly.com/api/search?limit=1 | grep -i 'x-cache'   # MISS, then HIT
+curl -sI https://www.baagly.com/properties/<id> | grep -i 'x-vercel-cache'
+```
 
 **`NEXT_PUBLIC_*` is baked in at build time.** Editing one in the dashboard
 changes nothing on the live site until you redeploy — use **Deployments → ⋯ →

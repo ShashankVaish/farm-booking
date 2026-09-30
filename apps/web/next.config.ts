@@ -51,6 +51,17 @@ const nextConfig: NextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
   },
+  experimental: {
+    /*
+      Client-side page cache: pages visited in this tab are kept in memory
+      and reused on back/forward and repeat navigation instead of being
+      fetched again — 30 s for dynamic pages, 5 min for cached ones.
+    */
+    staleTimes: {
+      dynamic: 30,
+      static: 300,
+    },
+  },
   // Inlined into the browser bundle. Read from the root .env above, since Next
   // would otherwise only see variables defined inside apps/web.
   env: {

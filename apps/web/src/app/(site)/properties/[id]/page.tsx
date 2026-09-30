@@ -4,12 +4,13 @@ import {
   AmenityList,
   ExpandableText,
   PropertyHeroActions,
+  PropertyReviews,
   PropertyTitleActions,
 } from '@/components/hospitality/property-detail';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/ui/feedback';
 import { brand } from '@/lib/config/brand';
-import { getProperty } from '@/lib/properties/api';
+import { getProperty, getPropertyReviews } from '@/lib/properties/api';
 import { isServiceUnavailable, ServiceUnavailableError } from '@/lib/api/availability';
 import { coverImage, amenityName } from '@/lib/properties/map-property';
 import { areaName } from '@/lib/properties/place-label';
@@ -26,6 +27,24 @@ import styles from '@/components/hospitality/hospitality.module.css';
 import page from './property-page.module.css';
 
 type Props = { params: Promise<{ id: string }> };
+
+/*
+  Each listing page is built once and served from Vercel's cache, rebuilt at
+  most every five minutes — and straight away when the API reports a change
+  (see /revalidate). Before this every visit re-rendered the page and called
+  the API. Booking data (dates, prices) is fetched live by the booking card,
+  so it is never stale.
+*/
+export const revalidate = 300;
+
+/*
+  No listing is built at deploy time; each one is built the first time
+  someone opens it and then served from the cache. Without this Next treats
+  the [id] route as fully dynamic and renders it on every visit.
+*/
+export function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({ params }: Props) {
   const { id } = await params;
@@ -225,6 +244,14 @@ export default async function PropertyPage({ params }: Props) {
   ];
   const rating = Number(property.averageRating ?? 0);
   const reviewCount = property.reviewCount ?? 0;
+  // The admin's per-listing switch: off hides the reviews and the rating.
+  const showReviews = property.reviewsVisible !== false;
+  const firstReviews =
+    showReviews && reviewCount > 0
+      ? await getPropertyReviews(property.id, 1)
+          .then((result) => result.items)
+          .catch(() => [])
+      : [];
   const hostName = property.owner?.name?.trim() || null;
 
   /*
@@ -319,6 +346,7 @@ export default async function PropertyPage({ params }: Props) {
         <PropertyTitleActions propertyId={property.id} title={property.title} canSave={!isSample} />
       </header>
 
+      {showReviews ? (
       <div className={page.ratingStrip}>
         <div className={page.ratingCell}>
           {reviewCount > 0 ? (
@@ -356,6 +384,7 @@ export default async function PropertyPage({ params }: Props) {
           <span className={page.ratingLabel}>{reviewCount === 1 ? 'Review' : 'Reviews'}</span>
         </div>
       </div>
+      ) : null}
 
       {!isBookable ? (
         <p className={page.notice}>
@@ -431,6 +460,26 @@ export default async function PropertyPage({ params }: Props) {
                   </li>
                 ))}
               </ul>
+            </section>
+          ) : null}
+
+          {showReviews ? (
+            <section className={page.section} data-reveal id="reviews">
+              <h2 className={page.sectionTitle}>
+                {reviewCount > 0 ? (
+                  <>
+                    <span aria-hidden="true">★ </span>
+                    {rating.toFixed(2)} · {reviewCount} review{reviewCount === 1 ? '' : 's'}
+                  </>
+                ) : (
+                  'Reviews'
+                )}
+              </h2>
+              {firstReviews.length > 0 ? (
+                <PropertyReviews propertyId={property.id} initial={firstReviews} total={reviewCount} />
+              ) : (
+                <p className={page.prose}>No reviews yet. Guests can review this place after their booking.</p>
+              )}
             </section>
           ) : null}
 

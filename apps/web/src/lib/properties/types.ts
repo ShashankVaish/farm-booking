@@ -56,6 +56,8 @@ export type ApiProperty = {
   */
   isTrusted?: boolean;
   trustedAt?: string | null;
+  /** Admin switch; false hides the listing's reviews and rating from guests. */
+  reviewsVisible?: boolean;
   averageRating?: number | string;
   reviewCount?: number;
   images?: ApiPropertyImage[];

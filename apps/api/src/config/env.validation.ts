@@ -226,6 +226,23 @@ export class EnvironmentVariables {
   @IsString()
   OTP_WHATSAPP?: string;
 
+  /** "off" disables the Redis cache of public API responses. */
+  @IsOptional()
+  @IsString()
+  RESPONSE_CACHE?: string;
+
+  /**
+   * The website's /revalidate URL and its shared secret. When both are set,
+   * any change in the API refreshes the website's cached pages at once.
+   */
+  @IsOptional()
+  @IsString()
+  WEB_REVALIDATE_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  REVALIDATE_SECRET?: string;
+
   /**
    * Email. All optional: with no MAIL_PROVIDER the console transport is used,
    * which logs messages instead of sending them. The transport itself checks

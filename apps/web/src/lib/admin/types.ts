@@ -38,6 +38,7 @@ export type AdminProperty = {
   city: string;
   state: string;
   status: string;
+  reviewsVisible?: boolean;
   createdAt: string;
   owner?: { id: string; name: string; email: string };
 };
@@ -45,6 +46,7 @@ export type AdminProperty = {
 export type AdminPropertyDetail = {
   id: string;
   status: string;
+  reviewsVisible?: boolean;
   title: string;
   slug: string;
   description: string;

@@ -434,6 +434,7 @@ export class AdminService {
       isPartyFriendly: property.isPartyFriendly,
       isTrusted: property.isTrusted,
       trustedAt: property.trustedAt,
+      reviewsVisible: property.reviewsVisible,
       // Who signed the host agreement for this listing, and whether that
       // signature is against the version currently in force.
       agreement: await this.agreements.acceptanceForProperty(property.id),
@@ -559,6 +560,49 @@ export class AdminService {
    * would put the mark on something guests cannot book, and it would survive
    * quietly if the listing were later approved without a second look.
    */
+  /**
+   * Shows or hides a listing's reviews on the site. Hidden reviews are kept
+   * (and keep counting towards the rating), so turning them back on restores
+   * everything exactly as it was.
+   */
+  async setPropertyReviewsVisible(
+    id: string,
+    visible: boolean,
+    actorId: string,
+  ) {
+    const property = await this.prisma.property.findUnique({
+      where: { id },
+      select: { id: true, reviewsVisible: true },
+    });
+    if (!property) {
+      throw new NotFoundException({
+        errorCode: ErrorCodes.PROPERTY_NOT_FOUND,
+        message: 'Property not found.',
+      });
+    }
+    if (property.reviewsVisible === visible) {
+      return { id, reviewsVisible: visible, unchanged: true };
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const next = await tx.property.update({
+        where: { id },
+        data: { reviewsVisible: visible },
+        select: { id: true, reviewsVisible: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: visible
+            ? AuditActions.PROPERTY_REVIEWS_SHOWN
+            : AuditActions.PROPERTY_REVIEWS_HIDDEN,
+          entityType: 'Property',
+          entityId: id,
+        },
+      });
+      return next;
+    });
+  }
+
   async setPropertyTrusted(id: string, trusted: boolean, actorId: string) {
     const property = await this.prisma.property.findUnique({ where: { id } });
     if (!property) {

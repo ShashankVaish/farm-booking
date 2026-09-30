@@ -13,7 +13,11 @@ import { Public } from '../../common/decorators/public.decorator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { normalizePagination } from '../../common/pagination';
 import type { RequestUser } from '../auth/auth.types';
-import { CreateReviewDto, OwnerReviewResponseDto, UpdateReviewDto } from './dto/review.dto';
+import {
+  CreateReviewDto,
+  OwnerReviewResponseDto,
+  UpdateReviewDto,
+} from './dto/review.dto';
 import { ReviewsService } from './reviews.service';
 
 @Controller()

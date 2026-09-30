@@ -72,6 +72,7 @@ export function PropertyReview({ propertyId }: { propertyId: string }) {
   const [target, setTarget] = useState<Moderation | null>(null);
   const [busy, setBusy] = useState(false);
   const [trustBusy, setTrustBusy] = useState(false);
+  const [reviewsBusy, setReviewsBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
 
   /*
@@ -116,6 +117,20 @@ export function PropertyReview({ propertyId }: { propertyId: string }) {
       notify(err instanceof ApiError ? err.message : 'Could not update the badge.', 'error');
     } finally {
       setTrustBusy(false);
+      reload();
+    }
+  }
+
+  // Reviews on the public page: hidden reviews are kept, just not shown.
+  async function toggleReviews(visible: boolean) {
+    setReviewsBusy(true);
+    try {
+      await adminApi.setPropertyReviewsVisible(propertyId, visible);
+      notify(visible ? 'Reviews are shown on this listing.' : 'Reviews are hidden on this listing.');
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'Could not update reviews.', 'error');
+    } finally {
+      setReviewsBusy(false);
       reload();
     }
   }
@@ -191,6 +206,15 @@ export function PropertyReview({ propertyId }: { propertyId: string }) {
                       : 'Mark as Trusted'}
                 </Button>
               ) : null}
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={reviewsBusy}
+                aria-pressed={data.reviewsVisible !== false}
+                onClick={() => void toggleReviews(data.reviewsVisible === false)}
+              >
+                {reviewsBusy ? 'Saving…' : data.reviewsVisible === false ? 'Show reviews' : 'Hide reviews'}
+              </Button>
               {actionsFor(data.status).map((action) => (
                 <Button
                   key={action.id}

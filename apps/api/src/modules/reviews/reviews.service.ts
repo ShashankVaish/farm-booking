@@ -109,9 +109,10 @@ export class ReviewsService {
       where: isUuid(propertyId)
         ? { OR: [{ id: propertyId }, { slug: propertyId }] }
         : { slug: propertyId },
-      select: { id: true },
+      select: { id: true, reviewsVisible: true },
     });
-    if (!property) {
+    // An admin can hide a listing's reviews; guests then see none of them.
+    if (!property || !property.reviewsVisible) {
       return paginated([], 0, page, limit);
     }
     const where = { propertyId: property.id, isPublished: true };

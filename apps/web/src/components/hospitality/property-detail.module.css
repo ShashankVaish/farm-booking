@@ -198,3 +198,144 @@
 .moreChevronOpen {
   transform: rotate(90deg);
 }
+
+/* --- Reviews ---------------------------------------------------------------- */
+
+.reviewGrid {
+  display: grid;
+  gap: var(--space-6) var(--space-8);
+}
+
+@media (min-width: 768px) {
+  .reviewGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.review {
+  min-width: 0;
+}
+
+.reviewHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.reviewAvatar {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  font-weight: 800;
+}
+
+.reviewName {
+  display: block;
+  font-weight: 700;
+}
+
+.reviewMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.reviewStars {
+  display: inline-flex;
+  gap: 1px;
+  color: var(--color-text-primary);
+}
+
+.reviewBody {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.reviewBodyClamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+
+.reviewReply {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border-left: 2px solid var(--color-primary);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body-small);
+}
+
+.reviewReply strong {
+  color: var(--color-text-primary);
+}
+
+.reviewDialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: end center;
+  background: rgb(8 6 9 / 0.5);
+}
+
+@media (min-width: 768px) {
+  .reviewDialogBackdrop {
+    place-items: center;
+  }
+}
+
+.reviewDialog {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 44rem);
+  max-height: 90dvh;
+  background: var(--color-surface-elevated);
+  border-radius: 1.25rem 1.25rem 0 0;
+  box-shadow: 0 -16px 48px rgb(8 6 9 / 0.28);
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .reviewDialog {
+    border-radius: var(--radius-lg);
+  }
+}
+
+.reviewDialogHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.reviewDialogTitle {
+  margin: 0;
+  font-family: var(--font-heading, var(--font-display));
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.reviewDialogList {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

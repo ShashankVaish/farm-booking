@@ -146,6 +146,17 @@ export class AdminController {
     return this.admin.setPropertyTrusted(id, false, user.id);
   }
 
+  /** Per-listing switch: show or hide this listing's reviews to guests. */
+  @Post('properties/:id/reviews/show')
+  showReviews(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.admin.setPropertyReviewsVisible(id, true, user.id);
+  }
+
+  @Post('properties/:id/reviews/hide')
+  hideReviews(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.admin.setPropertyReviewsVisible(id, false, user.id);
+  }
+
   @Get('bookings')
   bookings(@Query() query: AdminBookingsQueryDto) {
     return this.admin.bookings(query);

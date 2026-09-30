@@ -31,6 +31,7 @@ import { SearchModule } from './modules/search/search.module';
 import { SupportModule } from './modules/support/support.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ResponseCacheModule } from './common/cache/response-cache.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { PrismaModule } from './prisma/prisma.module';
       }),
     }),
     PrismaModule,
+    ResponseCacheModule,
     SettingsModule,
     MailModule,
     DeliveryModule,

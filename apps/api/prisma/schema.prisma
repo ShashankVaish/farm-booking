@@ -245,6 +245,9 @@ model Property {
   trustedAt     DateTime?
   averageRating Decimal        @default(0) @db.Decimal(3, 2)
   reviewCount   Int            @default(0)
+  // Admin switch: false hides this listing's reviews (and its rating) from
+  // guests. Reviews are kept and still counted; nothing is deleted.
+  reviewsVisible Boolean       @default(true)
   status        PropertyStatus @default(DRAFT)
   deletedAt     DateTime?
   createdAt     DateTime       @default(now())
