@@ -75,9 +75,11 @@ export default function ProfilePage() {
     setVerifyBusy(true);
     setVerifyError(null);
     try {
-      await apiClient.post('/api/auth/me/phone/request', { phone: mobile });
+      const result = await apiClient.post<{ channel?: 'whatsapp' | 'sms' }>('/api/auth/me/phone/request', {
+        phone: mobile,
+      });
       setCodeSent(true);
-      notify('Code sent by SMS.');
+      notify(result?.channel === 'whatsapp' ? 'Code sent on WhatsApp.' : 'Code sent by SMS.');
     } catch (err) {
       setVerifyError(err instanceof ApiError ? err.message : 'Could not send the code.');
     } finally {

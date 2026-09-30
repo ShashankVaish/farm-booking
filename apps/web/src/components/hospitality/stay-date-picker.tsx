@@ -45,7 +45,13 @@ export function StayDatePicker({
   onChange,
 }: Props) {
   const single = mode === 'single';
-  const [month, setMonth] = useState(() => new Date());
+  // Open on the chosen date's month (the phone sheet mounts with a date
+  // already suggested, often next month), else on this month.
+  const [month, setMonth] = useState(() => {
+    if (!checkIn) return new Date();
+    const [year, monthNumber] = checkIn.split('-').map(Number);
+    return new Date(year, monthNumber - 1, 1);
+  });
   const [days, setDays] = useState<Array<{ date: string; status: string }>>([]);
   const [loading, setLoading] = useState(true);
   const today = todayIso();
@@ -74,6 +80,16 @@ export function StayDatePicker({
       cancelled = true;
     };
   }, [month, propertyId]);
+
+  // A date chosen off-screen (the suggested one, once it arrives) brings its
+  // month into view. A tap inside the shown month never moves it.
+  useEffect(() => {
+    if (!checkIn) return;
+    const [year, monthNumber] = checkIn.split('-').map(Number);
+    setMonth((shown) =>
+      shown.getFullYear() === year && shown.getMonth() === monthNumber - 1 ? shown : new Date(year, monthNumber - 1, 1),
+    );
+  }, [checkIn]);
 
   const statusByDate = useMemo(() => new Map(days.map((day) => [day.date, day.status])), [days]);
   const cells = monthGrid(month);

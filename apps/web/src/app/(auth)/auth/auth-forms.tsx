@@ -58,7 +58,7 @@ function otpMessage(code: string, fallback: string) {
   if (code === 'OTP_COOLDOWN') return 'Please wait before requesting another code.';
   if (code === 'OTP_LOCKED') return 'Too many attempts. Request a new code.';
   if (code === 'OTP_RATE_LIMITED') return 'Too many OTP requests. Try again later.';
-  if (code === 'SMS_PROVIDER_ERROR') return 'We could not send the SMS just now. Please try again in a moment.';
+  if (code === 'SMS_PROVIDER_ERROR') return 'We could not send the code just now. Please try again in a moment.';
   if (code === 'ACCOUNT_DISABLED') return 'This account has been disabled. Contact support for help.';
   return fallback;
 }
@@ -81,6 +81,50 @@ function Notice({ children }: { children: React.ReactNode }) {
   );
 }
 
+type OtpChannel = 'whatsapp' | 'sms';
+
+/*
+  The resend step. A WhatsApp send the gateway accepted still does not prove
+  the number uses WhatsApp, so once the timer runs out the person can ask for
+  the code by SMS instead.
+*/
+function ResendCode({
+  seconds,
+  busy,
+  channel,
+  onResend,
+}: {
+  seconds: number;
+  busy: boolean;
+  channel: OtpChannel;
+  onResend: (via?: OtpChannel) => void;
+}) {
+  if (seconds > 0) {
+    return (
+      <Button type="button" variant="ghost" block disabled>
+        {`Resend in ${seconds}s`}
+      </Button>
+    );
+  }
+  if (channel === 'sms') {
+    return (
+      <Button type="button" variant="ghost" block disabled={busy} onClick={() => onResend('sms')}>
+        Resend code by SMS
+      </Button>
+    );
+  }
+  return (
+    <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+      <Button type="button" variant="ghost" block disabled={busy} onClick={() => onResend()}>
+        Resend on WhatsApp
+      </Button>
+      <Button type="button" variant="secondary" block disabled={busy} onClick={() => onResend('sms')}>
+        Not on WhatsApp? Send by SMS
+      </Button>
+    </div>
+  );
+}
+
 export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: boolean; onAuthenticated?: () => void }) {
   const router = useRouter();
   const search = useSearchParams();
@@ -92,6 +136,8 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
   const [code, setCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  // Where the last code went: WhatsApp first, SMS as the fallback or on request.
+  const [channel, setChannel] = useState<OtpChannel>('whatsapp');
 
   // Back to the number field, so a mistyped number can be replaced. The code
   // sent to the old number simply expires unused.
@@ -168,7 +214,7 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
     }
   }
 
-  async function requestOtp() {
+  async function requestOtp(via?: OtpChannel) {
     setBusy(true);
     setError(null);
     try {
@@ -177,11 +223,12 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
         setError('Enter a valid 10-digit Indian mobile number.');
         return;
       }
-      const result = await apiClient.post<{ resendAvailableAt: string }>(
+      const result = await apiClient.post<{ resendAvailableAt: string; channel?: OtpChannel }>(
         '/api/auth/otp/request',
-        { phone: mobile, purpose: 'LOGIN' },
+        { phone: mobile, purpose: 'LOGIN', ...(via ? { channel: via } : {}) },
         { auth: false },
       );
+      setChannel(result.channel ?? 'sms');
       setOtpSent(true);
       const wait = Math.max(0, Math.ceil((new Date(result.resendAvailableAt).getTime() - Date.now()) / 1000));
       setSeconds(wait || 60);
@@ -227,8 +274,6 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
     }
   }
 
-  const canResend = seconds === 0;
-
   const body = askName ? (
     <>
       <Notice>Welcome! Your account is ready.</Notice>
@@ -257,7 +302,7 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
 
       {error ? <Alert>{error}</Alert> : null}
       {otpSent && mode === 'otp' && !error ? (
-        <Notice>Code sent. Enter it below to continue.</Notice>
+        <Notice>{channel === 'whatsapp' ? 'Code sent on WhatsApp.' : 'Code sent by SMS.'} Enter it below to continue.</Notice>
       ) : null}
       {mode === 'otp' && !otpSent && !adminOnly ? (
         <p className="t-caption" style={{ marginTop: 'var(--space-3)' }}>
@@ -308,7 +353,7 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
           />
           {otpSent ? (
             <p className="t-caption" style={{ marginTop: 'calc(var(--space-2) * -1)' }}>
-              Code sent to +91 {phone.replace(/\D/g, '').slice(-10)}.{' '}
+              Code sent {channel === 'whatsapp' ? 'on WhatsApp' : 'by SMS'} to +91 {phone.replace(/\D/g, '').slice(-10)}.{' '}
               <button type="button" className={styles.linkButton} onClick={changeNumber} disabled={busy}>
                 Change number
               </button>
@@ -331,9 +376,7 @@ export function LoginForm({ adminOnly = false, onAuthenticated }: { adminOnly?: 
             {busy ? 'Please wait…' : otpSent ? 'Verify and sign in' : 'Send code'}
           </Button>
           {otpSent ? (
-            <Button type="button" variant="ghost" block disabled={!canResend || busy} onClick={() => void requestOtp()}>
-              {canResend ? 'Resend code' : `Resend in ${seconds}s`}
-            </Button>
+            <ResendCode seconds={seconds} busy={busy} channel={channel} onResend={(via) => void requestOtp(via)} />
           ) : null}
         </form>
       )}
@@ -405,6 +448,8 @@ export function RegisterForm() {
   const [code, setCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  // Where the last code went: WhatsApp first, SMS as the fallback or on request.
+  const [channel, setChannel] = useState<OtpChannel>('whatsapp');
 
   // Back to the number field, so a mistyped number can be replaced. The code
   // sent to the old number simply expires unused.
@@ -542,7 +587,7 @@ export function RegisterForm() {
     }
   }
 
-  async function requestOtp() {
+  async function requestOtp(via?: OtpChannel) {
     setBusy(true);
     setError(null);
     try {
@@ -555,11 +600,12 @@ export function RegisterForm() {
         setError('Enter your full name.');
         return;
       }
-      const result = await apiClient.post<{ resendAvailableAt: string }>(
+      const result = await apiClient.post<{ resendAvailableAt: string; channel?: OtpChannel }>(
         '/api/auth/otp/request',
-        { phone: mobile, purpose: 'REGISTER' },
+        { phone: mobile, purpose: 'REGISTER', ...(via ? { channel: via } : {}) },
         { auth: false },
       );
+      setChannel(result.channel ?? 'sms');
       setOtpSent(true);
       const wait = Math.max(0, Math.ceil((new Date(result.resendAvailableAt).getTime() - Date.now()) / 1000));
       setSeconds(wait || 60);
@@ -611,7 +657,7 @@ export function RegisterForm() {
 
       {error ? <Alert>{error}</Alert> : null}
       {otpSent && mode === 'otp' && !error ? (
-        <Notice>Code sent. Enter it below to continue.</Notice>
+        <Notice>{channel === 'whatsapp' ? 'Code sent on WhatsApp.' : 'Code sent by SMS.'} Enter it below to continue.</Notice>
       ) : null}
 
       {mode === 'email' ? (
@@ -764,7 +810,7 @@ export function RegisterForm() {
           />
           {otpSent ? (
             <p className="t-caption" style={{ marginTop: 'calc(var(--space-2) * -1)' }}>
-              Code sent to +91 {phone.replace(/\D/g, '').slice(-10)}.{' '}
+              Code sent {channel === 'whatsapp' ? 'on WhatsApp' : 'by SMS'} to +91 {phone.replace(/\D/g, '').slice(-10)}.{' '}
               <button type="button" className={styles.linkButton} onClick={changeNumber} disabled={busy}>
                 Change number
               </button>
@@ -786,9 +832,7 @@ export function RegisterForm() {
             {busy ? 'Please wait…' : otpSent ? 'Verify and continue' : 'Send code'}
           </Button>
           {otpSent ? (
-            <Button type="button" variant="ghost" block disabled={seconds > 0 || busy} onClick={() => void requestOtp()}>
-              {seconds > 0 ? `Resend in ${seconds}s` : 'Resend code'}
-            </Button>
+            <ResendCode seconds={seconds} busy={busy} channel={channel} onResend={(via) => void requestOtp(via)} />
           ) : null}
         </form>
       )}

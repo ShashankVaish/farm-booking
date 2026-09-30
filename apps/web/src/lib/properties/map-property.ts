@@ -2,6 +2,7 @@ import type { PropertyCardModel } from '@/components/hospitality/property-card';
 import type { MediaAsset } from '@/lib/media/types';
 import type { ApiAmenity, ApiProperty } from '@/lib/properties/types';
 import { PROPERTY_TYPE_LABEL } from '@/lib/properties/types';
+import { areaName } from '@/lib/properties/place-label';
 
 function money(value: number | string | null | undefined): number {
   const parsed = typeof value === 'number' ? value : Number(value);
@@ -56,7 +57,7 @@ export function toPropertyCard(property: ApiProperty): PropertyCardModel {
     id: property.id,
     name: property.title,
     type,
-    location: [property.location || property.city, property.state].filter(Boolean).join(', '),
+    location: areaName(property),
     trusted: property.isTrusted === true,
     guests: property.guestCapacity,
     bedrooms: property.bedrooms,

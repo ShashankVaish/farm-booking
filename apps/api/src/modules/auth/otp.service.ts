@@ -70,6 +70,7 @@ export class OtpService {
   ): Promise<{
     sent: true;
     phone: string;
+    channel: 'whatsapp' | 'sms';
     expiresAt: string;
     resendAvailableAt: string;
   }> {
@@ -147,13 +148,16 @@ export class OtpService {
       instead of being locked out for a minute and charged one of their
       hourly sends for an SMS that was never delivered.
     */
+    let channel: 'whatsapp' | 'sms' = 'sms';
     try {
-      await this.sms.send({
+      const delivery = await this.sms.send({
         phone,
         message: `Your verification code is ${code}. It expires in ${Math.floor(this.ttlMs() / 1000)} seconds.`,
         // OTP-only gateways render their own template and need the bare code.
         code,
+        channel: dto.channel,
       });
+      if (delivery) channel = delivery.channel;
     } catch (error) {
       await this.store.consumeChallenge(phone, purpose).catch(() => false);
       throw error;
@@ -174,6 +178,8 @@ export class OtpService {
     return {
       sent: true,
       phone: maskPhone(phone),
+      // Where to look for it: the form says "sent on WhatsApp" or "by SMS".
+      channel,
       expiresAt: expiresAt.toISOString(),
       resendAvailableAt: new Date(
         now.getTime() + this.resendMs(),

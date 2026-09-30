@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/forms';
 import { memoryTokenStore } from '@/lib/api/token-store';
@@ -59,6 +60,21 @@ export function PropertyBookingCard({
   const [suggested, setSuggested] = useState(false);
   // Phone sign-ups confirm an email before their first booking.
   const [emailGateOpen, setEmailGateOpen] = useState(false);
+  /*
+    Phones only: the card is a bottom sheet opened from the sticky Reserve bar,
+    so the page itself carries no calendar. From 1024px the card sits in the
+    page and this flag changes nothing visible.
+  */
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [isPhone, setIsPhone] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 1023px)');
+    const update = () => setIsPhone(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const submitting = useRef(false);
   const guestPicked = useRef(false);
 
@@ -97,6 +113,23 @@ export function PropertyBookingCard({
       cancelled = true;
     };
   }, [bookable, property.id]);
+
+  // While the sheet is open on a phone: Escape closes it and the page behind
+  // stops scrolling, so a swipe inside the calendar never scrolls the listing.
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const phone = window.matchMedia('(max-width: 1023px)').matches;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSheetOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    const previousOverflow = document.body.style.overflow;
+    if (phone) document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [sheetOpen]);
 
   useEffect(() => {
     if (!bookable || !checkIn || !checkOut) {
@@ -160,6 +193,7 @@ export function PropertyBookingCard({
     }
     if (!checkIn || !checkOut) {
       setError(isParty ? 'Choose a date.' : 'Choose check-in and check-out dates.');
+      setSheetOpen(true);
       return;
     }
     if (checkOut <= checkIn) {
@@ -204,6 +238,8 @@ export function PropertyBookingCard({
         return;
       }
       setError(err instanceof ApiError || err instanceof NetworkError ? err.message : 'Could not start this booking.');
+      // On a phone the message lives in the sheet, so bring it up.
+      setSheetOpen(true);
     }
   }
 
@@ -228,8 +264,8 @@ export function PropertyBookingCard({
       ? `For ${nights} ${nights === 1 ? 'night' : 'nights'} · ${shortStayLabel(checkIn, checkOut)}`
       : '';
 
-  function showCard() {
-    document.getElementById('book-in')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  function openSheet() {
+    setSheetOpen(true);
   }
 
   if (!bookable) {
@@ -253,9 +289,31 @@ export function PropertyBookingCard({
     );
   }
 
-  return (
-    <aside className={styles.booking} aria-label="Booking">
-      <p className="t-price">
+  const panel = (
+      <div
+        className={cn(styles.bookingPanel, sheetOpen && styles.bookingPanelOpen)}
+        role={sheetOpen ? 'dialog' : undefined}
+        aria-modal={sheetOpen || undefined}
+        aria-labelledby={sheetOpen ? 'booking-sheet-title' : undefined}
+      >
+      {/* Phone sheet header: what is being booked and for when. */}
+      <div className={styles.sheetHead}>
+        <span className={styles.sheetHandle} aria-hidden="true" />
+        <div className={styles.sheetHeadText}>
+          <p className={styles.sheetTitle} id="booking-sheet-title">
+            {chosen?.label ?? 'Your booking'}
+          </p>
+          <p className={styles.sheetSub}>
+            {checkIn ? `${partyDateLabel(checkIn)} · ${chosen?.detail ?? ''}` : 'Pick a date on the calendar'}
+          </p>
+        </div>
+        <button type="button" className={styles.sheetClose} onClick={() => setSheetOpen(false)} aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+      <p className={cn('t-price', styles.panelPrice)}>
         {inr(unitPrice)} <span className="t-caption">/ {unitLabel}</span>
       </p>
       <form id="book-form" onSubmit={onReserve}>
@@ -357,20 +415,72 @@ export function PropertyBookingCard({
             We picked {isParty ? partyDateLabel(checkIn) : shortStayLabel(checkIn, checkOut)} for you — tap any other date to change it.
           </p>
         ) : null}
-        <Button type="submit" block loading={busy} disabled={busy || quoting || !checkIn || !checkOut}>
-          {busy ? 'Reserving…' : 'Reserve'}
-        </Button>
+        <div className={styles.panelReserve}>
+          <Button type="submit" block loading={busy} disabled={busy || quoting || !checkIn || !checkOut}>
+            {busy ? 'Reserving…' : 'Reserve'}
+          </Button>
+        </div>
       </form>
+
+      {/* Phone sheet footer, like the calendar sheet on Airbnb: total + Save. */}
+      <div className={styles.sheetFoot}>
+        <span className={styles.sheetTotal}>
+          <span key={barTotal} className={cn(styles.sheetTotalAmount, quoting && styles.reservePriceLoading)}>
+            {inr(barTotal)}
+          </span>
+          <span className={styles.sheetTotalNote}>
+            {nights ? `${chosen?.label ?? 'Total'} · ${partyDateLabel(checkIn)}` : `per ${unitLabel}`}
+          </span>
+        </span>
+        <button
+          type="button"
+          className={styles.sheetSave}
+          disabled={!nights}
+          onClick={() => setSheetOpen(false)}
+        >
+          Save
+        </button>
+      </div>
+      </div>
+  );
+
+  /*
+    An open sheet on a phone is portalled to <body>. Inside the page it sits
+    in the page-transition wrapper's stacking context, where no z-index can
+    lift it above the site's bottom navigation — which then covered Save.
+    The bar's Reserve still reaches the form: it targets it by id.
+  */
+  const sheet =
+    sheetOpen && isPhone
+      ? createPortal(
+          <>
+            <button
+              type="button"
+              className={styles.sheetBackdrop}
+              aria-label="Close"
+              tabIndex={-1}
+              onClick={() => setSheetOpen(false)}
+            />
+            {panel}
+          </>,
+          document.body,
+        )
+      : panel;
+
+  return (
+    <aside className={styles.booking} aria-label="Booking">
+      {sheet}
 
       <EmailGate open={emailGateOpen} onClose={() => setEmailGateOpen(false)} onVerified={afterEmailVerified} />
 
       {/*
         Phones only (hidden from 1024px up, where the card itself is sticky).
-        Tapping the summary scrolls to the calendar to change the date; Reserve
-        submits the card's own form, so both paths share one set of checks.
+        The page shows no calendar on a phone: tapping the summary opens the
+        card as a bottom sheet to change the date or slot. Reserve submits the
+        card's own form, so both paths share one set of checks.
       */}
       <div className={styles.reserveBar} role="region" aria-label={isParty ? `Reserve this ${unitLabel}` : 'Reserve this stay'}>
-        <button type="button" className={styles.reserveSummary} onClick={showCard}>
+        <button type="button" className={styles.reserveSummary} onClick={openSheet} aria-haspopup="dialog">
           <span key={barTotal} className={cn(styles.reservePrice, quoting && styles.reservePriceLoading)}>
             {inr(barTotal)}
             {!nights ? <span className={styles.reservePer}> / {unitLabel}</span> : null}
@@ -407,7 +517,7 @@ export function PropertyBookingCard({
             {busy ? 'Reserving' : 'Reserve'}
           </button>
         ) : (
-          <button type="button" className={styles.reserveButton} onClick={showCard}>
+          <button type="button" className={styles.reserveButton} onClick={openSheet} aria-haspopup="dialog">
             {isParty ? 'Pick a date' : 'Check dates'}
           </button>
         )}

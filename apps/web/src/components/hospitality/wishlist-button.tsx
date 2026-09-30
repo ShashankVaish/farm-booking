@@ -9,9 +9,15 @@ import styles from './hospitality.module.css';
 export function WishlistButton({
   propertyId,
   propertyName,
+  className,
+  label,
 }: {
   propertyId: string;
   propertyName: string;
+  /** Replaces the default dark disc that sits on a card photo. */
+  className?: string;
+  /** Visible text beside the heart ("Save"); the accessible name stays specific. */
+  label?: string;
 }) {
   const { has, toggle } = useWishlist();
   const { notify } = useToast();
@@ -38,7 +44,7 @@ export function WishlistButton({
   return (
     <button
       type="button"
-      className={styles.wish}
+      className={className ?? styles.wish}
       aria-pressed={saved}
       aria-label={saved ? `Remove ${propertyName} from wishlist` : `Save ${propertyName} to wishlist`}
       onClick={onClick}
@@ -52,6 +58,7 @@ export function WishlistButton({
           strokeWidth="1.4"
         />
       </svg>
+      {label ? <span aria-hidden="true">{saved ? 'Saved' : label}</span> : null}
     </button>
   );
 }

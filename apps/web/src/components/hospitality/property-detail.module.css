@@ -1,0 +1,200 @@
+/* ===========================================================================
+   Listing page pieces, Airbnb-style: round photo buttons, title actions,
+   facilities with icons, and a folding description.
+   =========================================================================== */
+
+/* --- Buttons over the hero photo (phones) --------------------------------- */
+
+.heroActions {
+  position: absolute;
+  inset: var(--space-3) var(--gutter) auto;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.heroActionsEnd {
+  display: flex;
+  gap: var(--space-3);
+}
+
+@media (min-width: 1024px) {
+  .heroActions {
+    display: none;
+  }
+}
+
+/* A white disc with a dark icon, whatever the theme: it sits on a photo. */
+.roundButton {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: rgb(255 255 255 / 0.94);
+  color: #1c1719;
+  box-shadow: 0 2px 10px rgb(8 6 9 / 0.18);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform var(--duration-fast) var(--easing-standard);
+}
+
+.roundButton:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.roundButton:focus-visible,
+.textAction:focus-visible,
+.outlineButton:focus-visible,
+.moreLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.roundButton[aria-pressed='true'] {
+  color: #e8414b;
+}
+
+/* --- Share / Save beside the title (wider screens) ------------------------ */
+
+.titleActions {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .titleActions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+}
+
+.textAction {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.5rem;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--fs-body-small);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.textAction:hover {
+  background: var(--color-overlay-surface, var(--color-surface));
+}
+
+.textAction[aria-pressed='true'] svg {
+  color: #e8414b;
+}
+
+/* --- Facilities ------------------------------------------------------------ */
+
+.amenities {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4) var(--space-6);
+}
+
+@media (min-width: 560px) {
+  .amenities {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.amenity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  font-size: var(--fs-body);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.amenityIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--color-text-primary);
+}
+
+.outlineButton {
+  margin-top: var(--space-6);
+  min-height: 3rem;
+  padding: 0 var(--space-6);
+  border: 1px solid var(--color-text-primary);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--easing-standard);
+}
+
+.outlineButton:hover {
+  background: var(--color-surface);
+}
+
+@media (max-width: 559px) {
+  .outlineButton {
+    width: 100%;
+  }
+}
+
+/* --- Description ------------------------------------------------------------ */
+
+.description {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--fs-body);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.descriptionClamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+}
+
+.moreLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.moreChevron {
+  transition: transform var(--duration-fast) var(--easing-standard);
+}
+
+.moreChevronOpen {
+  transform: rotate(90deg);
+}
