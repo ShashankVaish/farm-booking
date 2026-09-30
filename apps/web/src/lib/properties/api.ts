@@ -9,8 +9,19 @@ import type {
   SearchFilters,
 } from '@/lib/properties/types';
 
-function publicGet<T>(path: string): Promise<T> {
-  return apiClient.get<T>(path, { auth: false });
+/*
+  Every page built from listing data is tagged "properties". On the server
+  (Vercel) these reads are kept in Next's data cache for `revalidate` seconds
+  and dropped at once when the API calls /revalidate after a change; in the
+  browser the `next` option is simply ignored.
+*/
+export const PROPERTIES_TAG = 'properties';
+
+function publicGet<T>(path: string, revalidate?: number): Promise<T> {
+  return apiClient.get<T>(path, {
+    auth: false,
+    ...(revalidate ? { next: { revalidate, tags: [PROPERTIES_TAG] } } : {}),
+  });
 }
 
 export async function searchProperties(filters: SearchFilters = {}): Promise<Paginated<ApiProperty>> {
@@ -36,17 +47,17 @@ export async function searchProperties(filters: SearchFilters = {}): Promise<Pag
     page: filters.page ?? 1,
     limit: filters.limit ?? 12,
   });
-  return publicGet<Paginated<ApiProperty>>(`/api/search${query}`);
+  return publicGet<Paginated<ApiProperty>>(`/api/search${query}`, 60);
 }
 
 export function getProperty(id: string): Promise<ApiProperty> {
   // No placeholder fallback here: a listing that cannot be loaded must surface
   // as not-found rather than rendering a fabricated, bookable-looking stay.
-  return publicGet<ApiProperty>(`/api/properties/${encodeURIComponent(id)}`);
+  return publicGet<ApiProperty>(`/api/properties/${encodeURIComponent(id)}`, 300);
 }
 
 export function getPropertyReviews(id: string, page = 1): Promise<Paginated<ApiReview>> {
-  return publicGet<Paginated<ApiReview>>(`/api/properties/${id}/reviews${toQueryString({ page, limit: 8 })}`);
+  return publicGet<Paginated<ApiReview>>(`/api/properties/${id}/reviews${toQueryString({ page, limit: 8 })}`, 300);
 }
 
 export function getAvailability(propertyId: string, from: string, to: string): Promise<AvailabilityDay[]> {

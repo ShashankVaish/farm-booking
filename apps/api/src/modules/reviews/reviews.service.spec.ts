@@ -140,3 +140,43 @@ describe('review authorization', () => {
     });
   });
 });
+
+describe('public review list', () => {
+  const notifications = { notify: jest.fn() } as never;
+
+  it('returns no reviews while an admin has hidden them on that listing', async () => {
+    const prisma = {
+      property: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 'prop-1', reviewsVisible: false }),
+      },
+      review: { findMany: jest.fn(), count: jest.fn() },
+      $transaction: jest.fn(),
+    };
+    const service = new ReviewsService(prisma as never, notifications);
+    const page = await service.list('prop-1', 1, 10);
+    expect(page.items).toEqual([]);
+    expect(prisma.review.findMany).not.toHaveBeenCalled();
+  });
+
+  it('lists published reviews when they are shown', async () => {
+    const prisma = {
+      property: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 'prop-1', reviewsVisible: true }),
+      },
+      review: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'r1' }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      $transaction: jest.fn((calls: Array<Promise<unknown>>) =>
+        Promise.all(calls),
+      ),
+    };
+    const service = new ReviewsService(prisma as never, notifications);
+    const page = await service.list('prop-1', 1, 10);
+    expect(page.items).toEqual([{ id: 'r1' }]);
+  });
+});

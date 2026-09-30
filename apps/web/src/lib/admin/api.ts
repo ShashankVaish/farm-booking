@@ -80,6 +80,11 @@ export const adminApi = {
   */
   trustProperty: (id: string) => apiClient.post(`/api/admin/properties/${id}/trust`),
   untrustProperty: (id: string) => apiClient.post(`/api/admin/properties/${id}/untrust`),
+  /** Per-listing switch for showing reviews (and the rating) to guests. */
+  setPropertyReviewsVisible: (id: string, visible: boolean) =>
+    apiClient.post<{ id: string; reviewsVisible: boolean }>(
+      `/api/admin/properties/${id}/reviews/${visible ? 'show' : 'hide'}`,
+    ),
   bookings: (query: AdminListQuery = {}) =>
     apiClient.get<AdminList<AdminBooking>>(listPath('bookings', query)),
   booking: (id: string) => apiClient.get<AdminBooking>(`/api/admin/bookings/${id}`),

@@ -2,8 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useToast } from '@/components/providers/toast-provider';
 import { cn } from '@/lib/cn';
+import { getPropertyReviews } from '@/lib/properties/api';
+import type { ApiReview } from '@/lib/properties/types';
 import { WishlistButton } from './wishlist-button';
 import styles from './property-detail.module.css';
 
@@ -208,6 +211,152 @@ export function ExpandableText({ text }: { text: string }) {
             <path d="M4.5 2.5 8 6l-3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
+      ) : null}
+    </>
+  );
+}
+
+/* --- Reviews ---------------------------------------------------------------- */
+
+function reviewDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+}
+
+function ReviewStars({ value }: { value: number }) {
+  return (
+    <span className={styles.reviewStars} aria-label={`${value} out of 5`}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <svg key={star} width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+          <path
+            d="M6 .8 7.6 4l3.6.5-2.6 2.5.6 3.6L6 8.9 2.8 10.6l.6-3.6L.8 4.5 4.4 4Z"
+            fill={star <= value ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="0.9"
+          />
+        </svg>
+      ))}
+    </span>
+  );
+}
+
+function ReviewCard({ review, clamp }: { review: ApiReview; clamp: boolean }) {
+  const name = review.customer?.name?.trim() || 'Guest';
+  return (
+    <article className={styles.review}>
+      <header className={styles.reviewHead}>
+        <span className={styles.reviewAvatar} aria-hidden="true">
+          {name.slice(0, 1).toUpperCase()}
+        </span>
+        <span>
+          <span className={styles.reviewName}>{name}</span>
+          <span className={styles.reviewMeta}>
+            <ReviewStars value={review.rating} /> · {reviewDate(review.createdAt)}
+          </span>
+        </span>
+      </header>
+      {review.comment ? (
+        <p className={cn(styles.reviewBody, clamp && styles.reviewBodyClamped)}>{review.comment}</p>
+      ) : null}
+      {review.ownerResponse ? (
+        <p className={styles.reviewReply}>
+          <strong>Response from host</strong>
+          {review.ownerResponse}
+        </p>
+      ) : null}
+    </article>
+  );
+}
+
+/**
+ * The first reviews (rendered on the server) and a "Show all" dialog that
+ * pages through the rest.
+ */
+export function PropertyReviews({
+  propertyId,
+  initial,
+  total,
+}: {
+  propertyId: string;
+  initial: ApiReview[];
+  total: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const [all, setAll] = useState<ApiReview[]>(initial);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const hasMore = all.length < total;
+
+  async function loadMore() {
+    setLoading(true);
+    try {
+      const next = await getPropertyReviews(propertyId, page + 1);
+      setAll((current) => [...current, ...next.items.filter((item) => !current.some((seen) => seen.id === item.id))]);
+      setPage((value) => value + 1);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  return (
+    <>
+      <div className={styles.reviewGrid}>
+        {initial.slice(0, 6).map((review) => (
+          <ReviewCard key={review.id} review={review} clamp />
+        ))}
+      </div>
+      {total > 6 || initial.some((review) => (review.comment?.length ?? 0) > 180) ? (
+        <button type="button" className={styles.outlineButton} onClick={() => setOpen(true)}>
+          Show all {total} review{total === 1 ? '' : 's'}
+        </button>
+      ) : null}
+
+      {/* Portalled: inside the page no z-index clears the site's bottom nav. */}
+      {open ? createPortal(
+        <div className={styles.reviewDialogBackdrop} onClick={() => setOpen(false)}>
+          <div
+            className={styles.reviewDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="all-reviews-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.reviewDialogHead}>
+              <h2 id="all-reviews-title" className={styles.reviewDialogTitle}>
+                {total} review{total === 1 ? '' : 's'}
+              </h2>
+              <button type="button" className={styles.roundButton} onClick={() => setOpen(false)} aria-label="Close" autoFocus>
+                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div className={styles.reviewDialogList}>
+              {all.map((review) => (
+                <ReviewCard key={review.id} review={review} clamp={false} />
+              ))}
+              {hasMore ? (
+                <button type="button" className={styles.outlineButton} onClick={() => void loadMore()} disabled={loading}>
+                  {loading ? 'Loading…' : 'Show more reviews'}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );

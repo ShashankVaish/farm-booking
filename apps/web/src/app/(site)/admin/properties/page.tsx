@@ -48,6 +48,22 @@ export default function AdminPropertiesPage() {
   const [applied, setApplied] = useState(draft);
   const [target, setTarget] = useState<{ property: AdminProperty; action: Moderation } | null>(null);
   const [busy, setBusy] = useState(false);
+  // The listing whose reviews switch is saving, so only its button waits.
+  const [reviewsBusyId, setReviewsBusyId] = useState<string | null>(null);
+
+  async function toggleReviews(property: AdminProperty) {
+    const visible = property.reviewsVisible === false;
+    setReviewsBusyId(property.id);
+    try {
+      await adminApi.setPropertyReviewsVisible(property.id, visible);
+      notify(visible ? `Reviews shown on ${property.title}.` : `Reviews hidden on ${property.title}.`);
+      reload();
+    } catch (err) {
+      notify(err instanceof ApiError ? err.message : 'Could not update reviews.', 'error');
+    } finally {
+      setReviewsBusyId(null);
+    }
+  }
 
   const { data, error, loading, reload } = useAdminQuery<AdminList<AdminProperty>>(
     () => adminApi.properties({ page, limit: 20, q: applied.q, status: applied.status || undefined }),
@@ -162,6 +178,20 @@ export default function AdminPropertiesPage() {
                       </Button>
                       <Button size="sm" variant="secondary" href={`/admin/properties/${property.id}/edit`}>
                         Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={reviewsBusyId === property.id}
+                        aria-pressed={property.reviewsVisible !== false}
+                        title={property.reviewsVisible === false ? 'Reviews are hidden from guests' : 'Reviews are shown to guests'}
+                        onClick={() => void toggleReviews(property)}
+                      >
+                        {reviewsBusyId === property.id
+                          ? 'Saving…'
+                          : property.reviewsVisible === false
+                            ? 'Reviews: off'
+                            : 'Reviews: on'}
                       </Button>
                       {actionsFor(property.status).map((action) => (
                         <Button
