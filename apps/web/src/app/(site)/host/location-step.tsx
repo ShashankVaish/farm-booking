@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/forms';
 import { hostApi, type PlaceSuggestion } from '@/lib/host/host-api';
 import type { LocationDraft } from '@/lib/host/listing-location';
+import { placeLabel } from '@/lib/properties/place-label';
 import {
   isValidLatitude,
   isValidLongitude,
@@ -114,9 +115,14 @@ export function LocationStep({ value, onChange }: Props) {
   }
 
   function prepareConfirm() {
+    /*
+      The public area label is rebuilt from the city every time a location is
+      confirmed. Keeping the old label (as this used to) meant a host who typed
+      a new address still showed the previous place on every listing card.
+    */
     const next = {
       ...value,
-      location: value.location || [value.city, value.state].filter(Boolean).join(', '),
+      location: placeLabel(value.city) || placeLabel(value.state),
     };
     const errors = validateListingLocation({ ...next, confirmed: true });
     delete errors.confirmed;

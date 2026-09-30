@@ -67,12 +67,23 @@ function ExpandIcon() {
   );
 }
 
-export function PropertyGallery({ images, title }: { images: GalleryImage[]; title: string }) {
+export function PropertyGallery({
+  images,
+  title,
+  edgeToEdge = false,
+}: {
+  images: GalleryImage[];
+  title: string;
+  /** Full-bleed hero on phones: no frame, no thumbnails, just the photo and a counter. */
+  edgeToEdge?: boolean;
+}) {
   const [index, setIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [held, setHeld] = useState(false);
   const dragStart = useRef<number | null>(null);
+  // Set by a swipe so the click that follows it does not open the lightbox.
+  const swiped = useRef(false);
   const thumbStrip = useRef<HTMLDivElement | null>(null);
 
   const count = images.length;
@@ -163,10 +174,17 @@ export function PropertyGallery({ images, title }: { images: GalleryImage[]; tit
   function onPointerUp(event: React.PointerEvent) {
     const start = dragStart.current;
     dragStart.current = null;
+    if (start !== null && Math.abs(event.clientX - start) >= SWIPE_THRESHOLD) swiped.current = true;
     if (start === null || !canPage) return;
     const delta = event.clientX - start;
     if (delta <= -SWIPE_THRESHOLD) step(1);
     if (delta >= SWIPE_THRESHOLD) step(-1);
+  }
+
+  // A tap (not a swipe, not a control) on the photo opens every photo.
+  function onStageClick(event: React.MouseEvent) {
+    if ((event.target as HTMLElement).closest('button')) return;
+    setLightbox(true);
   }
 
   // Any deliberate move stops the slideshow. Someone who has taken control of
@@ -217,7 +235,7 @@ export function PropertyGallery({ images, title }: { images: GalleryImage[]; tit
   return (
     <>
       <div
-        className={styles.gallery}
+        className={cn(styles.gallery, edgeToEdge && styles.bleed)}
         role="group"
         aria-roledescription="carousel"
         aria-label={`${title} — ${count} photo${count === 1 ? '' : 's'}`}
@@ -234,6 +252,13 @@ export function PropertyGallery({ images, title }: { images: GalleryImage[]; tit
           onPointerUp={onPointerUp}
           onPointerCancel={() => {
             dragStart.current = null;
+          }}
+          onClick={(event) => {
+            if (swiped.current) {
+              swiped.current = false;
+              return;
+            }
+            onStageClick(event);
           }}
         >
           {slides}

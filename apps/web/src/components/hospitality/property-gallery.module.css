@@ -38,15 +38,20 @@
    viewport height: a hero that fills a short laptop screen hides everything
    under it. Around 2.5:1 in practice, which still frames a photo properly. */
 @media (min-width: 768px) {
+  /* A fixed height across the full width. Ratio + max-height instead shrank
+     the WIDTH to keep 16:9 once the cap applied, leaving an empty band down
+     the right side of the frame on a laptop. */
   .stage {
-    aspect-ratio: 16 / 9;
-    max-height: min(28rem, 62vh);
+    width: 100%;
+    aspect-ratio: auto;
+    height: min(28rem, 62vh);
+    max-height: none;
   }
 }
 
 @media (min-width: 1280px) {
   .stage {
-    max-height: min(32rem, 66vh);
+    height: min(32rem, 66vh);
   }
 }
 
@@ -468,4 +473,43 @@
   gap: var(--space-2);
   overflow-x: auto;
   padding-bottom: var(--space-1);
+}
+
+/* --- Full-bleed hero (listing page on phones) ----------------------------
+   Edge to edge under the header, like Airbnb: no frame, no thumbnail strip,
+   no chips — the photo, a "1 / 26" counter, and a tap opens every photo.
+   The counter sits high enough to clear the rounded content card that
+   overlaps the bottom of the photo. */
+.stage {
+  cursor: zoom-in;
+}
+
+@media (max-width: 1023px) {
+  .bleed {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .bleed .stage {
+    aspect-ratio: 4 / 3.4;
+    max-height: 64vh;
+  }
+
+  .bleed .thumbs,
+  .bleed .chips,
+  .bleed .dots,
+  .bleed .progress,
+  .bleed .nav {
+    display: none;
+  }
+
+  .bleed .stageBar {
+    inset: auto var(--gutter) calc(var(--space-3) + 1.75rem) auto;
+  }
+
+  .bleed .counter {
+    padding: 0.3rem 0.7rem;
+    font-weight: 600;
+  }
 }

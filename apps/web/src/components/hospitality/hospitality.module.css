@@ -1085,3 +1085,224 @@
     transition: none;
   }
 }
+
+/* --- Booking card as a bottom sheet on phones -----------------------------
+   From 1024px the card sits in the page, sticky beside the listing. Below it
+   the page carries no calendar at all: the card's panel is hidden until the
+   sticky Reserve bar opens it as a sheet, Airbnb-style. The aside itself
+   becomes `display: contents` so its fixed children (sheet, bar) are all that
+   remain of it in the layout. */
+.bookingPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Same as `.booking form`, for when the open sheet is portalled out of it. */
+.bookingPanel form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sheetHead,
+.sheetFoot,
+.sheetBackdrop {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .booking {
+    display: contents;
+  }
+
+  .bookingPanel {
+    display: none;
+  }
+
+  .bookingPanelOpen {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 70;
+    display: flex;
+    max-height: calc(100dvh - 2.5rem);
+    padding: 0 var(--gutter);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--color-surface-elevated);
+    border-radius: 1.25rem 1.25rem 0 0;
+    box-shadow: 0 -16px 48px rgb(8 6 9 / 0.28);
+    animation: sheetUp 340ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .sheetBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    display: block;
+    border: 0;
+    padding: 0;
+    background: rgb(8 6 9 / 0.5);
+    animation: sheetFade 240ms ease-out both;
+  }
+
+  .bookingPanelOpen .sheetHead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0 calc(var(--gutter) * -1);
+    padding: var(--space-5) var(--gutter) var(--space-3);
+    background: var(--color-surface-elevated);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .bookingPanelOpen .sheetFoot {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: 0 calc(var(--gutter) * -1);
+    padding: var(--space-3) var(--gutter) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+    background: var(--color-surface-elevated);
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* The sheet has its own title and Save; the bar has Reserve. */
+  .panelPrice,
+  .panelReserve {
+    display: none;
+  }
+}
+
+.sheetHandle {
+  position: absolute;
+  top: var(--space-2);
+  left: 50%;
+  width: 2.5rem;
+  height: 0.3rem;
+  border-radius: var(--radius-full);
+  background: var(--color-border-strong, var(--color-border));
+  transform: translateX(-50%);
+}
+
+.sheetHeadText {
+  min-width: 0;
+}
+
+.sheetTitle {
+  margin: 0;
+  font-family: var(--font-heading, var(--font-display));
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.sheetSub {
+  margin: 0.2rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.sheetClose {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.sheetClose:focus-visible,
+.sheetSave:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.sheetTotal {
+  display: grid;
+  min-width: 0;
+}
+
+.sheetTotalAmount {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: var(--font-weight-medium);
+  animation: reservePricePop 280ms ease-out both;
+}
+
+.sheetTotalNote {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sheetSave {
+  flex-shrink: 0;
+  min-width: 7rem;
+  min-height: 3rem;
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-text-primary);
+  color: var(--color-background);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--easing-standard), opacity var(--duration-fast);
+}
+
+.sheetSave:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.sheetSave:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes sheetFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bookingPanelOpen,
+  .sheetBackdrop {
+    animation: none;
+  }
+}
+
+/* The booking card's wrapper takes no room on a phone: everything in it is
+   fixed (the sheet and the Reserve bar). */
+@media (max-width: 1023px) {
+  .stickyBooking {
+    display: contents;
+  }
+}
